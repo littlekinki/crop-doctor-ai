@@ -1,14 +1,15 @@
 ---
-title: Streamlit Template Space
+title: Crop Doctor System
 emoji: 🚀
 colorFrom: red
 colorTo: red
 sdk: docker
 app_port: 8501
 tags:
-  - streamlit
+- streamlit
 pinned: false
-short_description: Streamlit template space
+short_description: Crop Disease Diagnosis and Treatment Recommendation System
+license: mit
 ---
 
 # Welcome to Streamlit!
