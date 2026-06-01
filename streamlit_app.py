@@ -2761,10 +2761,10 @@ def display_heatmap_with_colorbar(original_img, heatmap_overlay, predicted_class
     """Display heatmap with enhanced color bar - NO save message"""
     col1, col2 = st.columns(2)
     with col1:
-        st.image(original_img, caption="Original Image", use_container_width=True)
+        st.image(original_img, caption="Original Image", use_column_width=True)
 
     with col2:
-        st.image(heatmap_overlay, caption=f"Heatmap Showing areas that led the model to pick on:\n{predicted_class}", use_container_width=True)
+        st.image(heatmap_overlay, caption=f"Heatmap Showing areas that led the model to pick on:\n{predicted_class}", use_column_width=True)
 
         # Create larger, more readable color bar
         fig, ax = plt.subplots(figsize=(10, 1))
@@ -3265,7 +3265,7 @@ def display_options_menu(top_predictions, references, location, class_names, cur
 
     for i in range(1, min(total_options + 1, 11)):
         with cols[i-1]:
-            if st.button(f"{i}", key=f"menu_btn_{i}", use_container_width=True):
+            if st.button(f"{i}", key=f"menu_btn_{i}", use_column_width=True):
                 if i == exit_option:
                     st.session_state.show_results = False
                     st.session_state.current_image = None
@@ -3315,13 +3315,13 @@ def display_options_menu(top_predictions, references, location, class_names, cur
             )
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("✅ Set", use_container_width=True, key="set_k_btn"):
+                if st.button("✅ Set", use_column_width=True, key="set_k_btn"):
                     st.session_state.current_top_k = new_k
                     st.session_state.show_results = False
                     st.session_state.show_k_dialog = False
                     st.rerun()
             with col2:
-                if st.button("❌ Cancel", use_container_width=True, key="cancel_k_btn"):
+                if st.button("❌ Cancel", use_column_width=True, key="cancel_k_btn"):
                     st.session_state.show_k_dialog = False
                     st.rerun()
 
@@ -3329,7 +3329,7 @@ def display_options_menu(top_predictions, references, location, class_names, cur
     if current_mode == "online":
         st.markdown("<br>", unsafe_allow_html=True)
 
-        if st.button("📍 Change Location", use_container_width=True, key="change_location_btn"):
+        if st.button("📍 Change Location", use_column_width=True, key="change_location_btn"):
             st.session_state.show_location_dialog = True
 
         if st.session_state.get('show_location_dialog', False):
@@ -3349,7 +3349,7 @@ def display_options_menu(top_predictions, references, location, class_names, cur
                 )
 
                 if loc_choice == "Auto-detect":
-                    if st.button("📍 Detect Location", use_container_width=True, key="detect_loc_btn"):
+                    if st.button("📍 Detect Location", use_column_width=True, key="detect_loc_btn"):
                         with st.spinner("Detecting your location..."):
                             location_data = get_location_from_ip()
                             if location_data and location_data.get('city'):
@@ -3379,7 +3379,7 @@ def display_options_menu(top_predictions, references, location, class_names, cur
 
                     col1, col2 = st.columns(2)
                     with col1:
-                        if st.button("💾 Save Location", use_container_width=True, key="save_loc_btn"):
+                        if st.button("💾 Save Location", use_column_width=True, key="save_loc_btn"):
                             if new_city:
                                 if new_region:
                                     st.session_state.location = f"{new_city}, {new_region}, {new_country}"
@@ -3392,7 +3392,7 @@ def display_options_menu(top_predictions, references, location, class_names, cur
                             else:
                                 st.error("Please enter at least a city/town name.")
                     with col2:
-                        if st.button("❌ Cancel", use_container_width=True, key="cancel_loc_btn"):
+                        if st.button("❌ Cancel", use_column_width=True, key="cancel_loc_btn"):
                             st.session_state.show_location_dialog = False
                             st.rerun()
 
@@ -3400,7 +3400,7 @@ def display_options_menu(top_predictions, references, location, class_names, cur
     if st.session_state.get('showing_common_chemicals', False) and st.session_state.common_chemicals_data:
         st.markdown("---")
         show_common_chemicals_for_top_k(st.session_state.common_chemicals_data, references)
-        if st.button("✖ Close Common Chemicals", use_container_width=True, key="close_chemicals_btn"):
+        if st.button("✖ Close Common Chemicals", use_column_width=True, key="close_chemicals_btn"):
             st.session_state.showing_common_chemicals = False
             st.session_state.common_chemicals_data = None
             st.rerun()
@@ -3426,11 +3426,11 @@ def main():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         # Help button
-        if st.button("❓ Help / How to use the system", use_container_width=True):
+        if st.button("❓ Help / How to use the system", use_column_width=True):
             st.session_state.show_help = not st.session_state.show_help
 
         # Classes button - show all classes the system can handle
-        if st.button("📋 List of Supported Classes", use_container_width=True):
+        if st.button("📋 List of Supported Classes", use_column_width=True):
             st.session_state.show_classes = not st.session_state.show_classes
 
         selected_mode = st.radio(
@@ -3477,7 +3477,7 @@ def main():
     with left_col:
         st.markdown("### 📸 Upload Crop Image")
 
-        if st.button("📷 Take Photo", use_container_width=True):
+        if st.button("📷 Take Photo", use_column_width=True):
             st.session_state.camera_active = True
 
         if st.session_state.camera_active:
@@ -3496,9 +3496,9 @@ def main():
             st.session_state.current_image = Image.open(uploaded_file)
 
         if st.session_state.current_image is not None:
-            st.image(st.session_state.current_image, caption="Selected Image", use_container_width=True)
+            st.image(st.session_state.current_image, caption="Selected Image", use_column_width=True)
 
-            if st.button("🔬 DIAGNOSE & RECOMMEND", type="primary", use_container_width=True):
+            if st.button("🔬 DIAGNOSE & RECOMMEND", type="primary", use_column_width=True):
                 with st.spinner("Analysing crop disease..."):
                     image = st.session_state.current_image
                     if image.mode != 'RGB':
@@ -3585,7 +3585,7 @@ def main():
                     col1_export, col2_export = st.columns(2)
                     with col1_export:
                         # Export Report Button - Alternative Diagnosis
-                        if st.button("📄 Export Report", use_container_width=True, key="export_alt"):
+                        if st.button("📄 Export Report", use_column_width=True, key="export_alt"):
                             report = generate_export_report(disease_data, disease_data['treatment'], references, None)
                             st.download_button(
                                 label="📥 Download Report",
@@ -3616,7 +3616,7 @@ def main():
                 col1_export, col2_export = st.columns(2)
                 with col1_export:
                     # Export Report Button - Primary Diagnosis
-                    if st.button("📄 Export Report", use_container_width=True, key="export_primary"):
+                    if st.button("📄 Export Report", use_column_width=True, key="export_primary"):
                         report = generate_export_report(primary_data, primary_data['treatment'], references, None)
                         st.download_button(
                             label="📥 Download Report",
