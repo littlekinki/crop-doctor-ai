@@ -2761,10 +2761,10 @@ def display_heatmap_with_colorbar(original_img, heatmap_overlay, predicted_class
     """Display heatmap with enhanced color bar - NO save message"""
     col1, col2 = st.columns(2)
     with col1:
-        st.image(original_img, caption="Original Image", use_container_width=True)
+        st.image(original_img, caption="Original Image", use_column_width=True)
 
     with col2:
-        st.image(heatmap_overlay, caption=f"Heatmap Showing areas that led the model to pick on:\n{predicted_class}", use_container_width=True)
+        st.image(heatmap_overlay, caption=f"Heatmap Showing areas that led the model to pick on:\n{predicted_class}", use_column_width=True)
 
         # Create larger, more readable color bar
         fig, ax = plt.subplots(figsize=(10, 1))
@@ -3496,7 +3496,7 @@ def main():
             st.session_state.current_image = Image.open(uploaded_file)
 
         if st.session_state.current_image is not None:
-            st.image(st.session_state.current_image, caption="Selected Image", use_container_width=True)
+            st.image(st.session_state.current_image, caption="Selected Image", use_column_width=True)
 
             if st.button("🔬 DIAGNOSE & RECOMMEND", type="primary", use_container_width=True):
                 with st.spinner("Analysing crop disease..."):
