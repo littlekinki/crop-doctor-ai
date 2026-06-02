@@ -2,7 +2,7 @@
 Crop Doctor - Crop Disease Classification and Treatment Recommendation System
 Run: streamlit run streamlit_app.py
 
-Version: 1.1
+Version: 1.2 - Added user upload saving for model improvement with privacy notice
 Author: Daniel Arani Osuto
 Description: AI-powered crop disease diagnosis system with Grad-CAM visualization,
              treatment recommendations, and weather integration.
@@ -27,6 +27,54 @@ import re
 from datetime import datetime
 import tempfile
 import sys
+from uuid import uuid4
+
+# ============================================================
+# USER IMAGE SAVING FOR MODEL RETRAINING
+# ============================================================
+
+# Local directory for queuing images before upload
+LOCAL_IMG_DIR = "user_upload_queue"
+os.makedirs(LOCAL_IMG_DIR, exist_ok=True)
+
+def save_user_image_for_training(image, diagnosis_result, confidence, top_k_predictions=None):
+    """Saves the uploaded image and its diagnosis metadata locally for model improvement"""
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = str(uuid4())[:8]
+        filename = f"{timestamp}_{unique_id}.jpg"
+
+        if image.mode != 'RGB':
+            save_image = image.convert('RGB')
+        else:
+            save_image = image.copy()
+
+        predictions_list = []
+        if top_k_predictions:
+            for pred in top_k_predictions:
+                predictions_list.append({
+                    "class": pred['class'],
+                    "confidence": pred['confidence']
+                })
+
+        metadata = {
+            "file_name": filename,
+            "primary_diagnosis": diagnosis_result,
+            "primary_confidence": confidence,
+            "top_predictions": predictions_list,
+            "timestamp": datetime.now().isoformat(),
+            "model_version": "1.2"
+        }
+        metadata_filename = filename.replace(".jpg", ".json")
+
+        save_image.save(os.path.join(LOCAL_IMG_DIR, filename))
+        with open(os.path.join(LOCAL_IMG_DIR, metadata_filename), "w") as f:
+            json.dump(metadata, f, indent=2)
+
+        return True
+    except Exception as e:
+        # Silent fail - never disrupt user experience
+        return False
 
 # ============================================================
 # PAGE CONFIGURATION
@@ -322,6 +370,31 @@ st.markdown("""
     .stAlert {
         border-radius: 10px;
     }
+
+    /* Privacy notice styling */
+    .privacy-notice {
+        background-color: #E8F5E9;
+        border-left: 5px solid #2E7D32;
+        padding: 12px 15px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .privacy-notice-text {
+        flex: 1;
+        font-size: 14px;
+        color: #1B5E20;
+    }
+    .privacy-notice-close {
+        background: none;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        color: #2E7D32;
+        margin-left: 10px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -368,6 +441,9 @@ if 'current_save_path' not in st.session_state:
     st.session_state.current_save_path = None
 if 'location_change_method' not in st.session_state:
     st.session_state.location_change_method = None
+# Privacy notice state
+if 'privacy_notice_dismissed' not in st.session_state:
+    st.session_state.privacy_notice_dismissed = False
 
 # ============================================================
 # HELPER FUNCTION: Check Internet Connection (for mode switch suggestion)
@@ -3412,6 +3488,31 @@ def display_options_menu(top_predictions, references, location, class_names, cur
         display_online_features(current_disease_name, current_crop_type, st.session_state.location, current_treatment_data)
 
 # ============================================================
+# PRIVACY NOTICE DISPLAY FUNCTION
+# ============================================================
+
+def display_privacy_notice():
+    """Display a dismissible privacy notice about image saving"""
+    if not st.session_state.privacy_notice_dismissed:
+        st.markdown("""
+        <div class="privacy-notice">
+            <div class="privacy-notice-text">
+                🔒 <strong>Privacy Notice:</strong> To help improve the system and train better models,
+                uploaded images and diagnoses may be anonymously saved. No personal information is collected.
+                You can continue using the app as normal.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Use two columns for a cleaner button
+        col1, col2, col3 = st.columns([1, 1, 4])
+        with col1:
+            if st.button("✓ Got it", key="dismiss_privacy_notice", use_container_width=True):
+                st.session_state.privacy_notice_dismissed = True
+                st.rerun()
+        st.markdown("---")
+
+# ============================================================
 # MAIN APP
 # ============================================================
 
@@ -3420,6 +3521,9 @@ def main():
 
     # Track all analytics - wrap the entire app
     with streamlit_analytics.track(unsafe_password="chibando_ching'ende_chinyanya"):
+        # Display the privacy notice at the very top (inside analytics)
+        display_privacy_notice()
+
         st.markdown("""
         <div class="main-header">
             <h1>🌾 Crop Doctor</h1>
@@ -3480,6 +3584,7 @@ def main():
 
         with left_col:
             st.markdown("### 📸 Upload Crop Image")
+            st.caption("📸 Take a clear photo of the affected leaves or fruits for best results")
 
             if st.button("📷 Take Photo", use_container_width=True):
                 st.session_state.camera_active = True
@@ -3542,6 +3647,9 @@ def main():
                                 crop_type = "Beans"
                             else:
                                 crop_type = "Tomato"
+
+                            # Save user image for model improvement (silent - no UI impact)
+                            save_user_image_for_training(image, pred['class'], float(predictions[alt_idx]), top_predictions)
 
                             # Save heatmap overlay to a file in the current directory
                             save_filename = f"gradcam_{pred['class'].replace(' ', '_').replace('/', '_')}_alt{alt_idx}.png"
