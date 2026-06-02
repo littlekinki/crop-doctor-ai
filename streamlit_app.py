@@ -9,6 +9,7 @@ Description: AI-powered crop disease diagnosis system with Grad-CAM visualizatio
 """
 
 import streamlit as st
+import streamlit_analytics2 as streamlit_analytics
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
@@ -3413,242 +3414,241 @@ def display_options_menu(top_predictions, references, location, class_names, cur
 # ============================================================
 # MAIN APP
 # ============================================================
+
 def main():
     """Main application entry point"""
 
-    st.markdown("""
-    <div class="main-header">
-        <h1>🌾 Crop Doctor</h1>
-        <div class="subtitle">Crop Disease Classification and Treatment Recommendation System</div>
-    </div>
-    """, unsafe_allow_html=True)
+    # Track all analytics - wrap the entire app
+    with streamlit_analytics.track(unsafe_password="chibando_ching'ende_chinyanya"):
+        st.markdown("""
+        <div class="main-header">
+            <h1>🌾 Crop Doctor</h1>
+            <div class="subtitle">Crop Disease Classification and Treatment Recommendation System</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        # Help button
-        if st.button("❓ Help / How to use the system", width="stretch"):
-            st.session_state.show_help = not st.session_state.show_help
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            # Help button
+            if st.button("❓ Help / How to use the system", use_container_width=True):
+                st.session_state.show_help = not st.session_state.show_help
 
-        # Classes button - show all classes the system can handle
-        if st.button("📋 List of Supported Classes", width="stretch"):
-            st.session_state.show_classes = not st.session_state.show_classes
+            # Classes button - show all classes the system can handle
+            if st.button("📋 List of Supported Classes", use_container_width=True):
+                st.session_state.show_classes = not st.session_state.show_classes
 
-        selected_mode = st.radio(
-            "Select Mode",
-            ["📱 OFFLINE MODE", "🌐 ONLINE MODE"],
-            horizontal=True,
-            label_visibility="collapsed"
-        )
-        # Only update session state if the radio selection changed
-        new_mode = "online" if "ONLINE" in selected_mode else "offline"
-        if st.session_state.mode != new_mode:
-            st.session_state.mode = new_mode
-            st.rerun()
-
-        if st.session_state.mode == "online":
-            st.markdown(f'<span class="mode-badge mode-online">🌐 ONLINE MODE - Weather & News Enabled | Location: {st.session_state.location}</span>', unsafe_allow_html=True)
-        else:
-            st.markdown('<span class="mode-badge mode-offline">📱 OFFLINE MODE - Diagnosis and Verified Treatments Only</span>', unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    # Show classes list if requested
-    if st.session_state.show_classes:
-        model_temp, class_names_temp = load_model_and_classes()
-        if class_names_temp:
-            display_classes_list(class_names_temp)
-        st.markdown("---")
-
-    # Show help if requested
-    if st.session_state.show_help:
-        display_help()
-        st.markdown("---")
-
-    model, class_names = load_model_and_classes()
-    references = get_references()
-
-    if model is None:
-        st.stop()
-
-    gradcam = GradCAM(model)
-
-    left_col, right_col = st.columns([1, 1])
-
-    with left_col:
-        st.markdown("### 📸 Upload Crop Image")
-
-        if st.button("📷 Take Photo", width="stretch"):
-            st.session_state.camera_active = True
-
-        if st.session_state.camera_active:
-            camera_image = st.camera_input("Take a photo", key="camera")
-            if camera_image:
-                st.session_state.current_image = Image.open(camera_image)
-                st.session_state.camera_active = False
+            selected_mode = st.radio(
+                "Select Mode",
+                ["📱 OFFLINE MODE", "🌐 ONLINE MODE"],
+                horizontal=True,
+                label_visibility="collapsed"
+            )
+            # Only update session state if the radio selection changed
+            new_mode = "online" if "ONLINE" in selected_mode else "offline"
+            if st.session_state.mode != new_mode:
+                st.session_state.mode = new_mode
                 st.rerun()
 
-        uploaded_file = st.file_uploader(
-            "Or choose from gallery",
-            type=['jpg', 'jpeg', 'png'],
-            key="uploader"
-        )
-        if uploaded_file:
-            st.session_state.current_image = Image.open(uploaded_file)
+            if st.session_state.mode == "online":
+                st.markdown(f'<span class="mode-badge mode-online">🌐 ONLINE MODE - Weather & News Enabled | Location: {st.session_state.location}</span>', unsafe_allow_html=True)
+            else:
+                st.markdown('<span class="mode-badge mode-offline">📱 OFFLINE MODE - Diagnosis and Verified Treatments Only</span>', unsafe_allow_html=True)
 
-        if st.session_state.current_image is not None:
-            st.image(st.session_state.current_image, caption="Selected Image", width="stretch")
+        st.markdown("---")
 
-            if st.button("🔬 DIAGNOSE & RECOMMEND", type="primary", width="stretch"):
-                with st.spinner("Analysing crop disease..."):
-                    image = st.session_state.current_image
-                    if image.mode != 'RGB':
-                        image = image.convert('RGB')
+        # Show classes list if requested
+        if st.session_state.show_classes:
+            model_temp, class_names_temp = load_model_and_classes()
+            if class_names_temp:
+                display_classes_list(class_names_temp)
+            st.markdown("---")
 
-                    st.session_state.current_original_img = image
+        # Show help if requested
+        if st.session_state.show_help:
+            display_help()
+            st.markdown("---")
 
-                    img_array = preprocess_image(image)
-                    predictions = model.predict(img_array, verbose=0)[0]
+        model, class_names = load_model_and_classes()
+        references = get_references()
 
-                    indices = np.argsort(predictions)[-st.session_state.current_top_k:][::-1]
-                    top_predictions = []
-                    for i in indices:
-                        top_predictions.append({
-                            'class': class_names[i],
-                            'confidence': float(predictions[i]),
-                            'idx': i
-                        })
+        if model is None:
+            st.stop()
 
-                    st.session_state.current_predictions = predictions
-                    st.session_state.current_top_predictions = top_predictions
-                    st.session_state.show_results = True
-                    st.session_state.current_showing_alternative = None
-                    st.session_state.showing_common_chemicals = False
-                    st.session_state.common_chemicals_data = None
+        gradcam = GradCAM(model)
 
-                    st.session_state.current_alt_data = {}
-                    for alt_idx, pred in enumerate(top_predictions):
-                        heatmap = gradcam.generate_heatmap(img_array, pred['idx'])
-                        overlay = gradcam.overlay_heatmap(heatmap, st.session_state.current_original_img)
-                        treatment = get_full_treatment(pred['class'], references)
+        left_col, right_col = st.columns([1, 1])
 
-                        # Determine crop type for manufacturer search
-                        if 'maize' in pred['class'].lower():
-                            crop_type = "Maize"
-                        elif 'beans' in pred['class'].lower():
-                            crop_type = "Beans"
-                        else:
-                            crop_type = "Tomato"
+        with left_col:
+            st.markdown("### 📸 Upload Crop Image")
 
-                        # Save heatmap overlay to a file in the current directory
-                        save_filename = f"gradcam_{pred['class'].replace(' ', '_').replace('/', '_')}_alt{alt_idx}.png"
-                        save_path = os.path.join(os.getcwd(), save_filename)
-                        cv2.imwrite(save_path, cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
+            if st.button("📷 Take Photo", use_container_width=True):
+                st.session_state.camera_active = True
 
-                        st.session_state.current_alt_data[alt_idx] = {
-                            'class': pred['class'],
-                            'confidence': pred['confidence'],
-                            'idx': pred['idx'],
-                            'treatment': treatment,
-                            'heatmap_overlay': overlay,
-                            'references': references,
-                            'original_img': st.session_state.current_original_img,
-                            'crop_type': crop_type,
-                            'save_path': save_path,
-                            'save_filename': save_filename
-                        }
-
+            if st.session_state.camera_active:
+                camera_image = st.camera_input("Take a photo", key="camera")
+                if camera_image:
+                    st.session_state.current_image = Image.open(camera_image)
+                    st.session_state.camera_active = False
                     st.rerun()
 
-    with right_col:
-        if st.session_state.show_results and st.session_state.current_top_predictions:
-            top_predictions = st.session_state.current_top_predictions
+            uploaded_file = st.file_uploader(
+                "Or choose from gallery",
+                type=['jpg', 'jpeg', 'png'],
+                key="uploader"
+            )
+            if uploaded_file:
+                st.session_state.current_image = Image.open(uploaded_file)
 
-            # ============================================================
-            # FIXED: SAFETY CHECK FOR EMPTY ALT DATA
-            # ============================================================
-            if not st.session_state.current_alt_data:
-                st.warning("⚠️ No diagnosis data found. Please analyze an image first.")
-                st.session_state.show_results = False
-                st.rerun()
+            if st.session_state.current_image is not None:
+                st.image(st.session_state.current_image, caption="Selected Image", width="stretch")
 
-            if st.session_state.current_showing_alternative is not None:
-                alt_idx = st.session_state.current_showing_alternative
-                if alt_idx in st.session_state.current_alt_data:
-                    disease_data = st.session_state.current_alt_data[alt_idx]
-                    disease_data['is_primary'] = False
-                    disease_data['alt_num'] = alt_idx
+                if st.button("🔬 DIAGNOSE & RECOMMEND", type="primary", use_container_width=True):
+                    with st.spinner("Analysing crop disease..."):
+                        image = st.session_state.current_image
+                        if image.mode != 'RGB':
+                            image = image.convert('RGB')
 
-                    current_disease = disease_data['class']
-                    current_crop_type = disease_data['crop_type']
-                    current_treatment = disease_data['treatment']
+                        st.session_state.current_original_img = image
+
+                        img_array = preprocess_image(image)
+                        predictions = model.predict(img_array, verbose=0)[0]
+
+                        indices = np.argsort(predictions)[-st.session_state.current_top_k:][::-1]
+                        top_predictions = []
+                        for i in indices:
+                            top_predictions.append({
+                                'class': class_names[i],
+                                'confidence': float(predictions[i]),
+                                'idx': i
+                            })
+
+                        st.session_state.current_predictions = predictions
+                        st.session_state.current_top_predictions = top_predictions
+                        st.session_state.show_results = True
+                        st.session_state.current_showing_alternative = None
+                        st.session_state.showing_common_chemicals = False
+                        st.session_state.common_chemicals_data = None
+
+                        st.session_state.current_alt_data = {}
+                        for alt_idx, pred in enumerate(top_predictions):
+                            heatmap = gradcam.generate_heatmap(img_array, pred['idx'])
+                            overlay = gradcam.overlay_heatmap(heatmap, st.session_state.current_original_img)
+                            treatment = get_full_treatment(pred['class'], references)
+
+                            # Determine crop type for manufacturer search
+                            if 'maize' in pred['class'].lower():
+                                crop_type = "Maize"
+                            elif 'beans' in pred['class'].lower():
+                                crop_type = "Beans"
+                            else:
+                                crop_type = "Tomato"
+
+                            # Save heatmap overlay to a file in the current directory
+                            save_filename = f"gradcam_{pred['class'].replace(' ', '_').replace('/', '_')}_alt{alt_idx}.png"
+                            save_path = os.path.join(os.getcwd(), save_filename)
+                            cv2.imwrite(save_path, cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
+
+                            st.session_state.current_alt_data[alt_idx] = {
+                                'class': pred['class'],
+                                'confidence': pred['confidence'],
+                                'idx': pred['idx'],
+                                'treatment': treatment,
+                                'heatmap_overlay': overlay,
+                                'references': references,
+                                'original_img': st.session_state.current_original_img,
+                                'crop_type': crop_type,
+                                'save_path': save_path,
+                                'save_filename': save_filename
+                            }
+
+                        st.rerun()
+
+        with right_col:
+            if st.session_state.show_results and st.session_state.current_top_predictions:
+                top_predictions = st.session_state.current_top_predictions
+
+                # SAFETY CHECK FOR EMPTY ALT DATA
+                if not st.session_state.current_alt_data:
+                    st.warning("⚠️ No diagnosis data found. Please analyze an image first.")
+                    st.session_state.show_results = False
+                    st.rerun()
+
+                if st.session_state.current_showing_alternative is not None:
+                    alt_idx = st.session_state.current_showing_alternative
+                    if alt_idx in st.session_state.current_alt_data:
+                        disease_data = st.session_state.current_alt_data[alt_idx]
+                        disease_data['is_primary'] = False
+                        disease_data['alt_num'] = alt_idx
+
+                        current_disease = disease_data['class']
+                        current_crop_type = disease_data['crop_type']
+                        current_treatment = disease_data['treatment']
+
+                        display_top_predictions(top_predictions)
+                        display_xai_analysis(disease_data)
+
+                        # Only show treatment recommendation for diseased crops
+                        if not disease_data['treatment'].get('is_healthy', False):
+                            display_treatment_recommendation(disease_data['treatment'], references, disease_data['confidence'])
+
+                        # Export Report Button
+                        col1_export, col2_export = st.columns(2)
+                        with col1_export:
+                            if st.button("📄 Export Report", use_container_width=True, key="export_alt"):
+                                report = generate_export_report(disease_data, disease_data['treatment'], references, None)
+                                st.download_button(
+                                    label="📥 Download Report",
+                                    data=report,
+                                    file_name=f"crop_doctor_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                                    mime="text/plain",
+                                    key="download_alt"
+                                )
+
+                        # Pass the treatment data for weather risk assessment
+                        display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
+                    else:
+                        st.warning(f"⚠️ Alternative {alt_idx} data not found. Please re-analyze the image.")
+                        st.session_state.current_showing_alternative = None
+                        st.rerun()
+                else:
+                    # CHECK IF KEY 0 EXISTS BEFORE ACCESSING
+                    if 0 not in st.session_state.current_alt_data:
+                        st.warning("⚠️ Primary diagnosis data not available. Please analyze an image again.")
+                        st.session_state.show_results = False
+                        st.rerun()
+
+                    primary_data = st.session_state.current_alt_data[0]
+                    primary_data['is_primary'] = True
+
+                    current_disease = primary_data['class']
+                    current_crop_type = primary_data['crop_type']
+                    current_treatment = primary_data['treatment']
 
                     display_top_predictions(top_predictions)
-                    display_xai_analysis(disease_data)
+                    display_xai_analysis(primary_data)
 
                     # Only show treatment recommendation for diseased crops
-                    if not disease_data['treatment'].get('is_healthy', False):
-                        display_treatment_recommendation(disease_data['treatment'], references, disease_data['confidence'])
+                    if not primary_data['treatment'].get('is_healthy', False):
+                        display_treatment_recommendation(primary_data['treatment'], references, primary_data['confidence'])
 
                     # Export Report Button
                     col1_export, col2_export = st.columns(2)
                     with col1_export:
-                        if st.button("📄 Export Report", width="stretch", key="export_alt"):
-                            report = generate_export_report(disease_data, disease_data['treatment'], references, None)
+                        if st.button("📄 Export Report", use_container_width=True, key="export_primary"):
+                            report = generate_export_report(primary_data, primary_data['treatment'], references, None)
                             st.download_button(
                                 label="📥 Download Report",
                                 data=report,
                                 file_name=f"crop_doctor_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                                 mime="text/plain",
-                                key="download_alt"
+                                key="download_primary"
                             )
 
                     # Pass the treatment data for weather risk assessment
                     display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
-                else:
-                    st.warning(f"⚠️ Alternative {alt_idx} data not found. Please re-analyze the image.")
-                    st.session_state.current_showing_alternative = None
-                    st.rerun()
+
             else:
-                # ============================================================
-                # FIXED: CHECK IF KEY 0 EXISTS BEFORE ACCESSING
-                # ============================================================
-                if 0 not in st.session_state.current_alt_data:
-                    st.warning("⚠️ Primary diagnosis data not available. Please analyze an image again.")
-                    st.session_state.show_results = False
-                    st.rerun()
-
-                primary_data = st.session_state.current_alt_data[0]
-                primary_data['is_primary'] = True
-
-                current_disease = primary_data['class']
-                current_crop_type = primary_data['crop_type']
-                current_treatment = primary_data['treatment']
-
-                display_top_predictions(top_predictions)
-                display_xai_analysis(primary_data)
-
-                # Only show treatment recommendation for diseased crops
-                if not primary_data['treatment'].get('is_healthy', False):
-                    display_treatment_recommendation(primary_data['treatment'], references, primary_data['confidence'])
-
-                # Export Report Button
-                col1_export, col2_export = st.columns(2)
-                with col1_export:
-                    if st.button("📄 Export Report", width="stretch", key="export_primary"):
-                        report = generate_export_report(primary_data, primary_data['treatment'], references, None)
-                        st.download_button(
-                            label="📥 Download Report",
-                            data=report,
-                            file_name=f"crop_doctor_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                            mime="text/plain",
-                            key="download_primary"
-                        )
-
-                # Pass the treatment data for weather risk assessment
-                display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
-
-        else:
-            st.info("👈 Please take a photo or upload an image, then click 'DIAGNOSE & RECOMMEND'")
+                st.info("👈 Please take a photo or upload an image, then click 'DIAGNOSE & RECOMMEND'")
 
 if __name__ == "__main__":
     main()
