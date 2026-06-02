@@ -2761,10 +2761,10 @@ def display_heatmap_with_colorbar(original_img, heatmap_overlay, predicted_class
     """Display heatmap with enhanced color bar - NO save message"""
     col1, col2 = st.columns(2)
     with col1:
-        st.image(original_img, caption="Original Image", use_column_width=True)
+        st.image(original_img, caption="Original Image", use_container_width=True)
 
     with col2:
-        st.image(heatmap_overlay, caption=f"Heatmap Showing areas that led the model to pick on:\n{predicted_class}", use_column_width=True)
+        st.image(heatmap_overlay, caption=f"Heatmap Showing areas that led the model to pick on:\n{predicted_class}", use_container_width=True)
 
         # Create larger, more readable color bar
         fig, ax = plt.subplots(figsize=(10, 1))
@@ -3496,7 +3496,7 @@ def main():
             st.session_state.current_image = Image.open(uploaded_file)
 
         if st.session_state.current_image is not None:
-            st.image(st.session_state.current_image, caption="Selected Image", use_column_width=True)
+            st.image(st.session_state.current_image, caption="Selected Image", use_container_width=True)
 
             if st.button("🔬 DIAGNOSE & RECOMMEND", type="primary", use_container_width=True):
                 with st.spinner("Analysing crop disease..."):
@@ -3563,6 +3563,14 @@ def main():
         if st.session_state.show_results and st.session_state.current_top_predictions:
             top_predictions = st.session_state.current_top_predictions
 
+            # ============================================================
+            # FIXED: SAFETY CHECK FOR EMPTY ALT DATA
+            # ============================================================
+            if not st.session_state.current_alt_data:
+                st.warning("⚠️ No diagnosis data found. Please analyze an image first.")
+                st.session_state.show_results = False
+                st.rerun()
+
             if st.session_state.current_showing_alternative is not None:
                 alt_idx = st.session_state.current_showing_alternative
                 if alt_idx in st.session_state.current_alt_data:
@@ -3584,7 +3592,6 @@ def main():
                     # Export Report Button
                     col1_export, col2_export = st.columns(2)
                     with col1_export:
-                        # Export Report Button - Alternative Diagnosis
                         if st.button("📄 Export Report", use_container_width=True, key="export_alt"):
                             report = generate_export_report(disease_data, disease_data['treatment'], references, None)
                             st.download_button(
@@ -3597,7 +3604,19 @@ def main():
 
                     # Pass the treatment data for weather risk assessment
                     display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
+                else:
+                    st.warning(f"⚠️ Alternative {alt_idx} data not found. Please re-analyze the image.")
+                    st.session_state.current_showing_alternative = None
+                    st.rerun()
             else:
+                # ============================================================
+                # FIXED: CHECK IF KEY 0 EXISTS BEFORE ACCESSING
+                # ============================================================
+                if 0 not in st.session_state.current_alt_data:
+                    st.warning("⚠️ Primary diagnosis data not available. Please analyze an image again.")
+                    st.session_state.show_results = False
+                    st.rerun()
+                
                 primary_data = st.session_state.current_alt_data[0]
                 primary_data['is_primary'] = True
 
@@ -3615,7 +3634,6 @@ def main():
                 # Export Report Button
                 col1_export, col2_export = st.columns(2)
                 with col1_export:
-                    # Export Report Button - Primary Diagnosis
                     if st.button("📄 Export Report", use_container_width=True, key="export_primary"):
                         report = generate_export_report(primary_data, primary_data['treatment'], references, None)
                         st.download_button(
