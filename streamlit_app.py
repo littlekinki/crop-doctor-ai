@@ -43,54 +43,51 @@ DATASET_REPO_ID = "dosuto/crop-doctor-user-uploads"  # Your dataset repo
 HF_TOKEN = os.environ.get("HF_TOKEN")
 DATASET_REPO_ID = "dosuto/crop-doctor-user-uploads"  # Your dataset repo
 
-def save_user_image_for_training(image, diagnosis_result, confidence, top_k_predictions=None):
+def save_user_image_for_training(image, primary_diagnosis, primary_confidence, all_predictions):
     """
-    Saves uploaded image directly to Hugging Face Dataset.
-    No local storage needed - uploads immediately to the cloud.
+    Saves uploaded image ONCE with the top prediction as primary diagnosis.
     """
     if not HF_TOKEN:
-        # No token configured - silently fail without disrupting user
         return False
-    
+
     try:
         # Generate unique filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_id = str(uuid4())[:8]
         filename = f"{timestamp}_{unique_id}.jpg"
-        
-        # Prepare image (ensure RGB)
+
+        # Prepare image
         if image.mode != 'RGB':
             save_image = image.convert('RGB')
         else:
             save_image = image.copy()
-        
-        # Convert PIL Image to bytes for upload
+
+        # Convert PIL Image to bytes
         img_bytes = io.BytesIO()
         save_image.save(img_bytes, format='JPEG', quality=85)
         img_bytes.seek(0)
-        
-        # Prepare metadata
-        predictions_list = []
-        if top_k_predictions:
-            for pred in top_k_predictions:
-                predictions_list.append({
-                    "class": pred['class'],
-                    "confidence": pred['confidence']
-                })
-        
+
+        # Prepare metadata - store ALL predictions for reference
+        all_preds_list = []
+        for pred in all_predictions:
+            all_preds_list.append({
+                "class": pred['class'],
+                "confidence": pred['confidence']
+            })
+
         metadata = {
             "file_name": filename,
-            "primary_diagnosis": diagnosis_result,
-            "primary_confidence": confidence,
-            "top_predictions": predictions_list,
+            "primary_diagnosis": primary_diagnosis,
+            "primary_confidence": primary_confidence,
+            "all_predictions": all_preds_list,  # Store all K predictions
             "timestamp": datetime.now().isoformat(),
             "model_version": "1.2"
         }
         metadata_json = json.dumps(metadata, indent=2)
-        
+
         # Upload to Hugging Face Dataset
         api = HfApi()
-        
+
         # Upload image
         api.upload_file(
             path_or_fileobj=img_bytes,
@@ -99,7 +96,7 @@ def save_user_image_for_training(image, diagnosis_result, confidence, top_k_pred
             repo_type="dataset",
             token=HF_TOKEN,
         )
-        
+
         # Upload metadata
         api.upload_file(
             path_or_fileobj=io.BytesIO(metadata_json.encode()),
@@ -108,11 +105,9 @@ def save_user_image_for_training(image, diagnosis_result, confidence, top_k_pred
             repo_type="dataset",
             token=HF_TOKEN,
         )
-        
+
         return True
     except Exception as e:
-        # Silent fail - never disrupt farmer experience
-        # You can uncomment the line below for debugging
         print(f"Upload failed: {e}")
         return False
 
@@ -3689,7 +3684,7 @@ def main():
                                 crop_type = "Tomato"
 
                             # Save user image for model improvement (silent - no UI impact)
-                            save_user_image_for_training(image, pred['class'], float(predictions[alt_idx]), top_predictions)
+                            save_user_image_for_training(image, top_predictions[0]['class'], top_predictions[0]['confidence'], top_predictions)
 
                             # Save heatmap overlay to a file in the current directory
                             save_filename = f"gradcam_{pred['class'].replace(' ', '_').replace('/', '_')}_alt{alt_idx}.png"
