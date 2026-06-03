@@ -28,27 +28,48 @@ from datetime import datetime
 import tempfile
 import sys
 from uuid import uuid4
+from huggingface_hub import HfApi
+import io
 
 # ============================================================
 # USER IMAGE SAVING FOR MODEL RETRAINING
 # ============================================================
 
-# Local directory for queuing images before upload
-LOCAL_IMG_DIR = "user_upload_queue"
-os.makedirs(LOCAL_IMG_DIR, exist_ok=True)
+# Configuration - set these as Secrets in your Space
+HF_TOKEN = os.environ.get("HF_TOKEN")
+DATASET_REPO_ID = "dosuto/crop-doctor-user-uploads"  # Your dataset repo
+
+# Configuration - reads HF_TOKEN from environment (set as Secret in your Space)
+HF_TOKEN = os.environ.get("HF_TOKEN")
+DATASET_REPO_ID = "dosuto/crop-doctor-user-uploads"  # Your dataset repo
 
 def save_user_image_for_training(image, diagnosis_result, confidence, top_k_predictions=None):
-    """Saves the uploaded image and its diagnosis metadata locally for model improvement"""
+    """
+    Saves uploaded image directly to Hugging Face Dataset.
+    No local storage needed - uploads immediately to the cloud.
+    """
+    if not HF_TOKEN:
+        # No token configured - silently fail without disrupting user
+        return False
+    
     try:
+        # Generate unique filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_id = str(uuid4())[:8]
         filename = f"{timestamp}_{unique_id}.jpg"
-
+        
+        # Prepare image (ensure RGB)
         if image.mode != 'RGB':
             save_image = image.convert('RGB')
         else:
             save_image = image.copy()
-
+        
+        # Convert PIL Image to bytes for upload
+        img_bytes = io.BytesIO()
+        save_image.save(img_bytes, format='JPEG', quality=85)
+        img_bytes.seek(0)
+        
+        # Prepare metadata
         predictions_list = []
         if top_k_predictions:
             for pred in top_k_predictions:
@@ -56,7 +77,7 @@ def save_user_image_for_training(image, diagnosis_result, confidence, top_k_pred
                     "class": pred['class'],
                     "confidence": pred['confidence']
                 })
-
+        
         metadata = {
             "file_name": filename,
             "primary_diagnosis": diagnosis_result,
@@ -65,15 +86,34 @@ def save_user_image_for_training(image, diagnosis_result, confidence, top_k_pred
             "timestamp": datetime.now().isoformat(),
             "model_version": "1.2"
         }
-        metadata_filename = filename.replace(".jpg", ".json")
-
-        save_image.save(os.path.join(LOCAL_IMG_DIR, filename))
-        with open(os.path.join(LOCAL_IMG_DIR, metadata_filename), "w") as f:
-            json.dump(metadata, f, indent=2)
-
+        metadata_json = json.dumps(metadata, indent=2)
+        
+        # Upload to Hugging Face Dataset
+        api = HfApi()
+        
+        # Upload image
+        api.upload_file(
+            path_or_fileobj=img_bytes,
+            path_in_repo=f"images/{filename}",
+            repo_id=DATASET_REPO_ID,
+            repo_type="dataset",
+            token=HF_TOKEN,
+        )
+        
+        # Upload metadata
+        api.upload_file(
+            path_or_fileobj=io.BytesIO(metadata_json.encode()),
+            path_in_repo=f"images/{filename.replace('.jpg', '.json')}",
+            repo_id=DATASET_REPO_ID,
+            repo_type="dataset",
+            token=HF_TOKEN,
+        )
+        
         return True
     except Exception as e:
-        # Silent fail - never disrupt user experience
+        # Silent fail - never disrupt farmer experience
+        # You can uncomment the line below for debugging
+        print(f"Upload failed: {e}")
         return False
 
 # ============================================================
