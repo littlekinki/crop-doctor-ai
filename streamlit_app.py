@@ -3762,7 +3762,6 @@ def display_top_location_buttons():
             time.sleep(0.5)
             st.rerun()
 
-
 def display_top_location_dialog():
     """Display location dialog for top bar change"""
 
@@ -3789,7 +3788,10 @@ def display_top_location_dialog():
         </div>
         """, unsafe_allow_html=True)
         if st.button("🌍 Use GPS", use_container_width=True, key="top_gps_btn"):
-            is_local = "localhost" in st.get_option("browser.serverAddress") or "127.0.0.1" in st.get_option("browser.serverAddress")
+            # Detect if running on Hugging Face Spaces (HTTPS) or local (HTTP)
+            import os
+            is_local = os.environ.get("SPACE_ID") is None  # SPACE_ID exists only on Hugging Face Spaces
+
             if is_local:
                 st.warning("⚠️ GPS requires HTTPS. Will work on Hugging Face Spaces.")
                 time.sleep(1)
@@ -3818,7 +3820,6 @@ def display_top_location_dialog():
         st.rerun()
 
     st.markdown("---")
-
 
 def display_top_manual_entry_dialog():
     """Display manual entry dialog for top bar"""
