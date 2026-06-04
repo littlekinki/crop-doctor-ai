@@ -10,6 +10,7 @@ Description: AI-powered crop disease diagnosis system with Grad-CAM visualizatio
 
 import streamlit as st
 import streamlit_analytics2 as streamlit_analytics
+from streamlit_geolocation import streamlit_geolocation
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
@@ -21,12 +22,9 @@ import requests
 import cv2
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.cm import ScalarMappable
 from collections import defaultdict
 import re
 from datetime import datetime
-import tempfile
-import sys
 from uuid import uuid4
 from huggingface_hub import HfApi
 import io
@@ -36,10 +34,6 @@ import io
 # ============================================================
 
 # Configuration - set these as Secrets in your Space
-HF_TOKEN = os.environ.get("HF_TOKEN")
-DATASET_REPO_ID = "dosuto/crop-doctor-user-uploads"  # Your dataset repo
-
-# Configuration - reads HF_TOKEN from environment (set as Secret in your Space)
 HF_TOKEN = os.environ.get("HF_TOKEN")
 DATASET_REPO_ID = "dosuto/crop-doctor-user-uploads"  # Your dataset repo
 
@@ -462,8 +456,6 @@ if 'showing_common_chemicals' not in st.session_state:
     st.session_state.showing_common_chemicals = False
 if 'weather_info' not in st.session_state:
     st.session_state.weather_info = None
-if 'show_location_dialog' not in st.session_state:
-    st.session_state.show_location_dialog = False
 if 'common_chemicals_data' not in st.session_state:
     st.session_state.common_chemicals_data = None
 if 'show_help' not in st.session_state:
@@ -476,9 +468,22 @@ if 'current_save_path' not in st.session_state:
     st.session_state.current_save_path = None
 if 'location_change_method' not in st.session_state:
     st.session_state.location_change_method = None
+
 # Privacy notice state
 if 'privacy_notice_dismissed' not in st.session_state:
     st.session_state.privacy_notice_dismissed = False
+
+# Location dialog states
+if 'show_top_location_dialog' not in st.session_state:
+    st.session_state.show_top_location_dialog = False
+if 'show_top_manual_entry' not in st.session_state:
+    st.session_state.show_top_manual_entry = False
+if 'request_gps' not in st.session_state:
+    st.session_state.request_gps = False
+if 'gps_location' not in st.session_state:
+    st.session_state.gps_location = None
+if 'location_method' not in st.session_state:
+    st.session_state.location_method = "manual"
 
 # ============================================================
 # HELPER FUNCTION: Check Internet Connection (for mode switch suggestion)
@@ -698,6 +703,50 @@ def get_location_from_ip():
         pass
     return None
 
+def get_location_name_from_coords(lat, lon):
+    """Convert GPS coordinates to a readable location name using reverse geocoding"""
+    try:
+        response = requests.get(
+            f"https://nominatim.openstreetmap.org/reverse",
+            params={
+                'lat': lat,
+                'lon': lon,
+                'format': 'json',
+                'zoom': 10,
+                'addressdetails': 1
+            },
+            headers={'User-Agent': 'CropDoctor/1.0 (https://huggingface.co/spaces/dosuto/crop-doctor)'},
+            timeout=8
+        )
+        if response.status_code == 200:
+            data = response.json()
+            address = data.get('address', {})
+
+            # Extract location components (prioritizing Kenyan administrative divisions)
+            city = address.get('city') or address.get('town') or address.get('village') or ''
+            county = address.get('county') or address.get('state_district') or ''
+            state = address.get('state') or ''
+            country = address.get('country') or 'Kenya'
+
+            # Build location string
+            location_parts = []
+            if city:
+                location_parts.append(city)
+            if county and county != city:
+                location_parts.append(county)
+            elif state and state != city:
+                location_parts.append(state)
+            location_parts.append(country)
+
+            if location_parts:
+                return ', '.join(location_parts)
+            else:
+                # Fallback to coordinates if no address found
+                return f"Lat: {lat:.4f}, Lon: {lon:.4f}"
+    except Exception as e:
+        print(f"Reverse geocoding error: {e}")
+        return f"Coordinates: {lat:.4f}, {lon:.4f}"
+
 # ============================================================
 # COMPLETE REFERENCES DICTIONARY
 # ============================================================
@@ -819,19 +868,42 @@ def _bold(text):
 # ============================================================
 # WEATHER FUNCTION - DISEASE SPECIFIC RISK ASSESSMENT
 # ============================================================
+
 def get_weather_with_risk_assessment(location, disease_name, treatment_data=None):
-    """Get weather and provide disease-specific risk assessment based on actual disease characteristics"""
+    """Get weather and provide disease-specific risk assessment based on actual disease characteristics
+    PRIORITY: 1. GPS coordinates, 2. Geocoded location name
+    """
     try:
-        geocode_url = f"https://nominatim.openstreetmap.org/search?q={location}&format=json&limit=1"
-        geo_response = requests.get(geocode_url, headers={'User-Agent': 'CropDiseaseSystem/1.0'}, timeout=5)
+        # PRIORITY 1: Use GPS coordinates if available (most accurate for Kenya)
+        lat = None
+        lon = None
+        location_source = "unknown"
 
-        lat, lon = -1.286389, 36.817223
-        if geo_response.status_code == 200:
-            geo_data = geo_response.json()
-            if geo_data:
-                lat = float(geo_data[0]['lat'])
-                lon = float(geo_data[0]['lon'])
+        if st.session_state.get('gps_location') and st.session_state.gps_location.get('lat'):
+            lat = st.session_state.gps_location['lat']
+            lon = st.session_state.gps_location['lon']
+            location_source = "GPS"
+            print(f"📍 Weather using GPS coordinates: {lat:.6f}, {lon:.6f}")
+        else:
+            # PRIORITY 2: Geocode the location name (fallback)
+            geocode_url = f"https://nominatim.openstreetmap.org/search?q={location}&format=json&limit=1"
+            geo_response = requests.get(geocode_url, headers={'User-Agent': 'CropDoctor/1.0'}, timeout=8)
 
+            if geo_response.status_code == 200:
+                geo_data = geo_response.json()
+                if geo_data:
+                    lat = float(geo_data[0]['lat'])
+                    lon = float(geo_data[0]['lon'])
+                    location_source = "geocoding"
+                    print(f"📍 Weather using geocoded location: {location} -> {lat:.6f}, {lon:.6f}")
+
+        # Default to Nairobi if all methods fail
+        if lat is None or lon is None:
+            lat, lon = -1.286389, 36.817223  # Nairobi coordinates
+            location_source = "default (Nairobi)"
+            print(f"📍 Weather using default location: Nairobi")
+
+        # Get weather data from Open-Meteo API
         response = requests.get(
             "https://api.open-meteo.com/v1/forecast",
             params={
@@ -849,10 +921,13 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
             current = data.get('current', {})
             daily = data.get('daily', {})
 
+            # Extract current weather
             temp = current.get('temperature_2m', 'N/A')
             humidity = current.get('relative_humidity_2m', 'N/A')
             rain = current.get('precipitation', 0)
             wind = current.get('wind_speed_10m', 'N/A')
+
+            # Extract daily forecast
             temp_max = daily.get('temperature_2m_max', [None])[0] if daily else None
             temp_min = daily.get('temperature_2m_min', [None])[0] if daily else None
             rain_prob = daily.get('precipitation_probability_max', [None])[0] if daily else None
@@ -871,10 +946,13 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                     'rain_sum': rain_sum,
                     'risk_msg': "NONE - Healthy crop (no disease risk assessment applicable)",
                     'risk_class': "risk-low",
-                    'location': location
+                    'location': location,
+                    'location_source': location_source,
+                    'lat': lat,
+                    'lon': lon
                 }
 
-            # Extract disease characteristics from treatment data to determine risk factors
+            # Disease-specific risk assessment
             risk_msg = "NONE - No specific weather-disease relationship established"
             risk_class = "risk-low"
 
@@ -883,12 +961,12 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                 management_text = treatment_data.get('management', '')
                 full_text = (causes_text + " " + management_text).lower()
 
-                # Check if the disease is actually weather-dependent based on its description
+                # Check weather dependencies in disease description
                 weather_keywords = {
-                    'humidity': ['humid', 'humidity', 'moist', 'wet', 'damp'],
-                    'temperature': ['warm', 'hot', 'cool', 'cold', 'temperature', 'heat'],
+                    'humidity': ['humid', 'humidity', 'moist', 'wet', 'damp', 'high moisture'],
+                    'temperature': ['warm', 'hot', 'cool', 'cold', 'temperature', 'heat', 'cool temperatures'],
                     'rain': ['rain', 'rainfall', 'splashing rain', 'splashed by rain', 'wet conditions'],
-                    'dry': ['dry', 'drought', 'arid']
+                    'dry': ['dry', 'drought', 'arid', 'dry conditions']
                 }
 
                 has_humidity_link = any(keyword in full_text for keyword in weather_keywords['humidity'])
@@ -896,16 +974,17 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                 has_rain_link = any(keyword in full_text for keyword in weather_keywords['rain'])
                 has_dry_link = any(keyword in full_text for keyword in weather_keywords['dry'])
 
-                # Disease type detection from treatment data
-                is_fungal = 'fungal' in treatment_data.get('category', '').lower() or any(word in full_text for word in ['fungus', 'fungal', 'spores', 'mycelium'])
-                is_viral = 'viral' in treatment_data.get('category', '').lower() or any(word in full_text for word in ['virus', 'vector', 'whitefly', 'aphid'])
-                is_pest = 'pest' in treatment_data.get('category', '').lower() or any(word in full_text for word in ['pest', 'larvae', 'insect', 'caterpillar'])
+                # Detect disease type
+                category = treatment_data.get('category', '').lower()
+                is_fungal = 'fungal' in category or any(word in full_text for word in ['fungus', 'fungal', 'spores', 'mycelium'])
+                is_viral = 'viral' in category or any(word in full_text for word in ['virus', 'vector', 'whitefly', 'aphid'])
+                is_pest = 'pest' in category or any(word in full_text for word in ['pest', 'larvae', 'insect', 'caterpillar'])
 
-                # Only generate risk assessment if the disease description actually mentions weather conditions
+                # Generate risk assessment based on disease characteristics
                 if has_humidity_link or has_temp_link or has_rain_link or has_dry_link:
 
-                    # FUNGAL DISEASE RISK (only if the disease description mentions humidity/moisture)
-                    if is_fungal and has_humidity_link:
+                    # FUNGAL DISEASE RISK
+                    if is_fungal and has_humidity_link and humidity != 'N/A':
                         if humidity > 80:
                             risk_msg = f"⚠️ HIGH FUNGAL DISEASE RISK - High humidity ({humidity}%) favours fungal growth. The disease description indicates that {disease_name} spreads under humid conditions."
                             risk_class = "risk-high"
@@ -916,8 +995,8 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                             risk_msg = f"✅ Low fungal disease risk - Current humidity ({humidity}%) is not favourable for {disease_name} based on its disease characteristics."
                             risk_class = "risk-low"
 
-                    # VIRAL DISEASE RISK (vector activity - only if vectors are mentioned)
-                    elif is_viral and (has_temp_link or 'vector' in full_text or 'whitefly' in full_text or 'aphid' in full_text):
+                    # VIRAL DISEASE RISK (vector activity)
+                    elif is_viral and (has_temp_link or 'vector' in full_text) and temp != 'N/A':
                         if temp > 25 and humidity > 60:
                             risk_msg = f"⚠️ HIGH VIRAL DISEASE RISK - Warm, humid conditions ({temp}°C, {humidity}%) favour vector activity. The disease is transmitted by vectors as described."
                             risk_class = "risk-high"
@@ -928,8 +1007,8 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                             risk_msg = f"✅ Low viral disease risk - Current conditions ({temp}°C) are less favourable for vectors of {disease_name}."
                             risk_class = "risk-low"
 
-                    # PEST INFESTATION RISK (only if pest description mentions weather)
-                    elif is_pest and has_dry_link:
+                    # PEST INFESTATION RISK
+                    elif is_pest and has_dry_link and temp != 'N/A':
                         if temp > 25 and rain_sum < 5:
                             risk_msg = f"⚠️ HIGH PEST RISK - Warm, dry conditions ({temp}°C) favour {disease_name} according to its pest characteristics."
                             risk_class = "risk-high"
@@ -940,7 +1019,7 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                             risk_msg = f"✅ Low pest risk - Current temperature ({temp}°C) is less favourable for {disease_name}."
                             risk_class = "risk-low"
 
-                    # RAIN-SPREAD DISEASES (only if rain/splashing is mentioned)
+                    # RAIN-SPREAD DISEASES
                     elif has_rain_link:
                         if rain_sum > 10 or rain > 1:
                             risk_msg = f"⚠️ HIGH DISEASE SPREAD RISK - Rainfall ({rain_sum}mm) can spread {disease_name} as described in disease characteristics."
@@ -972,12 +1051,46 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                 'rain_sum': rain_sum,
                 'risk_msg': risk_msg,
                 'risk_class': risk_class,
-                'location': location
+                'location': location,
+                'location_source': location_source,
+                'lat': lat,
+                'lon': lon
+            }
+        else:
+            return {
+                'temperature': 'N/A',
+                'humidity': 'N/A',
+                'rain': 0,
+                'wind': 'N/A',
+                'temp_max': None,
+                'temp_min': None,
+                'rain_prob': None,
+                'rain_sum': 0,
+                'risk_msg': "Unable to fetch weather data. Please check your internet connection.",
+                'risk_class': "risk-low",
+                'location': location,
+                'location_source': "error",
+                'lat': lat,
+                'lon': lon
             }
     except Exception as e:
-        return None
-
-    return None
+        print(f"Weather API error: {e}")
+        return {
+            'temperature': 'N/A',
+            'humidity': 'N/A',
+            'rain': 0,
+            'wind': 'N/A',
+            'temp_max': None,
+            'temp_min': None,
+            'rain_prob': None,
+            'rain_sum': 0,
+            'risk_msg': f"Weather service temporarily unavailable. Please try again later.",
+            'risk_class': "risk-low",
+            'location': location,
+            'location_source': "error",
+            'lat': None,
+            'lon': None
+        }
 
 # ============================================================
 # COMPLETE TREATMENT DATABASE - ALL CLASSES
@@ -2360,6 +2473,7 @@ def show_common_chemicals_for_top_k(top_k_predictions, references):
 # ============================================================
 # HELP INFORMATION
 # ============================================================
+
 def display_help():
     """Display help information - Same style as List of Supported Classes"""
     st.markdown("""
@@ -2410,6 +2524,32 @@ def display_help():
 
         ---
 
+        **🌤️ Understanding Weather Information**
+
+        Hover over the ❔ icon next to any weather parameter to get detailed explanations:
+
+        | Parameter | What the tooltip explains |
+        |-----------|--------------------------|
+        | 🌡️ Temperature | Current air temperature and its effect on crops |
+        | 💧 Humidity | How humidity affects diseases and pests |
+        | ☔ Rainfall | Safe amounts for spraying vs. wash-off risk |
+        | 🌬️ Wind Speed | Best conditions for spraying |
+        | 🌧️ Rain Probability | Chance of rain and how much to expect |
+        | 🎯 Disease Risk | What the risk level means for your crops |
+
+        **📖 Quick Weather Reference:**
+
+        | Condition | What it means | Action |
+        |-----------|---------------|--------|
+        | Rain Probability >70% with <2mm | Light rain expected | ✅ Safe to spray |
+        | Rain Probability >70% with >10mm | Heavy rain expected | ⚠️ Delay spraying |
+        | Temperature >30°C | Heat stress risk | 💧 Increase irrigation |
+        | Humidity >80% | Fungal disease risk | 🍄 Apply preventive fungicide |
+        | Humidity <40% | Pest risk | 🔍 Monitor for aphids/mites |
+        | Wind >25 km/h | Spray drift risk | ⏰ Wait for calmer conditions |
+
+        ---
+
         **⚠️ Important Notes**
 
         • This is an AI-assisted diagnostic tool, not a substitute for expert advice
@@ -2418,7 +2558,6 @@ def display_help():
         • Consult your local agricultural extension officer for confirmation
     </div>
     """, unsafe_allow_html=True)
-
 
 # ============================================================
 # GRAD-CAM IMPLEMENTATION
@@ -2764,7 +2903,7 @@ def display_healthy_crop_assessment(predicted_class, confidence, treatment, refe
     # SECTION 7: VISUAL EVIDENCE (Grad-CAM Heatmap)
     st.markdown(f"""
 <div class="section-card">
-<h3>🔥 VISUAL EVIDENCE (Grad-CAM Heatmap)</h3>
+<h3>🔥 VISUAL EVIDENCE (Heatmap)</h3>
 <p>✓ Generated</p>
 </div>
 """, unsafe_allow_html=True)
@@ -2776,7 +2915,7 @@ def display_healthy_crop_assessment(predicted_class, confidence, treatment, refe
     # SECTION 8: GRAD-CAM LEGEND
     st.markdown("""
 <div class="section-card">
-<h3>📊 GRAD-CAM LEGEND</h3>
+<h3>📊 HEATMAP LEGEND</h3>
 <p>   🔴 <strong>RED (HOT)</strong>     = HIGH influence - These areas strongly indicate the condition</p>
 <p>   🟠 <strong>ORANGE</strong>        = HIGH-MEDIUM influence</p>
 <p>   🟡 <strong>YELLOW</strong>        = MEDIUM influence</p>
@@ -3201,7 +3340,7 @@ def display_xai_analysis(disease_data):
     # SECTION 7: VISUAL EVIDENCE (Grad-CAM Heatmap)
     st.markdown(f"""
 <div class="section-card">
-<h3>🔥 VISUAL EVIDENCE (Grad-CAM Heatmap)</h3>
+<h3>🔥 VISUAL EVIDENCE (Heatmap)</h3>
 <p>✓ Generated</p>
 </div>
 """, unsafe_allow_html=True)
@@ -3213,7 +3352,7 @@ def display_xai_analysis(disease_data):
     # SECTION 8: GRAD-CAM LEGEND
     st.markdown("""
 <div class="section-card">
-<h3>📊 GRAD-CAM LEGEND</h3>
+<h3>📊 HEATMAP LEGEND</h3>
 <p>   🔴 <strong>RED (HOT)</strong>     = HIGH influence - These areas strongly indicate the disease</p>
 <p>   🟠 <strong>ORANGE</strong>        = HIGH-MEDIUM influence</p>
 <p>   🟡 <strong>YELLOW</strong>        = MEDIUM influence</p>
@@ -3273,6 +3412,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     """Display online features including weather with disease-specific risk assessment"""
     st.markdown("---")
     st.markdown("### 📡 LOCAL WEATHER & ALERTS")
+    st.caption("ℹ️ **Tip:** Hover over the ❔ icons next to each weather value for detailed explanations.")
 
     # Get weather with disease-specific risk assessment using treatment data
     weather = get_weather_with_risk_assessment(location, disease_name, treatment_data)
@@ -3281,38 +3421,64 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         risk_class = weather.get('risk_class', '')
         risk_msg = weather.get('risk_msg', '')
 
+        # Build weather display card with tooltips
         weather_text = f"""
         <div class="weather-card">
             <h4>🌤️ LOCAL WEATHER ({weather['location']})</h4>
-            <p>🌡️ Temperature: {weather['temperature']}°C</p>
-            <p>💧 Humidity: {weather['humidity']}%</p>
-            <p>☔ Current Rainfall: {weather['rain']} mm</p>
-            <p>🌬️ Wind Speed: {weather['wind']} km/h</p>
         """
-        if weather['temp_max'] and weather['temp_min']:
-            weather_text += f"<p>📅 Today's Forecast: High {weather['temp_max']}°C / Low {weather['temp_min']}°C</p>"
-        if weather['rain_prob']:
-            weather_text += f"<p>🌧️ Rain Probability: {weather['rain_prob']}% (Expected: {weather['rain_sum']} mm)</p>"
 
+        # Temperature with tooltip
+        if weather['temperature'] != 'N/A':
+            weather_text += f'<p>🌡️ <strong>Temperature:</strong> {weather["temperature"]}°C <span style="cursor: help; color: #666;" title="Current air temperature. Ideal for most crops is 20-30°C. High temperatures (>30°C) can cause heat stress, low temperatures (<15°C) can slow growth.">❔</span></p>'
+        else:
+            weather_text += '<p>🌡️ <strong>Temperature:</strong> --</p>'
+
+        # Humidity with tooltip
+        if weather['humidity'] != 'N/A':
+            weather_text += f'<p>💧 <strong>Humidity:</strong> {weather["humidity"]}% <span style="cursor: help; color: #666;" title="Relative humidity. High humidity (>80%) favors fungal diseases. Low humidity (<40%) favors pests like spider mites. Ideal range is 40-70%.">❔</span></p>'
+        else:
+            weather_text += '<p>💧 <strong>Humidity:</strong> --</p>'
+
+        # Rainfall with tooltip
+        weather_text += f'<p>☔ <strong>Current Rainfall:</strong> {weather["rain"]} mm <span style="cursor: help; color: #666;" title="Rainfall in the last hour. Use with Rain Probability to plan spraying. Less than 2mm is safe for spraying. More than 10mm can wash off chemicals.">❔</span></p>'
+
+        # Wind with tooltip
+        if weather['wind'] != 'N/A':
+            weather_text += f'<p>🌬️ <strong>Wind Speed:</strong> {weather["wind"]} km/h <span style="cursor: help; color: #666;" title="Wind speed affects spraying. Best to spray when wind is below 15 km/h. High winds (>25 km/h) cause spray drift. Calm conditions (<5 km/h) can also be problematic as spray may not disperse.">❔</span></p>'
+        else:
+            weather_text += '<p>🌬️ <strong>Wind Speed:</strong> --</p>'
+
+        # Forecast with tooltips
+        if weather['temp_max'] and weather['temp_min']:
+            weather_text += f'<p>📅 <strong>Today\'s Forecast:</strong> High {weather["temp_max"]}°C / Low {weather["temp_min"]}°C <span style="cursor: help; color: #666;" title="Expected temperature range for today (from midnight to midnight). Use this to plan activities like transplanting or harvesting.">❔</span></p>'
+
+        # Rain Probability with detailed tooltip
+        if weather['rain_prob']:
+            weather_text += f'<p>🌧️ <strong>Rain Probability:</strong> {weather["rain_prob"]}% (Expected: {weather["rain_sum"]} mm) <span style="cursor: help; color: #666;" title="Chance of rain during the remaining hours today. {weather["rain_prob"]}% means it is very likely to rain. Only {weather["rain_sum"]}mm expected - this is light rain/drizzle. Safe for spraying if under 2mm. Spraying is not recommended if expected rain exceeds 10mm.">❔</span></p>'
+
+        # Disease risk assessment with tooltip
         weather_text += f"""
             <hr>
             <p><strong>🎯 DISEASE RISK ASSESSMENT FOR {disease_name}:</strong><br>
-            <span class="{risk_class}">{risk_msg}</span></p>
+            <span class="{risk_class}">{risk_msg}</span>
+            <span style="cursor: help; color: #666; margin-left: 5px;" title="Based on current weather conditions and the disease's known characteristics. High risk means conditions favor disease development. Take preventive action like applying fungicides or improving air circulation.">❔</span></p>
         </div>
         """
         st.markdown(weather_text, unsafe_allow_html=True)
     else:
         st.info("🌤️ LOCAL WEATHER: Unable to fetch weather for your location")
 
-    # Disease Outbreaks
+    # Disease Outbreaks with tooltip
     st.markdown("#### 🚨 DISEASE OUTBREAK ALERTS")
     st.info(f"📭 No recent {disease_name} outbreaks reported in {location.split(',')[0] if ',' in location else location}")
+    st.caption("ℹ️ **Note:** Alerts are based on reported outbreaks in your area. Sign up for SMS alerts to get notified when disease outbreaks are reported near you.")
 
-    # New Treatments
+    # New Treatments with tooltip
     st.markdown("#### 🧪 NEW TREATMENTS/CHEMICALS")
-    st.info(f"📭 No new treatments/chemicals found for {disease_name}\n\n⚠️ Verify with local experts before use")
+    st.info(f"📭 No new treatments/chemicals found for {disease_name}\n\n⚠️ Always verify new products with your local agrovet before use")
+    st.caption("ℹ️ **Note:** New products are checked weekly. Check manufacturer websites for the latest product releases and updates.")
 
-    # Manufacturer Search Results (Dynamic based on disease)
+    # Manufacturer Search Results with tooltip
     st.markdown("#### 🏭 MANUFACTURER WEBSITE SEARCH RESULTS")
     manufacturers = [
         'Greenlife Crop Protection Africa', 'CKL Africa Ltd', 'Osho Chemical Industries Ltd',
@@ -3325,13 +3491,118 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         <p><strong>📊 Manufacturers searched ({len(manufacturers)}):</strong><br>{', '.join(manufacturers)}</p>
         <hr>
         <p>📭 NO NEW PRODUCTS FOUND</p>
-        <p>All known products for {disease_name} are already in our verified database. The treatment protocol above contains all verified products.</p>
+        <p>All known products for {disease_name} are already in our verified database. The treatment protocol above contains all verified products from these manufacturers.</p>
+        <p style="font-size: 12px; color: #666; margin-top: 10px;">✓ Verified sources | Last updated: {datetime.now().strftime('%B %d, %Y')}</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Latest News
+    # Latest News with tooltip
     st.markdown("#### 📰 LATEST NEWS")
     st.info(f"📭 No recent news found for {disease_name}")
+    st.caption("ℹ️ **Note:** News is updated weekly. Subscribe to our newsletter for weekly agricultural updates and disease alerts.")
+
+    # Weather-based farming tip (with safe type checking)
+    st.markdown("---")
+    st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
+
+    # Safely check weather values - convert to appropriate types
+    if weather:
+        # Safe temperature check
+        temp = weather.get('temperature')
+        temp_value = None
+        if temp != 'N/A' and temp is not None:
+            try:
+                temp_value = float(temp)
+            except (ValueError, TypeError):
+                temp_value = None
+
+        # Safe humidity check
+        humidity = weather.get('humidity')
+        humidity_value = None
+        if humidity != 'N/A' and humidity is not None:
+            try:
+                humidity_value = float(humidity)
+            except (ValueError, TypeError):
+                humidity_value = None
+
+        # Safe rain probability check
+        rain_prob = weather.get('rain_prob')
+        rain_prob_value = None
+        if rain_prob != 'N/A' and rain_prob is not None:
+            try:
+                rain_prob_value = float(rain_prob)
+            except (ValueError, TypeError):
+                rain_prob_value = None
+
+        # Expected rain amount
+        rain_sum = weather.get('rain_sum', 0)
+        if rain_sum is None:
+            rain_sum = 0
+
+        # Display appropriate tip based on weather conditions
+        if rain_prob_value and rain_prob_value > 70 and rain_sum > 10:
+            st.warning("🌧️ **Heavy rain expected soon!** " +
+                      f"({rain_prob_value:.0f}% chance, {rain_sum:.1f}mm expected) " +
+                      "💡 **Tip:** Postpone pesticide/fungicide application until after the rain to avoid wash-off. Protect young seedlings from heavy rain damage.")
+        elif rain_prob_value and rain_prob_value > 70 and rain_sum <= 10:
+            st.success("🌧️ **Light rain expected.** " +
+                      f"({rain_prob_value:.0f}% chance, {rain_sum:.1f}mm expected) " +
+                      "💡 **Tip:** This amount of rain is safe for spraying. It may actually help granular fertilizer dissolve into the soil.")
+        elif temp_value and temp_value > 30:
+            st.warning("🔥 **High temperatures forecasted.** " +
+                      f"({temp_value:.0f}°C) " +
+                      "💡 **Tip:** Ensure adequate irrigation, consider applying mulch to retain soil moisture, and avoid working during peak heat hours (12 PM - 3 PM).")
+        elif temp_value and temp_value < 15:
+            st.info("❄️ **Cool temperatures expected.** " +
+                   f"({temp_value:.0f}°C) " +
+                   "💡 **Tip:** Cold-sensitive crops may need protection. Delay transplanting until temperatures warm up. Fungal diseases are less active in cool weather.")
+        elif humidity_value and humidity_value > 80:
+            st.info("💨 **High humidity conditions.** " +
+                   f"({humidity_value:.0f}%) " +
+                   "💡 **Tip:** This is favorable for fungal disease development. Consider preventive fungicide application and ensure good air circulation around plants.")
+        elif humidity_value and humidity_value < 40:
+            st.info("🌵 **Dry conditions.** " +
+                   f"({humidity_value:.0f}%) " +
+                   "💡 **Tip:** Ideal for pest monitoring as some pests (aphids, spider mites, thrips) thrive in dry weather. Check plants regularly and irrigate adequately.")
+        elif rain_prob_value and rain_prob_value > 50 and rain_sum > 5:
+            st.info("🌧️ **Moderate rain possible.** " +
+                   f"({rain_prob_value:.0f}% chance, {rain_sum:.1f}mm expected) " +
+                   "💡 **Tip:** Consider using rain-fast pesticide formulations if application is urgent. Otherwise, wait until after the rain.")
+        else:
+            st.success("🌱 **Optimal weather conditions.** " +
+                      "💡 **Tip:** Good time for field scouting, preventive treatments, and regular crop monitoring. Take advantage of favorable weather for farm operations.")
+    else:
+        st.info("🌱 **Check local weather conditions** regularly for optimal timing of farm activities. Good weather planning can save money on chemicals and improve crop yields.")
+
+    # Add a helpful legend for the tooltips
+    with st.expander("📖 Understanding Weather Terms"):
+        st.markdown("""
+        **🌡️ Temperature**
+        - Ideal for most crops: 20-30°C
+        - >30°C: Heat stress risk
+        - <15°C: Slow growth
+
+        **💧 Humidity**
+        - Ideal: 40-70%
+        - >80%: Fungal disease risk
+        - <40%: Pest (spider mite, aphid) risk
+
+        **☔ Rainfall & Rain Probability**
+        - Probability: Chance of any rain during remaining today
+        - Expected amount: Total rain if it falls
+        - Safe for spraying: <2mm expected
+        - Risk of wash-off: >10mm expected
+
+        **🌬️ Wind Speed**
+        - Best for spraying: 5-15 km/h
+        - Too low (<5 km/h): Poor spray distribution
+        - Too high (>25 km/h): Spray drift risk
+
+        **🎯 Disease Risk Assessment**
+        - HIGH (🔴): Take preventive action immediately
+        - MODERATE (🟡): Monitor closely, consider preventive treatment
+        - LOW (🟢): Normal monitoring sufficient
+        """)
 
 
 def display_options_menu(top_predictions, references, location, class_names, current_disease_name, current_crop_type, current_treatment_data=None):
@@ -3437,77 +3708,6 @@ def display_options_menu(top_predictions, references, location, class_names, cur
                     st.session_state.show_k_dialog = False
                     st.rerun()
 
-    # Location change dialog (only in online mode)
-    if current_mode == "online":
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        if st.button("📍 Change Location", width="stretch", key="change_location_btn"):
-            st.session_state.show_location_dialog = True
-
-        if st.session_state.get('show_location_dialog', False):
-            with st.expander("📍 Change Your Location", expanded=True):
-                st.markdown("Enter your location for accurate weather and local alerts:")
-                st.markdown("")
-                st.markdown("**Options:**")
-                st.markdown("   🔹 **Auto-detect** - Detect my location automatically (uses internet)")
-                st.markdown("   🔹 **Manual** - Enter my location manually")
-
-                loc_choice = st.radio(
-                    "Choose option:",
-                    ["Auto-detect", "Enter manually"],
-                    horizontal=True,
-                    label_visibility="collapsed",
-                    key="loc_choice_radio"
-                )
-
-                if loc_choice == "Auto-detect":
-                    if st.button("📍 Detect Location", width="stretch", key="detect_loc_btn"):
-                        with st.spinner("Detecting your location..."):
-                            location_data = get_location_from_ip()
-                            if location_data and location_data.get('city'):
-                                new_city = location_data['city']
-                                new_region = location_data.get('region', '')
-                                new_country = location_data.get('country', 'Kenya')
-                                if new_region:
-                                    st.session_state.location = f"{new_city}, {new_region}, {new_country}"
-                                else:
-                                    st.session_state.location = f"{new_city}, {new_country}"
-                                st.success(f"✅ Location set to: {st.session_state.location}")
-                                st.session_state.show_location_dialog = False
-                                time.sleep(1)
-                                st.rerun()
-                            else:
-                                st.error("Could not detect location automatically. Please enter manually.")
-                else:
-                    current_loc_parts = st.session_state.location.split(',')
-                    default_city = current_loc_parts[0].strip() if len(current_loc_parts) > 0 else "Ekerenyo, Nyamira County"
-
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        new_city = st.text_input("City/Town", value=default_city, key="manual_city")
-                        new_region = st.text_input("Region/County (optional)", value="", key="manual_region")
-                    with col2:
-                        new_country = st.text_input("Country", value="Kenya", key="manual_country")
-
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if st.button("💾 Save Location", width="stretch", key="save_loc_btn"):
-                            if new_city:
-                                if new_region:
-                                    st.session_state.location = f"{new_city}, {new_region}, {new_country}"
-                                else:
-                                    st.session_state.location = f"{new_city}, {new_country}"
-                                st.success(f"✅ Location saved: {st.session_state.location}")
-                                st.session_state.show_location_dialog = False
-                                time.sleep(1)
-                                st.rerun()
-                            else:
-                                st.error("Please enter at least a city/town name.")
-                    with col2:
-                        if st.button("❌ Cancel", width="stretch", key="cancel_loc_btn"):
-                            st.session_state.show_location_dialog = False
-                            st.rerun()
-
     # Show common chemicals if requested
     if st.session_state.get('showing_common_chemicals', False) and st.session_state.common_chemicals_data:
         st.markdown("---")
@@ -3542,10 +3742,131 @@ def display_privacy_notice():
         # Use two columns for a cleaner button
         col1, col2, col3 = st.columns([1, 1, 4])
         with col1:
-            if st.button("✓ Got it", key="dismiss_privacy_notice", use_container_width=True):
+            if st.button("✓ Got it", key="dismiss_privacy_notice", width='stretch'):
                 st.session_state.privacy_notice_dismissed = True
                 st.rerun()
         st.markdown("---")
+
+def display_top_location_buttons():
+    """Display Change Location and Refresh buttons at the top"""
+
+    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
+        if st.button("📍 Change Location", use_container_width=True, key="change_location_top_btn"):
+            st.session_state.show_top_location_dialog = True
+            st.rerun()
+    with col_btn2:
+        if st.button("🔄 Refresh Weather", use_container_width=True, key="refresh_weather_top_btn"):
+            st.session_state.weather_info = None
+            st.success("✅ Weather data refreshed!")
+            time.sleep(0.5)
+            st.rerun()
+
+
+def display_top_location_dialog():
+    """Display location dialog for top bar change"""
+
+    if not st.session_state.get('show_top_location_dialog', False):
+        return
+
+    st.markdown("---")
+    st.markdown("### 📍 Change Your Location")
+
+    # Show current location
+    st.info(f"**Current location:** {st.session_state.location}")
+
+    st.markdown("#### Choose how to set your location:")
+
+    # Create two styled cards
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("""
+        <div class="location-option-card" style="text-align: center;">
+            <div class="location-option-icon">🌍</div>
+            <div class="location-option-title">Auto-detect (GPS)</div>
+            <div class="location-option-desc">Use your device's GPS for accurate location</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("🌍 Use GPS", use_container_width=True, key="top_gps_btn"):
+            is_local = "localhost" in st.get_option("browser.serverAddress") or "127.0.0.1" in st.get_option("browser.serverAddress")
+            if is_local:
+                st.warning("⚠️ GPS requires HTTPS. Will work on Hugging Face Spaces.")
+                time.sleep(1)
+            else:
+                st.session_state.request_gps = True
+                st.session_state.location_method = "gps"
+                st.session_state.show_top_location_dialog = False
+                st.rerun()
+
+    with col2:
+        st.markdown("""
+        <div class="location-option-card" style="text-align: center;">
+            <div class="location-option-icon">✏️</div>
+            <div class="location-option-title">Enter Manually</div>
+            <div class="location-option-desc">Type your location (city, county, country)</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("✏️ Manual Entry", use_container_width=True, key="top_manual_btn"):
+            st.session_state.show_top_manual_entry = True
+            st.session_state.show_top_location_dialog = False
+            st.rerun()
+
+    # Cancel button
+    if st.button("❌ Cancel", use_container_width=True, key="top_cancel_btn"):
+        st.session_state.show_top_location_dialog = False
+        st.rerun()
+
+    st.markdown("---")
+
+
+def display_top_manual_entry_dialog():
+    """Display manual entry dialog for top bar"""
+
+    if not st.session_state.get('show_top_manual_entry', False):
+        return
+
+    st.markdown("---")
+    st.markdown("### 📝 Enter Your Location Manually")
+    st.markdown("Enter your location for accurate weather forecasts:")
+    st.caption("Example: Kisumu, Kenya or Eldoret, Uasin Gishu County, Kenya")
+
+    current_loc_parts = st.session_state.location.split(',')
+    default_city = current_loc_parts[0].strip() if len(current_loc_parts) > 0 else "Ekerenyo, Nyamira County"
+    default_region = current_loc_parts[1].strip() if len(current_loc_parts) > 1 else ""
+    default_country = current_loc_parts[-1].strip() if len(current_loc_parts) > 0 else "Kenya"
+
+    col1, col2 = st.columns(2)
+    with col1:
+        new_city = st.text_input("City/Town *", value=default_city, key="top_manual_city")
+        new_region = st.text_input("County/Region (optional)", value=default_region, key="top_manual_region")
+    with col2:
+        new_country = st.text_input("Country", value=default_country, key="top_manual_country")
+
+    st.caption("* Required field")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("💾 Save Location", use_container_width=True, key="top_save_btn"):
+            if new_city:
+                if new_region:
+                    st.session_state.location = f"{new_city}, {new_region}, {new_country}"
+                else:
+                    st.session_state.location = f"{new_city}, {new_country}"
+                st.session_state.location_method = "manual"
+                st.session_state.gps_location = None
+                st.session_state.show_top_manual_entry = False
+                st.success(f"✅ Location saved: {st.session_state.location}")
+                time.sleep(0.8)
+                st.rerun()
+            else:
+                st.error("Please enter at least a city/town.")
+    with col2:
+        if st.button("❌ Cancel", use_container_width=True, key="top_cancel_manual_btn"):
+            st.session_state.show_top_manual_entry = False
+            st.rerun()
+
+    st.markdown("---")
 
 # ============================================================
 # MAIN APP
@@ -3554,9 +3875,7 @@ def display_privacy_notice():
 def main():
     """Main application entry point"""
 
-    # Track all analytics - wrap the entire app
     with streamlit_analytics.track(unsafe_password="chibando_ching'ende_chinyanya"):
-        # Display the privacy notice at the very top (inside analytics)
         display_privacy_notice()
 
         st.markdown("""
@@ -3572,7 +3891,7 @@ def main():
             if st.button("❓ Help / How to use the system", use_container_width=True):
                 st.session_state.show_help = not st.session_state.show_help
 
-            # Classes button - show all classes the system can handle
+            # Classes button
             if st.button("📋 List of Supported Classes", use_container_width=True):
                 st.session_state.show_classes = not st.session_state.show_classes
 
@@ -3582,7 +3901,6 @@ def main():
                 horizontal=True,
                 label_visibility="collapsed"
             )
-            # Only update session state if the radio selection changed
             new_mode = "online" if "ONLINE" in selected_mode else "offline"
             if st.session_state.mode != new_mode:
                 st.session_state.mode = new_mode
@@ -3590,10 +3908,58 @@ def main():
 
             if st.session_state.mode == "online":
                 st.markdown(f'<span class="mode-badge mode-online">🌐 ONLINE MODE - Weather & News Enabled | Location: {st.session_state.location}</span>', unsafe_allow_html=True)
+
+                # Top bar location buttons
+                display_top_location_buttons()
             else:
                 st.markdown('<span class="mode-badge mode-offline">📱 OFFLINE MODE - Diagnosis and Verified Treatments Only</span>', unsafe_allow_html=True)
 
         st.markdown("---")
+
+        # ============================================================
+        # TOP BAR LOCATION DIALOGS
+        # ============================================================
+        if st.session_state.get('show_top_location_dialog', False):
+            display_top_location_dialog()
+
+        if st.session_state.get('show_top_manual_entry', False):
+            display_top_manual_entry_dialog()
+
+        # ============================================================
+        # HANDLE GPS RETRIEVAL (shared between both)
+        # ============================================================
+        if st.session_state.get('request_gps', False):
+            with st.spinner("📍 Getting GPS location. Please allow location access..."):
+                try:
+                    from streamlit_geolocation import streamlit_geolocation
+                    location_data = streamlit_geolocation()
+
+                    if location_data and location_data.get('latitude'):
+                        lat = location_data['latitude']
+                        lon = location_data['longitude']
+                        accuracy = location_data.get('accuracy', 0)
+
+                        location_name = get_location_name_from_coords(lat, lon)
+
+                        st.session_state.location = location_name
+                        st.session_state.gps_location = {'lat': lat, 'lon': lon, 'accuracy': accuracy}
+                        st.session_state.location_method = "gps"
+                        st.session_state.request_gps = False
+
+                        st.success(f"✅ GPS Location set: {location_name}")
+                        time.sleep(0.8)
+                        st.rerun()
+                    else:
+                        st.error("❌ Could not get GPS location. Please ensure:")
+                        st.markdown("""
+                        1. You allowed location access in your browser
+                        2. Your device has GPS enabled
+                        3. You are using HTTPS (works on Hugging Face Spaces)
+                        """)
+                        st.session_state.request_gps = False
+                except Exception as e:
+                    st.error(f"GPS error: {e}")
+                    st.session_state.request_gps = False
 
         # Show classes list if requested
         if st.session_state.show_classes:
@@ -3670,6 +4036,10 @@ def main():
                         st.session_state.common_chemicals_data = None
 
                         st.session_state.current_alt_data = {}
+
+                        # Save image only ONCE for the top prediction
+                        save_user_image_for_training(image, top_predictions[0]['class'], top_predictions[0]['confidence'], top_predictions)
+
                         for alt_idx, pred in enumerate(top_predictions):
                             heatmap = gradcam.generate_heatmap(img_array, pred['idx'])
                             overlay = gradcam.overlay_heatmap(heatmap, st.session_state.current_original_img)
@@ -3682,9 +4052,6 @@ def main():
                                 crop_type = "Beans"
                             else:
                                 crop_type = "Tomato"
-
-                            # Save user image for model improvement (silent - no UI impact)
-                            save_user_image_for_training(image, top_predictions[0]['class'], top_predictions[0]['confidence'], top_predictions)
 
                             # Save heatmap overlay to a file in the current directory
                             save_filename = f"gradcam_{pred['class'].replace(' ', '_').replace('/', '_')}_alt{alt_idx}.png"
@@ -3795,3 +4162,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
