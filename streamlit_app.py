@@ -3754,9 +3754,9 @@ def display_top_location_buttons():
 
     # Show current location with method indicator
     if st.session_state.get('location_method') == "ip":
-        st.caption("⚠️ Location is IP-based (approximate)")
+        st.caption("🌐 Location: IP-based (approximate)")
     elif st.session_state.get('location_method') == "manual":
-        st.caption("✓ Location is manually set (accurate)")
+        st.caption("✓ Location: Manually set (accurate)")
     else:
         st.caption("📍 Location set")
 
@@ -3773,7 +3773,7 @@ def display_top_location_buttons():
             st.rerun()
 
 def display_top_location_dialog():
-    """Display location dialog - using IP detection with transparency about accuracy"""
+    """Display location dialog - using IP detection with working ip-api.com"""
 
     if not st.session_state.get('show_top_location_dialog', False):
         return
@@ -3783,27 +3783,28 @@ def display_top_location_dialog():
 
     # Show current location and method
     if st.session_state.get('location_method') == "ip":
-        st.warning("⚠️ **Current location is IP-based (approximate).** Your actual location may differ by several kilometers.")
+        st.info(f"📍 **Current location (IP-based):** {st.session_state.location}")
+        st.caption("⚠️ IP location is approximate - may show your ISP's server location, not your exact farm")
+    elif st.session_state.get('location_method') == "manual":
+        st.success(f"📍 **Current location (manually set):** {st.session_state.location}")
+        st.caption("✓ Manual entry provides the most accurate weather forecasts")
     else:
-        st.info(f"**Current location:** {st.session_state.location}")
+        st.info(f"📍 **Current location:** {st.session_state.location}")
 
-    # Caution box about IP geolocation limitations
-    with st.expander("📌 Understanding Location Accuracy", expanded=False):
+    # Brief explanation of IP vs Manual
+    with st.expander("📌 Which location method should I use?"):
         st.markdown("""
-        **How location detection works:**
+        | Method | Accuracy | Best for |
+        |--------|----------|----------|
+        | **Manual Entry** | ✓ High (exact) | Getting accurate weather for your exact farm location |
+        | **Auto-detect (IP)** | ⚠️ Approximate | Quick estimate when you don't know your exact location name |
 
-        | Method | Accuracy | How it works |
-        |--------|----------|--------------|
-        | **IP Address** | Low (kilometers off) | Based on your internet provider's server location |
-        | **Manual Entry** | High (exact) | You type your actual location |
+        **How IP detection works:**
+        - Uses your internet provider's server location
+        - In Kenya, this often shows Nairobi or another major city
+        - May not reflect your actual farm location
 
-        **⚠️ Important Notes about IP-based location:**
-        - Your location is estimated from your **Internet Service Provider's (ISP) server**, not your actual GPS position
-        - In Kenya, this may show you in Nairobi, Kisumu, or even another country depending on your ISP
-        - Weather forecasts will be for the estimated location, which may be different from your farm
-        - **For accurate weather, always use manual entry to type your actual location**
-
-        **✅ Recommended:** Enter your location manually for the most accurate weather forecasts.
+        **✅ Recommendation:** Use **Manual Entry** for the most accurate weather forecasts.
         """)
 
     st.markdown("---")
@@ -3816,40 +3817,39 @@ def display_top_location_dialog():
         <div class="location-option-card" style="text-align: center;">
             <div class="location-option-icon">🌐</div>
             <div class="location-option-title">Auto-detect (IP)</div>
-            <div class="location-option-desc">⚠️ Approximate location (may be inaccurate)</div>
+            <div class="location-option-desc">Quick estimate based on your internet connection</div>
         </div>
         """, unsafe_allow_html=True)
 
         if st.button("🌐 Auto-detect (IP)", use_container_width=True, key="top_ip_btn"):
             with st.spinner("Detecting location via IP address..."):
-                location_data = get_location_from_ip()
+                location_data = get_location_from_ip()  # Your working function
                 if location_data and location_data.get('city'):
                     new_city = location_data['city']
                     new_region = location_data.get('region', '')
                     new_country = location_data.get('country', 'Kenya')
 
-                    # Build location string
                     if new_region:
                         detected_location = f"{new_city}, {new_region}, {new_country}"
                     else:
                         detected_location = f"{new_city}, {new_country}"
 
-                    # Show caution before applying
-                    st.warning(f"⚠️ **IP detection suggests:** {detected_location}")
-                    st.info("📌 IP addresses are linked to your internet provider's server, not your physical location. This may not be your actual farm location.")
+                    # Show what was detected
+                    st.info(f"📍 IP detection suggests: **{detected_location}**")
+                    st.caption("⚠️ This is based on your internet provider's server location and may not be your exact farm location.")
 
                     col_confirm, col_cancel = st.columns(2)
                     with col_confirm:
-                        if st.button("✓ Use this location anyway", use_container_width=True):
+                        if st.button("✓ Use this location", use_container_width=True):
                             st.session_state.location = detected_location
                             st.session_state.location_method = "ip"
                             st.session_state.show_top_location_dialog = False
                             st.success(f"✅ Location set to: {detected_location}")
-                            st.info("💡 Tip: For accurate weather, consider using Manual Entry to enter your exact location.")
-                            time.sleep(2)
+                            st.info("💡 For more accurate weather, you can always use Manual Entry to enter your exact location.")
+                            time.sleep(1.5)
                             st.rerun()
                     with col_cancel:
-                        if st.button("✗ No, let me enter manually", use_container_width=True):
+                        if st.button("✗ No, enter manually", use_container_width=True):
                             st.session_state.show_top_manual_entry = True
                             st.session_state.show_top_location_dialog = False
                             st.rerun()
@@ -3865,116 +3865,7 @@ def display_top_location_dialog():
         <div class="location-option-card" style="text-align: center;">
             <div class="location-option-icon">✏️</div>
             <div class="location-option-title">Enter Manually</div>
-            <div class="location-option-desc">✓ Accurate (recommended for best results)</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        if st.button("✏️ Manual Entry", use_container_width=True, key="top_manual_btn"):
-            st.session_state.show_top_manual_entry = True
-            st.session_state.show_top_location_dialog = False
-            st.rerun()
-
-    # Cancel button
-    if st.button("❌ Cancel", use_container_width=True, key="top_cancel_btn"):
-        st.session_state.show_top_location_dialog = False
-        st.rerun()
-
-    st.markdown("---")
-
-def display_top_location_dialog():
-    """Display location dialog - using IP detection with transparency about accuracy"""
-
-    if not st.session_state.get('show_top_location_dialog', False):
-        return
-
-    st.markdown("---")
-    st.markdown("### 📍 Change Your Location")
-
-    # Show current location and method
-    if st.session_state.get('location_method') == "ip":
-        st.warning("⚠️ **Current location is IP-based (approximate).** Your actual location may differ by several kilometers.")
-    else:
-        st.info(f"**Current location:** {st.session_state.location}")
-
-    # Caution box about IP geolocation limitations
-    with st.expander("📌 Understanding Location Accuracy", expanded=False):
-        st.markdown("""
-        **How location detection works:**
-
-        | Method | Accuracy | How it works |
-        |--------|----------|--------------|
-        | **IP Address** | Low (kilometers off) | Based on your internet provider's server location |
-        | **Manual Entry** | High (exact) | You type your actual location |
-
-        **⚠️ Important Notes about IP-based location:**
-        - Your location is estimated from your **Internet Service Provider's (ISP) server**, not your actual GPS position
-        - In Kenya, this may show you in Nairobi, Kisumu, or even another country depending on your ISP
-        - Weather forecasts will be for the estimated location, which may be different from your farm
-        - **For accurate weather, always use manual entry to type your actual location**
-
-        **✅ Recommended:** Enter your location manually for the most accurate weather forecasts.
-        """)
-
-    st.markdown("---")
-    st.markdown("#### Choose how to set your location:")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown("""
-        <div class="location-option-card" style="text-align: center;">
-            <div class="location-option-icon">🌐</div>
-            <div class="location-option-title">Auto-detect (IP)</div>
-            <div class="location-option-desc">⚠️ Approximate location (may be inaccurate)</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        if st.button("🌐 Auto-detect (IP)", use_container_width=True, key="top_ip_btn"):
-            with st.spinner("Detecting location via IP address..."):
-                location_data = get_location_from_ip()
-                if location_data and location_data.get('city'):
-                    new_city = location_data['city']
-                    new_region = location_data.get('region', '')
-                    new_country = location_data.get('country', 'Kenya')
-
-                    # Build location string
-                    if new_region:
-                        detected_location = f"{new_city}, {new_region}, {new_country}"
-                    else:
-                        detected_location = f"{new_city}, {new_country}"
-
-                    # Show caution before applying
-                    st.warning(f"⚠️ **IP detection suggests:** {detected_location}")
-                    st.info("📌 IP addresses are linked to your internet provider's server, not your physical location. This may not be your actual farm location.")
-
-                    col_confirm, col_cancel = st.columns(2)
-                    with col_confirm:
-                        if st.button("✓ Use this location anyway", use_container_width=True):
-                            st.session_state.location = detected_location
-                            st.session_state.location_method = "ip"
-                            st.session_state.show_top_location_dialog = False
-                            st.success(f"✅ Location set to: {detected_location}")
-                            st.info("💡 Tip: For accurate weather, consider using Manual Entry to enter your exact location.")
-                            time.sleep(2)
-                            st.rerun()
-                    with col_cancel:
-                        if st.button("✗ No, let me enter manually", use_container_width=True):
-                            st.session_state.show_top_manual_entry = True
-                            st.session_state.show_top_location_dialog = False
-                            st.rerun()
-                else:
-                    st.error("Could not detect location via IP. Please use manual entry.")
-                    if st.button("📝 Enter Manually", use_container_width=True):
-                        st.session_state.show_top_manual_entry = True
-                        st.session_state.show_top_location_dialog = False
-                        st.rerun()
-
-    with col2:
-        st.markdown("""
-        <div class="location-option-card" style="text-align: center;">
-            <div class="location-option-icon">✏️</div>
-            <div class="location-option-title">Enter Manually</div>
-            <div class="location-option-desc">✓ Accurate (recommended for best results)</div>
+            <div class="location-option-desc">✓ Most accurate (recommended)</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -4009,8 +3900,8 @@ def display_top_manual_entry_dialog():
 
     st.markdown("---")
     st.markdown("### 📝 Enter Your Location Manually")
-    st.markdown("✅ **Recommended for most accurate weather forecasts**")
-    st.caption("Example: Kisumu, Kenya or Eldoret, Uasin Gishu County, Kenya")
+    st.markdown("✅ **Recommended method for most accurate weather forecasts**")
+    st.caption("Examples: Kisumu, Kenya | Eldoret, Uasin Gishu County, Kenya | Machakos, Kenya")
 
     current_loc_parts = st.session_state.location.split(',')
     default_city = current_loc_parts[0].strip() if len(current_loc_parts) > 0 else "Ekerenyo, Nyamira County"
@@ -4038,7 +3929,7 @@ def display_top_manual_entry_dialog():
                 st.session_state.gps_location = None
                 st.session_state.show_top_manual_entry = False
                 st.success(f"✅ Location saved: {st.session_state.location}")
-                st.info("📍 Weather forecasts will now use your exact location.")
+                st.balloons()
                 time.sleep(1)
                 st.rerun()
             else:
@@ -4049,6 +3940,7 @@ def display_top_manual_entry_dialog():
             st.rerun()
 
     st.markdown("---")
+
 
 # ============================================================
 # MAIN APP
