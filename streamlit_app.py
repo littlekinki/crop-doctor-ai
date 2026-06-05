@@ -705,6 +705,8 @@ def get_location_from_ip():
 def get_location_name_from_coords(lat, lon):
     """Convert GPS coordinates to a readable location name using reverse geocoding"""
     try:
+        st.info(f"🌍 Looking up location for coordinates: {lat:.4f}, {lon:.4f}")
+
         response = requests.get(
             f"https://nominatim.openstreetmap.org/reverse",
             params={
@@ -721,13 +723,11 @@ def get_location_name_from_coords(lat, lon):
             data = response.json()
             address = data.get('address', {})
 
-            # Extract location components (prioritizing Kenyan administrative divisions)
             city = address.get('city') or address.get('town') or address.get('village') or ''
             county = address.get('county') or address.get('state_district') or ''
             state = address.get('state') or ''
             country = address.get('country') or 'Kenya'
 
-            # Build location string
             location_parts = []
             if city:
                 location_parts.append(city)
@@ -738,12 +738,13 @@ def get_location_name_from_coords(lat, lon):
             location_parts.append(country)
 
             if location_parts:
-                return ', '.join(location_parts)
+                result = ', '.join(location_parts)
+                st.success(f"✅ Location found: {result}")
+                return result
             else:
-                # Fallback to coordinates if no address found
                 return f"Lat: {lat:.4f}, Lon: {lon:.4f}"
     except Exception as e:
-        print(f"Reverse geocoding error: {e}")
+        st.error(f"Reverse geocoding error: {e}")
         return f"Coordinates: {lat:.4f}, {lon:.4f}"
 
 # ============================================================
@@ -3767,6 +3768,38 @@ def display_top_location_dialog():
     if not st.session_state.get('show_top_location_dialog', False):
         return
 
+    # FIRST: Check for GPS data in URL parameters (before showing the dialog)
+    import urllib.parse
+
+    # Get query parameters
+    query_params = st.query_params
+
+    if 'gps_lat' in query_params and 'gps_lon' in query_params:
+        try:
+            lat = float(query_params['gps_lat'])
+            lon = float(query_params['gps_lon'])
+            accuracy = float(query_params.get('gps_accuracy', 0))
+
+            with st.spinner("Getting location name from GPS coordinates..."):
+                location_name = get_location_name_from_coords(lat, lon)
+
+            st.session_state.location = location_name
+            st.session_state.gps_location = {'lat': lat, 'lon': lon, 'accuracy': accuracy}
+            st.session_state.location_method = "gps"
+            st.session_state.show_top_location_dialog = False
+
+            # Clear query parameters
+            st.query_params.clear()
+
+            st.success(f"✅ GPS Location set: {location_name}")
+            st.info(f"📍 Coordinates: {lat:.6f}, {lon:.6f} (Accuracy: ~{accuracy:.0f}m)")
+
+            time.sleep(1)
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error processing GPS data: {e}")
+            st.query_params.clear()
+
     st.markdown("---")
     st.markdown("### 📍 Change Your Location")
 
@@ -3788,40 +3821,57 @@ def display_top_location_dialog():
         """, unsafe_allow_html=True)
 
         if st.button("🌍 Use GPS", use_container_width=True, key="top_gps_btn"):
-            with st.spinner("📍 Getting GPS location. Please allow location access..."):
-                try:
-                    from streamlit_geolocation import streamlit_geolocation
-                    location_data = streamlit_geolocation()
+            # Create a div for debug messages
+            st.markdown("""
+            <div id="gps_debug" style="margin: 10px 0; padding: 10px; border-radius: 10px; background: #f0f2f6; font-family: monospace; font-size: 12px;"></div>
+            <script>
+            var debugDiv = document.getElementById('gps_debug');
+            debugDiv.innerHTML = '📍 Checking browser support...';
 
-                    if location_data and location_data.get('latitude') and location_data.get('longitude'):
-                        lat = location_data['latitude']
-                        lon = location_data['longitude']
-                        accuracy = location_data.get('accuracy', 0)
+            if (navigator.geolocation) {
+                debugDiv.innerHTML = '✅ Browser supports geolocation. Requesting location...<br>⏳ Please allow location access when prompted...';
 
-                        location_name = get_location_name_from_coords(lat, lon)
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        var lat = position.coords.latitude;
+                        var lon = position.coords.longitude;
+                        var accuracy = position.coords.accuracy;
+                        debugDiv.innerHTML = '✅ Got location!<br>📍 Lat: ' + lat.toFixed(6) + '<br>📍 Lon: ' + lon.toFixed(6) + '<br>📏 Accuracy: ' + Math.round(accuracy) + ' meters<br>🔄 Redirecting...';
+                        debugDiv.style.background = '#e8f5e9';
 
-                        st.session_state.location = location_name
-                        st.session_state.gps_location = {'lat': lat, 'lon': lon, 'accuracy': accuracy}
-                        st.session_state.location_method = "gps"
-                        st.session_state.show_top_location_dialog = False
-
-                        st.success(f"✅ GPS Location set: {location_name}")
-                        st.info(f"📍 Coordinates: {lat:.6f}, {lon:.6f} (Accuracy: ~{accuracy:.0f}m)")
-
-                        time.sleep(1)
-                        st.rerun()
-                    else:
-                        st.error("❌ Could not get GPS location. Make sure you allowed location access.")
-                        st.info("💡 Tip: Click the lock icon in your browser and allow location access, then try again.")
-
-                        if st.button("📝 Enter Manually Instead", use_container_width=True):
-                            st.session_state.show_top_manual_entry = True
-                            st.session_state.show_top_location_dialog = False
-                            st.rerun()
-
-                except Exception as e:
-                    st.error(f"❌ GPS error: {str(e)}")
-                    st.info("💡 On Hugging Face Spaces, make sure you're using HTTPS. Try refreshing the page.")
+                        // Reload page with GPS data in URL
+                        var url = window.location.href.split('?')[0];
+                        url += '?gps_lat=' + lat + '&gps_lon=' + lon + '&gps_accuracy=' + accuracy;
+                        window.location.href = url;
+                    },
+                    function(error) {
+                        var errorMsg = '';
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMsg = '❌ PERMISSION DENIED<br>📍 Click the lock icon in your browser address bar<br>📍 Select "Allow" for location access<br>📍 Then click "Use GPS" again';
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMsg = '❌ POSITION UNAVAILABLE<br>📍 Enable GPS/location services on your device<br>📍 Make sure you have a good signal';
+                                break;
+                            case error.TIMEOUT:
+                                errorMsg = '❌ TIMEOUT<br>📍 Location request took too long<br>📍 Please try again';
+                                break;
+                            default:
+                                errorMsg = '❌ Error: ' + error.message;
+                        }
+                        debugDiv.innerHTML = errorMsg;
+                        debugDiv.style.background = '#ffebee';
+                        debugDiv.style.color = '#c62828';
+                    },
+                    { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
+                );
+            } else {
+                debugDiv.innerHTML = '❌ Browser does not support geolocation<br>📍 Please use manual entry';
+                debugDiv.style.background = '#ffebee';
+                debugDiv.style.color = '#c62828';
+            }
+            </script>
+            """, unsafe_allow_html=True)
 
     with col2:
         st.markdown("""
