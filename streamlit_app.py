@@ -3843,54 +3843,138 @@ def display_top_location_dialog():
 
     st.markdown("---")
 
-def display_top_manual_entry_dialog():
-    """Display manual entry dialog for top bar"""
+def display_top_location_dialog():
+    """Display location dialog for top bar change"""
 
-    if not st.session_state.get('show_top_manual_entry', False):
+    if not st.session_state.get('show_top_location_dialog', False):
         return
 
     st.markdown("---")
-    st.markdown("### 📝 Enter Your Location Manually")
-    st.markdown("Enter your location for accurate weather forecasts:")
-    st.caption("Example: Kisumu, Kenya or Eldoret, Uasin Gishu County, Kenya")
+    st.markdown("### 📍 Change Your Location")
 
-    current_loc_parts = st.session_state.location.split(',')
-    default_city = current_loc_parts[0].strip() if len(current_loc_parts) > 0 else "Ekerenyo, Nyamira County"
-    default_region = current_loc_parts[1].strip() if len(current_loc_parts) > 1 else ""
-    default_country = current_loc_parts[-1].strip() if len(current_loc_parts) > 0 else "Kenya"
+    # Show current location
+    st.info(f"**Current location:** {st.session_state.location}")
 
+    st.markdown("#### Choose how to set your location:")
+
+    # Create two styled cards
     col1, col2 = st.columns(2)
-    with col1:
-        new_city = st.text_input("City/Town *", value=default_city, key="top_manual_city")
-        new_region = st.text_input("County/Region (optional)", value=default_region, key="top_manual_region")
-    with col2:
-        new_country = st.text_input("Country", value=default_country, key="top_manual_country")
 
-    st.caption("* Required field")
-
-    col1, col2 = st.columns(2)
     with col1:
-        if st.button("💾 Save Location", use_container_width=True, key="top_save_btn"):
-            if new_city:
-                if new_region:
-                    st.session_state.location = f"{new_city}, {new_region}, {new_country}"
-                else:
-                    st.session_state.location = f"{new_city}, {new_country}"
-                st.session_state.location_method = "manual"
-                st.session_state.gps_location = None
-                st.session_state.show_top_manual_entry = False
-                st.success(f"✅ Location saved: {st.session_state.location}")
-                time.sleep(0.8)
-                st.rerun()
-            else:
-                st.error("Please enter at least a city/town.")
+        st.markdown("""
+        <div class="location-option-card" style="text-align: center;">
+            <div class="location-option-icon">🌍</div>
+            <div class="location-option-title">Auto-detect (GPS)</div>
+            <div class="location-option-desc">Use your device's GPS for accurate location</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("🌍 Use GPS", use_container_width=True, key="top_gps_btn"):
+            # Check if geolocation is available in browser
+            st.markdown("""
+            <div id="gps_debug" style="margin: 10px 0; padding: 10px; border-radius: 10px; background: #f0f2f6;"></div>
+            <script>
+            var debugDiv = document.getElementById('gps_debug');
+            debugDiv.innerHTML = '📍 Checking browser support...';
+
+            if (navigator.geolocation) {
+                debugDiv.innerHTML = '✅ Browser supports geolocation. Requesting location...';
+
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        var lat = position.coords.latitude;
+                        var lon = position.coords.longitude;
+                        var accuracy = position.coords.accuracy;
+                        debugDiv.innerHTML = '✅ Got location! Lat: ' + lat.toFixed(6) + ', Lon: ' + lon.toFixed(6);
+                        debugDiv.style.background = '#e8f5e9';
+
+                        // Store in session storage
+                        sessionStorage.setItem('gps_lat', lat);
+                        sessionStorage.setItem('gps_lon', lon);
+                        sessionStorage.setItem('gps_accuracy', accuracy);
+                        sessionStorage.setItem('gps_success', 'true');
+
+                        // Reload page with GPS data in URL
+                        var url = window.location.href.split('?')[0];
+                        url += '?gps_lat=' + lat + '&gps_lon=' + lon + '&gps_accuracy=' + accuracy;
+                        window.location.href = url;
+                    },
+                    function(error) {
+                        var errorMsg = '';
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMsg = '❌ PERMISSION DENIED: You blocked location access. Click the lock icon in your browser and allow location.';
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMsg = '❌ POSITION UNAVAILABLE: GPS signal not found. Enable location services on your device.';
+                                break;
+                            case error.TIMEOUT:
+                                errorMsg = '❌ TIMEOUT: Location request took too long. Please try again.';
+                                break;
+                            default:
+                                errorMsg = '❌ Unknown error: ' + error.message;
+                        }
+                        debugDiv.innerHTML = errorMsg;
+                        debugDiv.style.background = '#ffebee';
+                        sessionStorage.setItem('gps_error', errorMsg);
+                        sessionStorage.setItem('gps_success', 'false');
+                    },
+                    { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
+                );
+            } else {
+                debugDiv.innerHTML = '❌ Browser does not support geolocation. Please use manual entry.';
+                debugDiv.style.background = '#ffebee';
+            }
+            </script>
+            """, unsafe_allow_html=True)
+
+            # Check if GPS data was returned via URL parameters
+            query_params = st.query_params
+
+            if 'gps_lat' in query_params and 'gps_lon' in query_params:
+                try:
+                    lat = float(query_params['gps_lat'])
+                    lon = float(query_params['gps_lon'])
+                    accuracy = float(query_params.get('gps_accuracy', 0))
+
+                    with st.spinner("Getting location name..."):
+                        location_name = get_location_name_from_coords(lat, lon)
+
+                    st.session_state.location = location_name
+                    st.session_state.gps_location = {'lat': lat, 'lon': lon, 'accuracy': accuracy}
+                    st.session_state.location_method = "gps"
+                    st.session_state.show_top_location_dialog = False
+
+                    # Clear query params
+                    st.query_params.clear()
+
+                    st.success(f"✅ GPS Location set: {location_name}")
+                    st.info(f"📍 Coordinates: {lat:.6f}, {lon:.6f} (Accuracy: ~{accuracy:.0f}m)")
+
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error processing GPS data: {e}")
+
     with col2:
-        if st.button("❌ Cancel", use_container_width=True, key="top_cancel_manual_btn"):
-            st.session_state.show_top_manual_entry = False
+        st.markdown("""
+        <div class="location-option-card" style="text-align: center;">
+            <div class="location-option-icon">✏️</div>
+            <div class="location-option-title">Enter Manually</div>
+            <div class="location-option-desc">Type your location (city, county, country)</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("✏️ Manual Entry", use_container_width=True, key="top_manual_btn"):
+            st.session_state.show_top_manual_entry = True
+            st.session_state.show_top_location_dialog = False
             st.rerun()
 
-    st.markdown("---")
+    # Cancel button
+    if st.button("❌ Cancel", use_container_width=True, key="top_cancel_btn"):
+        st.session_state.show_top_location_dialog = False
+        st.rerun()
 
+    st.markdown("---")
 # ============================================================
 # MAIN APP
 # ============================================================
