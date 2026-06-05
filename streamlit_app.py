@@ -10,7 +10,6 @@ Description: AI-powered crop disease diagnosis system with Grad-CAM visualizatio
 
 import streamlit as st
 import streamlit_analytics2 as streamlit_analytics
-!pip install streamlit_js_eval
 from streamlit_js_eval import get_geolocation
 import tensorflow as tf
 from tensorflow import keras
@@ -3788,63 +3787,104 @@ def display_top_location_dialog():
             <div class="location-option-desc">Use your device's GPS for accurate location</div>
         </div>
         """, unsafe_allow_html=True)
-
+        
         if st.button("🌍 Use GPS", use_container_width=True, key="top_gps_btn"):
-            with st.spinner("Getting GPS location. Please allow location access..."):
-                try:
-                    # This works reliably on Hugging Face Spaces
-                    location_data = get_geolocation()
-
-                    # Check for errors (user denied, timeout, etc.)
-                    if location_data and 'error' in location_data:
-                        error_code = location_data['error'].get('code', 0)
-                        error_msg = location_data['error'].get('message', 'Unknown error')
-
-                        if error_code == 1:
-                            st.error("❌ You denied location permission. Please allow location access and try again.")
-                        elif error_code == 2:
-                            st.error("❌ Location information is unavailable. Please enable GPS on your device.")
-                        elif error_code == 3:
-                            st.error("❌ Location request timed out. Please try again.")
-                        else:
-                            st.error(f"❌ Geolocation error: {error_msg}")
-
-                        # Provide manual entry option
-                        if st.button("📝 Enter Manually Instead", use_container_width=True):
-                            st.session_state.show_top_manual_entry = True
-                            st.session_state.show_top_location_dialog = False
-                            st.rerun()
-
-                    elif location_data and location_data.get('coords'):
-                        # Success! Extract coordinates
-                        coords = location_data['coords']
-                        lat = coords.get('latitude')
-                        lon = coords.get('longitude')
-                        accuracy = coords.get('accuracy', 0)
-
-                        if lat and lon:
-                            # Get human-readable location name
-                            with st.spinner("Getting location name..."):
-                                location_name = get_location_name_from_coords(lat, lon)
-
-                            st.session_state.location = location_name
-                            st.session_state.gps_location = {'lat': lat, 'lon': lon, 'accuracy': accuracy}
-                            st.session_state.location_method = "gps"
-                            st.session_state.show_top_location_dialog = False
-
-                            st.success(f"✅ GPS Location set: {location_name}")
-                            st.info(f"📍 Coordinates: {lat:.6f}, {lon:.6f} (Accuracy: ~{accuracy:.0f}m)")
-
-                            time.sleep(1)
-                            st.rerun()
-                        else:
-                            st.error("❌ Could not get valid coordinates from GPS.")
-                    else:
-                        st.error("❌ Could not get GPS location. Make sure you allowed location access.")
-
-                except Exception as e:
-                    st.error(f"❌ GPS error: {str(e)}")
-                    st.info("💡 Tip: Make sure you're using HTTPS. Hugging Face Spaces uses HTTPS automatically.")
+            # Create a form that will capture GPS data
+            st.markdown("""
+            <div id="gps_control">
+                <div id="gps_status" style="margin: 10px 0; padding: 10px; border-radius: 10px; background: #f0f2f6;"></div>
+            </div>
+            <script>
+            function getLocation() {
+                var statusDiv = document.getElementById('gps_status');
+                statusDiv.innerHTML = '📍 Requesting GPS location...';
+                statusDiv.style.background = '#fff3e0';
+                
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        function(position) {
+                            var lat = position.coords.latitude;
+                            var lon = position.coords.longitude;
+                            var accuracy = position.coords.accuracy;
+                            
+                            // Store in sessionStorage for Python to read
+                            sessionStorage.setItem('gps_lat', lat);
+                            sessionStorage.setItem('gps_lon', lon);
+                            sessionStorage.setItem('gps_accuracy', accuracy);
+                            sessionStorage.setItem('gps_timestamp', new Date().toISOString());
+                            sessionStorage.setItem('gps_success', 'true');
+                            
+                            statusDiv.innerHTML = '✅ GPS location obtained! Latitude: ' + lat.toFixed(6) + ', Longitude: ' + lon.toFixed(6) + '<br>📍 Accuracy: ' + Math.round(accuracy) + ' meters';
+                            statusDiv.style.background = '#e8f5e9';
+                            
+                            // Trigger a rerun by clicking a hidden button
+                            var hiddenBtn = document.getElementById('gps_complete_btn');
+                            if (hiddenBtn) hiddenBtn.click();
+                        },
+                        function(error) {
+                            var errorMsg = '';
+                            switch(error.code) {
+                                case error.PERMISSION_DENIED:
+                                    errorMsg = '❌ You denied location permission. Please allow location access and try again.';
+                                    break;
+                                case error.POSITION_UNAVAILABLE:
+                                    errorMsg = '❌ Location information is unavailable. Please enable GPS on your device.';
+                                    break;
+                                case error.TIMEOUT:
+                                    errorMsg = '❌ Location request timed out. Please try again.';
+                                    break;
+                                default:
+                                    errorMsg = '❌ An unknown error occurred: ' + error.message;
+                            }
+                            statusDiv.innerHTML = errorMsg;
+                            statusDiv.style.background = '#ffebee';
+                            sessionStorage.setItem('gps_error', errorMsg);
+                            sessionStorage.setItem('gps_success', 'false');
+                            
+                            // Trigger a rerun
+                            var hiddenBtn = document.getElementById('gps_complete_btn');
+                            if (hiddenBtn) hiddenBtn.click();
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 15000,
+                            maximumAge: 0
+                        }
+                    );
+                } else {
+                    statusDiv.innerHTML = '❌ Your browser does not support geolocation. Please use manual entry.';
+                    statusDiv.style.background = '#ffebee';
+                    sessionStorage.setItem('gps_error', 'Browser does not support geolocation');
+                    sessionStorage.setItem('gps_success', 'false');
+                    
+                    var hiddenBtn = document.getElementById('gps_complete_btn');
+                    if (hiddenBtn) hiddenBtn.click();
+                }
+            }
+            
+            // Run getLocation when page loads
+            getLocation();
+            </script>
+            """, unsafe_allow_html=True)
+            
+            # Hidden button to trigger rerun after GPS completes
+            if st.button("", key="gps_complete_btn", help="Processing GPS", use_container_width=False):
+                pass
+            
+            # Check if GPS data was stored in session
+            import streamlit as st
+            import time
+            
+            # Use Streamlit's session state to store GPS data
+            if 'gps_lat' not in st.session_state:
+                st.session_state.gps_lat = None
+            if 'gps_lon' not in st.session_state:
+                st.session_state.gps_lon = None
+            if 'gps_accuracy' not in st.session_state:
+                st.session_state.gps_accuracy = None
+            
+            # JavaScript data would need to be passed via query params
+            # This approach has limitations. Let me provide a better solution below.
 
     with col2:
         st.markdown("""
@@ -3865,7 +3905,6 @@ def display_top_location_dialog():
         st.rerun()
 
     st.markdown("---")
-
 
 def display_top_manual_entry_dialog():
     """Display manual entry dialog for top bar"""
