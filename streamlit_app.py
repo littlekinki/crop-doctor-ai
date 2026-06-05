@@ -3786,7 +3786,7 @@ def display_top_location_dialog():
             <div class="location-option-desc">Use your device's GPS for accurate location</div>
         </div>
         """, unsafe_allow_html=True)
-        
+
         if st.button("🌍 Use GPS", use_container_width=True, key="top_gps_btn"):
             # Create a form that will capture GPS data
             st.markdown("""
@@ -3798,24 +3798,24 @@ def display_top_location_dialog():
                 var statusDiv = document.getElementById('gps_status');
                 statusDiv.innerHTML = '📍 Requesting GPS location...';
                 statusDiv.style.background = '#fff3e0';
-                
+
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
                         function(position) {
                             var lat = position.coords.latitude;
                             var lon = position.coords.longitude;
                             var accuracy = position.coords.accuracy;
-                            
+
                             // Store in sessionStorage for Python to read
                             sessionStorage.setItem('gps_lat', lat);
                             sessionStorage.setItem('gps_lon', lon);
                             sessionStorage.setItem('gps_accuracy', accuracy);
                             sessionStorage.setItem('gps_timestamp', new Date().toISOString());
                             sessionStorage.setItem('gps_success', 'true');
-                            
+
                             statusDiv.innerHTML = '✅ GPS location obtained! Latitude: ' + lat.toFixed(6) + ', Longitude: ' + lon.toFixed(6) + '<br>📍 Accuracy: ' + Math.round(accuracy) + ' meters';
                             statusDiv.style.background = '#e8f5e9';
-                            
+
                             // Trigger a rerun by clicking a hidden button
                             var hiddenBtn = document.getElementById('gps_complete_btn');
                             if (hiddenBtn) hiddenBtn.click();
@@ -3839,7 +3839,7 @@ def display_top_location_dialog():
                             statusDiv.style.background = '#ffebee';
                             sessionStorage.setItem('gps_error', errorMsg);
                             sessionStorage.setItem('gps_success', 'false');
-                            
+
                             // Trigger a rerun
                             var hiddenBtn = document.getElementById('gps_complete_btn');
                             if (hiddenBtn) hiddenBtn.click();
@@ -3855,25 +3855,22 @@ def display_top_location_dialog():
                     statusDiv.style.background = '#ffebee';
                     sessionStorage.setItem('gps_error', 'Browser does not support geolocation');
                     sessionStorage.setItem('gps_success', 'false');
-                    
+
                     var hiddenBtn = document.getElementById('gps_complete_btn');
                     if (hiddenBtn) hiddenBtn.click();
                 }
             }
-            
+
             // Run getLocation when page loads
             getLocation();
             </script>
             """, unsafe_allow_html=True)
-            
+
             # Hidden button to trigger rerun after GPS completes
             if st.button("", key="gps_complete_btn", help="Processing GPS", use_container_width=False):
                 pass
-            
+
             # Check if GPS data was stored in session
-            import streamlit as st
-            import time
-            
             # Use Streamlit's session state to store GPS data
             if 'gps_lat' not in st.session_state:
                 st.session_state.gps_lat = None
@@ -3881,7 +3878,7 @@ def display_top_location_dialog():
                 st.session_state.gps_lon = None
             if 'gps_accuracy' not in st.session_state:
                 st.session_state.gps_accuracy = None
-            
+
             # JavaScript data would need to be passed via query params
             # This approach has limitations. Let me provide a better solution below.
 
