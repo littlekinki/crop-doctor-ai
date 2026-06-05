@@ -3752,6 +3752,14 @@ def display_privacy_notice():
 def display_top_location_buttons():
     """Display Change Location and Refresh buttons at the top"""
 
+    # Show current location with method indicator
+    if st.session_state.get('location_method') == "ip":
+        st.caption("⚠️ Location is IP-based (approximate)")
+    elif st.session_state.get('location_method') == "manual":
+        st.caption("✓ Location is manually set (accurate)")
+    else:
+        st.caption("📍 Location set")
+
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
         if st.button("📍 Change Location", use_container_width=True, key="change_location_top_btn"):
@@ -3765,7 +3773,7 @@ def display_top_location_buttons():
             st.rerun()
 
 def display_top_location_dialog():
-    """Display location dialog for top bar change"""
+    """Display location dialog - using IP detection with transparency about accuracy"""
 
     if not st.session_state.get('show_top_location_dialog', False):
         return
@@ -3773,35 +3781,94 @@ def display_top_location_dialog():
     st.markdown("---")
     st.markdown("### 📍 Change Your Location")
 
-    # Show current location
-    st.info(f"**Current location:** {st.session_state.location}")
+    # Show current location and method
+    if st.session_state.get('location_method') == "ip":
+        st.warning("⚠️ **Current location is IP-based (approximate).** Your actual location may differ by several kilometers.")
+    else:
+        st.info(f"**Current location:** {st.session_state.location}")
 
+    # Caution box about IP geolocation limitations
+    with st.expander("📌 Understanding Location Accuracy", expanded=False):
+        st.markdown("""
+        **How location detection works:**
+
+        | Method | Accuracy | How it works |
+        |--------|----------|--------------|
+        | **IP Address** | Low (kilometers off) | Based on your internet provider's server location |
+        | **Manual Entry** | High (exact) | You type your actual location |
+
+        **⚠️ Important Notes about IP-based location:**
+        - Your location is estimated from your **Internet Service Provider's (ISP) server**, not your actual GPS position
+        - In Kenya, this may show you in Nairobi, Kisumu, or even another country depending on your ISP
+        - Weather forecasts will be for the estimated location, which may be different from your farm
+        - **For accurate weather, always use manual entry to type your actual location**
+
+        **✅ Recommended:** Enter your location manually for the most accurate weather forecasts.
+        """)
+
+    st.markdown("---")
     st.markdown("#### Choose how to set your location:")
 
-    # Create two styled cards
     col1, col2 = st.columns(2)
 
     with col1:
         st.markdown("""
         <div class="location-option-card" style="text-align: center;">
-            <div class="location-option-icon">🌍</div>
-            <div class="location-option-title">Auto-detect (GPS)</div>
-            <div class="location-option-desc">Use your device's GPS for accurate location</div>
+            <div class="location-option-icon">🌐</div>
+            <div class="location-option-title">Auto-detect (IP)</div>
+            <div class="location-option-desc">⚠️ Approximate location (may be inaccurate)</div>
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("🌍 Use GPS", use_container_width=True, key="top_gps_btn"):
-            st.session_state.show_gps_dialog = True
-            st.rerun()
+        if st.button("🌐 Auto-detect (IP)", use_container_width=True, key="top_ip_btn"):
+            with st.spinner("Detecting location via IP address..."):
+                location_data = get_location_from_ip()
+                if location_data and location_data.get('city'):
+                    new_city = location_data['city']
+                    new_region = location_data.get('region', '')
+                    new_country = location_data.get('country', 'Kenya')
+
+                    # Build location string
+                    if new_region:
+                        detected_location = f"{new_city}, {new_region}, {new_country}"
+                    else:
+                        detected_location = f"{new_city}, {new_country}"
+
+                    # Show caution before applying
+                    st.warning(f"⚠️ **IP detection suggests:** {detected_location}")
+                    st.info("📌 IP addresses are linked to your internet provider's server, not your physical location. This may not be your actual farm location.")
+
+                    col_confirm, col_cancel = st.columns(2)
+                    with col_confirm:
+                        if st.button("✓ Use this location anyway", use_container_width=True):
+                            st.session_state.location = detected_location
+                            st.session_state.location_method = "ip"
+                            st.session_state.show_top_location_dialog = False
+                            st.success(f"✅ Location set to: {detected_location}")
+                            st.info("💡 Tip: For accurate weather, consider using Manual Entry to enter your exact location.")
+                            time.sleep(2)
+                            st.rerun()
+                    with col_cancel:
+                        if st.button("✗ No, let me enter manually", use_container_width=True):
+                            st.session_state.show_top_manual_entry = True
+                            st.session_state.show_top_location_dialog = False
+                            st.rerun()
+                else:
+                    st.error("Could not detect location via IP. Please use manual entry.")
+                    if st.button("📝 Enter Manually", use_container_width=True):
+                        st.session_state.show_top_manual_entry = True
+                        st.session_state.show_top_location_dialog = False
+                        st.rerun()
 
     with col2:
         st.markdown("""
         <div class="location-option-card" style="text-align: center;">
             <div class="location-option-icon">✏️</div>
             <div class="location-option-title">Enter Manually</div>
-            <div class="location-option-desc">Type your location (city, county, country)</div>
+            <div class="location-option-desc">✓ Accurate (recommended for best results)</div>
         </div>
         """, unsafe_allow_html=True)
+
         if st.button("✏️ Manual Entry", use_container_width=True, key="top_manual_btn"):
             st.session_state.show_top_manual_entry = True
             st.session_state.show_top_location_dialog = False
@@ -3812,154 +3879,114 @@ def display_top_location_dialog():
         st.session_state.show_top_location_dialog = False
         st.rerun()
 
-    # GPS dialog using components
-    if st.session_state.get('show_gps_dialog', False):
-        st.markdown("---")
-        st.markdown("#### 🌍 Getting your GPS location")
+    st.markdown("---")
 
-        # Use an iframe to capture GPS without page reload
-        import streamlit.components.v1 as components
+def display_top_location_dialog():
+    """Display location dialog - using IP detection with transparency about accuracy"""
 
-        components.html(f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{
-                    font-family: sans-serif;
-                    padding: 20px;
-                    margin: 0;
-                }}
-                #status {{
-                    padding: 15px;
-                    border-radius: 10px;
-                    margin: 10px 0;
-                    text-align: center;
-                }}
-                .success {{
-                    background-color: #e8f5e9;
-                    color: #2e7d32;
-                }}
-                .error {{
-                    background-color: #ffebee;
-                    color: #c62828;
-                }}
-                .info {{
-                    background-color: #fff3e0;
-                    color: #ef6c00;
-                }}
-                button {{
-                    background-color: #2E7D32;
-                    color: white;
-                    border: none;
-                    padding: 10px 20px;
-                    border-radius: 25px;
-                    font-size: 14px;
-                    cursor: pointer;
-                    margin-top: 15px;
-                }}
-                button:hover {{
-                    background-color: #1B5E20;
-                }}
-            </style>
-        </head>
-        <body>
-            <div id="status" class="info">📍 Requesting GPS location...</div>
-            <div style="text-align: center;">
-                <button onclick="closeDialog()">Close</button>
-            </div>
+    if not st.session_state.get('show_top_location_dialog', False):
+        return
 
-            <script>
-                var statusDiv = document.getElementById('status');
+    st.markdown("---")
+    st.markdown("### 📍 Change Your Location")
 
-                function sendToStreamlit(lat, lon, accuracy) {{
-                    // Send data to Streamlit via parent window
-                    if (window.parent !== window.self) {{
-                        window.parent.postMessage({{
-                            type: 'streamlit:setComponentValue',
-                            value: {{
-                                lat: lat,
-                                lon: lon,
-                                accuracy: accuracy
-                            }}
-                        }}, '*');
-                    }}
-                    statusDiv.innerHTML = '✅ Location obtained!<br>Latitude: ' + lat.toFixed(6) + '<br>Longitude: ' + lon.toFixed(6) + '<br>Accuracy: ' + Math.round(accuracy) + ' meters<br><br>Saving...';
-                    statusDiv.className = 'success';
+    # Show current location and method
+    if st.session_state.get('location_method') == "ip":
+        st.warning("⚠️ **Current location is IP-based (approximate).** Your actual location may differ by several kilometers.")
+    else:
+        st.info(f"**Current location:** {st.session_state.location}")
 
-                    // Also send via parent window location change
-                    setTimeout(function() {{
-                        window.parent.location.href = window.parent.location.href.split('?')[0] + '?gps_lat=' + lat + '&gps_lon=' + lon + '&gps_accuracy=' + accuracy;
-                    }}, 1000);
-                }}
+    # Caution box about IP geolocation limitations
+    with st.expander("📌 Understanding Location Accuracy", expanded=False):
+        st.markdown("""
+        **How location detection works:**
 
-                function closeDialog() {{
-                    window.parent.location.href = window.parent.location.href.split('?')[0];
-                }}
+        | Method | Accuracy | How it works |
+        |--------|----------|--------------|
+        | **IP Address** | Low (kilometers off) | Based on your internet provider's server location |
+        | **Manual Entry** | High (exact) | You type your actual location |
 
-                if (navigator.geolocation) {{
-                    navigator.geolocation.getCurrentPosition(
-                        function(position) {{
-                            var lat = position.coords.latitude;
-                            var lon = position.coords.longitude;
-                            var accuracy = position.coords.accuracy;
-                            sendToStreamlit(lat, lon, accuracy);
-                        }},
-                        function(error) {{
-                            var errorMsg = '';
-                            switch(error.code) {{
-                                case error.PERMISSION_DENIED:
-                                    errorMsg = '❌ Permission denied. Please allow location access.';
-                                    break;
-                                case error.POSITION_UNAVAILABLE:
-                                    errorMsg = '❌ GPS signal not found. Enable location services.';
-                                    break;
-                                case error.TIMEOUT:
-                                    errorMsg = '❌ Location request timed out. Try again.';
-                                    break;
-                                default:
-                                    errorMsg = '❌ Error: ' + error.message;
-                            }}
-                            statusDiv.innerHTML = errorMsg;
-                            statusDiv.className = 'error';
-                        }},
-                        {{ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }}
-                    );
-                }} else {{
-                    statusDiv.innerHTML = '❌ Browser does not support geolocation. Please use manual entry.';
-                    statusDiv.className = 'error';
-                }}
-            </script>
-        </body>
-        </html>
-        """, height=250)
+        **⚠️ Important Notes about IP-based location:**
+        - Your location is estimated from your **Internet Service Provider's (ISP) server**, not your actual GPS position
+        - In Kenya, this may show you in Nairobi, Kisumu, or even another country depending on your ISP
+        - Weather forecasts will be for the estimated location, which may be different from your farm
+        - **For accurate weather, always use manual entry to type your actual location**
 
-        # Check for GPS data from URL after redirect
-        query_params = st.query_params
-        if 'gps_lat' in query_params and 'gps_lon' in query_params:
-            try:
-                lat = float(query_params['gps_lat'])
-                lon = float(query_params['gps_lon'])
-                accuracy = float(query_params.get('gps_accuracy', 0))
+        **✅ Recommended:** Enter your location manually for the most accurate weather forecasts.
+        """)
 
-                with st.spinner("Getting location name..."):
-                    location_name = get_location_name_from_coords(lat, lon)
+    st.markdown("---")
+    st.markdown("#### Choose how to set your location:")
 
-                st.session_state.location = location_name
-                st.session_state.gps_location = {'lat': lat, 'lon': lon, 'accuracy': accuracy}
-                st.session_state.location_method = "gps"
-                st.session_state.show_top_location_dialog = False
-                st.session_state.show_gps_dialog = False
+    col1, col2 = st.columns(2)
 
-                st.query_params.clear()
+    with col1:
+        st.markdown("""
+        <div class="location-option-card" style="text-align: center;">
+            <div class="location-option-icon">🌐</div>
+            <div class="location-option-title">Auto-detect (IP)</div>
+            <div class="location-option-desc">⚠️ Approximate location (may be inaccurate)</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-                st.success(f"✅ GPS Location set: {location_name}")
-                time.sleep(1)
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error: {e}")
-                st.query_params.clear()
-                st.session_state.show_gps_dialog = False
+        if st.button("🌐 Auto-detect (IP)", use_container_width=True, key="top_ip_btn"):
+            with st.spinner("Detecting location via IP address..."):
+                location_data = get_location_from_ip()
+                if location_data and location_data.get('city'):
+                    new_city = location_data['city']
+                    new_region = location_data.get('region', '')
+                    new_country = location_data.get('country', 'Kenya')
+
+                    # Build location string
+                    if new_region:
+                        detected_location = f"{new_city}, {new_region}, {new_country}"
+                    else:
+                        detected_location = f"{new_city}, {new_country}"
+
+                    # Show caution before applying
+                    st.warning(f"⚠️ **IP detection suggests:** {detected_location}")
+                    st.info("📌 IP addresses are linked to your internet provider's server, not your physical location. This may not be your actual farm location.")
+
+                    col_confirm, col_cancel = st.columns(2)
+                    with col_confirm:
+                        if st.button("✓ Use this location anyway", use_container_width=True):
+                            st.session_state.location = detected_location
+                            st.session_state.location_method = "ip"
+                            st.session_state.show_top_location_dialog = False
+                            st.success(f"✅ Location set to: {detected_location}")
+                            st.info("💡 Tip: For accurate weather, consider using Manual Entry to enter your exact location.")
+                            time.sleep(2)
+                            st.rerun()
+                    with col_cancel:
+                        if st.button("✗ No, let me enter manually", use_container_width=True):
+                            st.session_state.show_top_manual_entry = True
+                            st.session_state.show_top_location_dialog = False
+                            st.rerun()
+                else:
+                    st.error("Could not detect location via IP. Please use manual entry.")
+                    if st.button("📝 Enter Manually", use_container_width=True):
+                        st.session_state.show_top_manual_entry = True
+                        st.session_state.show_top_location_dialog = False
+                        st.rerun()
+
+    with col2:
+        st.markdown("""
+        <div class="location-option-card" style="text-align: center;">
+            <div class="location-option-icon">✏️</div>
+            <div class="location-option-title">Enter Manually</div>
+            <div class="location-option-desc">✓ Accurate (recommended for best results)</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("✏️ Manual Entry", use_container_width=True, key="top_manual_btn"):
+            st.session_state.show_top_manual_entry = True
+            st.session_state.show_top_location_dialog = False
+            st.rerun()
+
+    # Cancel button
+    if st.button("❌ Cancel", use_container_width=True, key="top_cancel_btn"):
+        st.session_state.show_top_location_dialog = False
+        st.rerun()
 
     st.markdown("---")
 
@@ -3974,138 +4001,55 @@ def handle_gps_submission():
     # Alternative: Use a hidden component approach
     pass
 
-def display_top_location_dialog():
-    """Display location dialog for top bar change"""
+def display_top_manual_entry_dialog():
+    """Display manual entry dialog for top bar - recommended method"""
 
-    if not st.session_state.get('show_top_location_dialog', False):
+    if not st.session_state.get('show_top_manual_entry', False):
         return
 
     st.markdown("---")
-    st.markdown("### 📍 Change Your Location")
+    st.markdown("### 📝 Enter Your Location Manually")
+    st.markdown("✅ **Recommended for most accurate weather forecasts**")
+    st.caption("Example: Kisumu, Kenya or Eldoret, Uasin Gishu County, Kenya")
 
-    # Show current location
-    st.info(f"**Current location:** {st.session_state.location}")
+    current_loc_parts = st.session_state.location.split(',')
+    default_city = current_loc_parts[0].strip() if len(current_loc_parts) > 0 else "Ekerenyo, Nyamira County"
+    default_region = current_loc_parts[1].strip() if len(current_loc_parts) > 1 else ""
+    default_country = current_loc_parts[-1].strip() if len(current_loc_parts) > 0 else "Kenya"
 
-    st.markdown("#### Choose how to set your location:")
-
-    # Create two styled cards
     col1, col2 = st.columns(2)
-
     with col1:
-        st.markdown("""
-        <div class="location-option-card" style="text-align: center;">
-            <div class="location-option-icon">🌍</div>
-            <div class="location-option-title">Auto-detect (GPS)</div>
-            <div class="location-option-desc">Use your device's GPS for accurate location</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        if st.button("🌍 Use GPS", use_container_width=True, key="top_gps_btn"):
-            # Check if geolocation is available in browser
-            st.markdown("""
-            <div id="gps_debug" style="margin: 10px 0; padding: 10px; border-radius: 10px; background: #f0f2f6;"></div>
-            <script>
-            var debugDiv = document.getElementById('gps_debug');
-            debugDiv.innerHTML = '📍 Checking browser support...';
-
-            if (navigator.geolocation) {
-                debugDiv.innerHTML = '✅ Browser supports geolocation. Requesting location...';
-
-                navigator.geolocation.getCurrentPosition(
-                    function(position) {
-                        var lat = position.coords.latitude;
-                        var lon = position.coords.longitude;
-                        var accuracy = position.coords.accuracy;
-                        debugDiv.innerHTML = '✅ Got location! Lat: ' + lat.toFixed(6) + ', Lon: ' + lon.toFixed(6);
-                        debugDiv.style.background = '#e8f5e9';
-
-                        // Store in session storage
-                        sessionStorage.setItem('gps_lat', lat);
-                        sessionStorage.setItem('gps_lon', lon);
-                        sessionStorage.setItem('gps_accuracy', accuracy);
-                        sessionStorage.setItem('gps_success', 'true');
-
-                        // Reload page with GPS data in URL
-                        var url = window.location.href.split('?')[0];
-                        url += '?gps_lat=' + lat + '&gps_lon=' + lon + '&gps_accuracy=' + accuracy;
-                        window.location.href = url;
-                    },
-                    function(error) {
-                        var errorMsg = '';
-                        switch(error.code) {
-                            case error.PERMISSION_DENIED:
-                                errorMsg = '❌ PERMISSION DENIED: You blocked location access. Click the lock icon in your browser and allow location.';
-                                break;
-                            case error.POSITION_UNAVAILABLE:
-                                errorMsg = '❌ POSITION UNAVAILABLE: GPS signal not found. Enable location services on your device.';
-                                break;
-                            case error.TIMEOUT:
-                                errorMsg = '❌ TIMEOUT: Location request took too long. Please try again.';
-                                break;
-                            default:
-                                errorMsg = '❌ Unknown error: ' + error.message;
-                        }
-                        debugDiv.innerHTML = errorMsg;
-                        debugDiv.style.background = '#ffebee';
-                        sessionStorage.setItem('gps_error', errorMsg);
-                        sessionStorage.setItem('gps_success', 'false');
-                    },
-                    { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
-                );
-            } else {
-                debugDiv.innerHTML = '❌ Browser does not support geolocation. Please use manual entry.';
-                debugDiv.style.background = '#ffebee';
-            }
-            </script>
-            """, unsafe_allow_html=True)
-
-            # Check if GPS data was returned via URL parameters
-            query_params = st.query_params
-
-            if 'gps_lat' in query_params and 'gps_lon' in query_params:
-                try:
-                    lat = float(query_params['gps_lat'])
-                    lon = float(query_params['gps_lon'])
-                    accuracy = float(query_params.get('gps_accuracy', 0))
-
-                    with st.spinner("Getting location name..."):
-                        location_name = get_location_name_from_coords(lat, lon)
-
-                    st.session_state.location = location_name
-                    st.session_state.gps_location = {'lat': lat, 'lon': lon, 'accuracy': accuracy}
-                    st.session_state.location_method = "gps"
-                    st.session_state.show_top_location_dialog = False
-
-                    # Clear query params
-                    st.query_params.clear()
-
-                    st.success(f"✅ GPS Location set: {location_name}")
-                    st.info(f"📍 Coordinates: {lat:.6f}, {lon:.6f} (Accuracy: ~{accuracy:.0f}m)")
-
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error processing GPS data: {e}")
-
+        new_city = st.text_input("City/Town *", value=default_city, key="top_manual_city")
+        new_region = st.text_input("County/Region (optional)", value=default_region, key="top_manual_region")
     with col2:
-        st.markdown("""
-        <div class="location-option-card" style="text-align: center;">
-            <div class="location-option-icon">✏️</div>
-            <div class="location-option-title">Enter Manually</div>
-            <div class="location-option-desc">Type your location (city, county, country)</div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("✏️ Manual Entry", use_container_width=True, key="top_manual_btn"):
-            st.session_state.show_top_manual_entry = True
-            st.session_state.show_top_location_dialog = False
+        new_country = st.text_input("Country", value=default_country, key="top_manual_country")
+
+    st.caption("* Required field")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("💾 Save Location", use_container_width=True, key="top_save_btn"):
+            if new_city:
+                if new_region:
+                    st.session_state.location = f"{new_city}, {new_region}, {new_country}"
+                else:
+                    st.session_state.location = f"{new_city}, {new_country}"
+                st.session_state.location_method = "manual"
+                st.session_state.gps_location = None
+                st.session_state.show_top_manual_entry = False
+                st.success(f"✅ Location saved: {st.session_state.location}")
+                st.info("📍 Weather forecasts will now use your exact location.")
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("Please enter at least a city/town.")
+    with col2:
+        if st.button("❌ Cancel", use_container_width=True, key="top_cancel_manual_btn"):
+            st.session_state.show_top_manual_entry = False
             st.rerun()
 
-    # Cancel button
-    if st.button("❌ Cancel", use_container_width=True, key="top_cancel_btn"):
-        st.session_state.show_top_location_dialog = False
-        st.rerun()
-
     st.markdown("---")
+
 # ============================================================
 # MAIN APP
 # ============================================================
