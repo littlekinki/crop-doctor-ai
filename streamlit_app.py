@@ -3768,37 +3768,60 @@ def display_top_location_dialog():
     if not st.session_state.get('show_top_location_dialog', False):
         return
 
+    # Check if we have GPS data from previous redirect
+    query_params = st.query_params
+
+    if 'gps_lat' in query_params and 'gps_lon' in query_params:
+        try:
+            lat = float(query_params['gps_lat'])
+            lon = float(query_params['gps_lon'])
+            accuracy = float(query_params.get('gps_accuracy', 0))
+
+            with st.spinner("Getting location name..."):
+                location_name = get_location_name_from_coords(lat, lon)
+
+            st.session_state.location = location_name
+            st.session_state.gps_location = {'lat': lat, 'lon': lon, 'accuracy': accuracy}
+            st.session_state.location_method = "gps"
+            st.session_state.show_top_location_dialog = False
+            st.session_state.waiting_for_gps = False
+
+            # Clear query params
+            st.query_params.clear()
+
+            st.success(f"✅ GPS Location set: {location_name}")
+            time.sleep(1)
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error: {e}")
+            st.query_params.clear()
+            st.session_state.waiting_for_gps = False
+
     st.markdown("---")
     st.markdown("### 📍 Change Your Location")
-
-    # Show current location
     st.info(f"**Current location:** {st.session_state.location}")
 
-    st.markdown("#### Choose how to set your location:")
-
-    # Create two styled cards
     col1, col2 = st.columns(2)
 
     with col1:
         st.markdown("""
-        <div class="location-option-card" style="text-align: center;">
-            <div class="location-option-icon">🌍</div>
-            <div class="location-option-title">Auto-detect (GPS)</div>
-            <div class="location-option-desc">Use your device's GPS for accurate location</div>
+        <div style="text-align: center; padding: 15px; border-radius: 15px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+            <div style="font-size: 40px;">🌍</div>
+            <div style="font-size: 18px; font-weight: 700; color: #2E7D32;">Auto-detect (GPS)</div>
+            <div style="font-size: 12px; color: #666;">Use your device's GPS for accurate location</div>
         </div>
         """, unsafe_allow_html=True)
 
         if st.button("🌍 Use GPS", use_container_width=True, key="top_gps_btn"):
-            # Set a flag to indicate we're waiting for GPS
             st.session_state.waiting_for_gps = True
             st.rerun()
 
     with col2:
         st.markdown("""
-        <div class="location-option-card" style="text-align: center;">
-            <div class="location-option-icon">✏️</div>
-            <div class="location-option-title">Enter Manually</div>
-            <div class="location-option-desc">Type your location (city, county, country)</div>
+        <div style="text-align: center; padding: 15px; border-radius: 15px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+            <div style="font-size: 40px;">✏️</div>
+            <div style="font-size: 18px; font-weight: 700; color: #2E7D32;">Enter Manually</div>
+            <div style="font-size: 12px; color: #666;">Type your location (city, county, country)</div>
         </div>
         """, unsafe_allow_html=True)
         if st.button("✏️ Manual Entry", use_container_width=True, key="top_manual_btn"):
@@ -3806,101 +3829,39 @@ def display_top_location_dialog():
             st.session_state.show_top_location_dialog = False
             st.rerun()
 
-    # Cancel button
     if st.button("❌ Cancel", use_container_width=True, key="top_cancel_btn"):
         st.session_state.show_top_location_dialog = False
         st.rerun()
 
-    # Handle GPS waiting state
+    # GPS waiting state with JavaScript redirect
     if st.session_state.get('waiting_for_gps', False):
         st.markdown("""
-        <div style="margin: 20px 0; padding: 15px; border-radius: 10px; background: #f0f2f6;">
-            <p style="margin-bottom: 10px;">📍 <strong>Getting your GPS location...</strong></p>
-            <p style="font-size: 14px; color: #666;">Please allow location access when prompted by your browser.</p>
+        <div style="margin: 20px 0; padding: 15px; border-radius: 10px; background: #f0f2f6; text-align: center;">
+            <p>📍 <strong>Getting your GPS location...</strong></p>
+            <p style="font-size: 14px;">Please allow location access when prompted.</p>
         </div>
-
-        <div id="gps_result" style="margin: 10px 0; padding: 10px; border-radius: 10px;"></div>
-
         <script>
-        (function() {
-            var resultDiv = document.getElementById('gps_result');
-
-            if (navigator.geolocation) {
-                resultDiv.innerHTML = '📱 Requesting location... Please allow access.';
-                resultDiv.style.background = '#fff3e0';
-
-                navigator.geolocation.getCurrentPosition(
-                    function(position) {
-                        var lat = position.coords.latitude;
-                        var lon = position.coords.longitude;
-                        var accuracy = position.coords.accuracy;
-
-                        resultDiv.innerHTML = '✅ Location obtained! Latitude: ' + lat.toFixed(6) + '<br>📍 Longitude: ' + lon.toFixed(6) + '<br>📏 Accuracy: ' + Math.round(accuracy) + ' meters<br><br>⏳ Saving location...';
-                        resultDiv.style.background = '#e8f5e9';
-
-                        // Send to Python via a form submission
-                        var form = document.createElement('form');
-                        form.method = 'POST';
-                        form.action = '';
-
-                        var latInput = document.createElement('input');
-                        latInput.type = 'hidden';
-                        latInput.name = 'gps_lat';
-                        latInput.value = lat;
-
-                        var lonInput = document.createElement('input');
-                        lonInput.type = 'hidden';
-                        lonInput.name = 'gps_lon';
-                        lonInput.value = lon;
-
-                        var accuracyInput = document.createElement('input');
-                        accuracyInput.type = 'hidden';
-                        accuracyInput.name = 'gps_accuracy';
-                        accuracyInput.value = accuracy;
-
-                        form.appendChild(latInput);
-                        form.appendChild(lonInput);
-                        form.appendChild(accuracyInput);
-                        document.body.appendChild(form);
-                        form.submit();
-                    },
-                    function(error) {
-                        var errorMsg = '';
-                        switch(error.code) {
-                            case error.PERMISSION_DENIED:
-                                errorMsg = '❌ Permission denied. Please allow location access and try again.';
-                                break;
-                            case error.POSITION_UNAVAILABLE:
-                                errorMsg = '❌ GPS signal not found. Please enable location services.';
-                                break;
-                            case error.TIMEOUT:
-                                errorMsg = '❌ Location request timed out. Please try again.';
-                                break;
-                            default:
-                                errorMsg = '❌ Error: ' + error.message;
-                        }
-                        resultDiv.innerHTML = errorMsg;
-                        resultDiv.style.background = '#ffebee';
-                        resultDiv.style.color = '#c62828';
-
-                        // Reset waiting state after 3 seconds
-                        setTimeout(function() {
-                            window.location.reload();
-                        }, 3000);
-                    },
-                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-                );
-            } else {
-                resultDiv.innerHTML = '❌ Your browser does not support geolocation. Please use manual entry.';
-                resultDiv.style.background = '#ffebee';
-                resultDiv.style.color = '#c62828';
-            }
-        })();
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    var lat = position.coords.latitude;
+                    var lon = position.coords.longitude;
+                    var accuracy = position.coords.accuracy;
+                    var url = window.location.href.split('?')[0];
+                    url += '?gps_lat=' + lat + '&gps_lon=' + lon + '&gps_accuracy=' + accuracy;
+                    window.location.href = url;
+                },
+                function(error) {
+                    alert('GPS failed: ' + error.message + '\\nPlease use manual entry.');
+                    window.location.href = window.location.href.split('?')[0];
+                }
+            );
+        } else {
+            alert('Browser does not support GPS. Please use manual entry.');
+            window.location.href = window.location.href.split('?')[0];
+        }
         </script>
         """, unsafe_allow_html=True)
-
-        # Check for POST data with GPS coordinates
-        # This requires handling form submissions - alternative approach below
 
     st.markdown("---")
 
