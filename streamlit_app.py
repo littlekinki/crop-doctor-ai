@@ -10,6 +10,7 @@ Description: AI-powered crop disease diagnosis system with Grad-CAM visualizatio
 
 import streamlit as st
 import streamlit_analytics2 as streamlit_analytics
+!pip install streamlit_js_eval
 from streamlit_js_eval import get_geolocation
 import tensorflow as tf
 from tensorflow import keras
