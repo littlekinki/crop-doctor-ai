@@ -3559,9 +3559,10 @@ def fetch_live_kenya_met_warnings():
         return []
 
 def fetch_live_agriculture_news():
-    """Fetch live agriculture news from multiple Kenyan sources"""
+    """Fetch live agriculture news from multiple Kenyan sources - 5 articles each, filtered to last 7 days"""
     import feedparser
     import time
+    from datetime import datetime, timedelta
     
     try:
         # Cache news for 15 minutes
@@ -3574,51 +3575,140 @@ def fetch_live_agriculture_news():
                 return st.session_state[cache_key]
         
         articles = []
+        seven_days_ago = datetime.now() - timedelta(days=7)
         
-        # Source 1: The Standard - Agriculture (REAL RSS)
+        # Helper function to parse date from feed entry
+        def parse_entry_date(entry):
+            """Try to parse date from RSS entry"""
+            date_str = entry.get("published", "")
+            if not date_str:
+                date_str = entry.get("updated", "")
+            if not date_str:
+                return None
+            
+            try:
+                # Try different date formats
+                from dateutil import parser
+                return parser.parse(date_str)
+            except:
+                # Try common RSS date format
+                try:
+                    # Format like: "Sat, 06 Jun 2026 11:59:32 +0300"
+                    return datetime.strptime(date_str[:25], "%a, %d %b %Y %H:%M:%S")
+                except:
+                    return None
+        
+        # Source 1: The Standard - Agriculture RSS Feed (5 articles)
         try:
             standard_feed = feedparser.parse("https://www.standardmedia.co.ke/rss/agriculture.php")
-            for entry in standard_feed.entries[:]:
+            count = 0
+            for entry in standard_feed.entries:
+                if count >= 5:
+                    break
+                
+                entry_date = parse_entry_date(entry)
+                
+                # Skip if article is older than 7 days
+                if entry_date and entry_date < seven_days_ago:
+                    continue
+                
                 articles.append({
                     "title": entry.title,
                     "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
                     "url": entry.link,
                     "source": "The Standard",
                     "date": entry.get("published", "Recent"),
-                    "timestamp": time.time()
+                    "timestamp": entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
                 })
+                count += 1
         except Exception as e:
             print(f"Standard feed error: {e}")
         
-        # Source 2: Nation Africa - Agriculture
+        # Source 2: Nation Africa - Agriculture (5 articles)
         try:
             nation_feed = feedparser.parse("https://nation.africa/kenya/agriculture/rss")
-            for entry in nation_feed.entries[:]:
+            count = 0
+            for entry in nation_feed.entries:
+                if count >= 5:
+                    break
+                
+                entry_date = parse_entry_date(entry)
+                
+                if entry_date and entry_date < seven_days_ago:
+                    continue
+                
                 articles.append({
                     "title": entry.title,
                     "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
                     "url": entry.link,
                     "source": "Nation Africa",
                     "date": entry.get("published", "Recent"),
-                    "timestamp": time.time()
+                    "timestamp": entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
                 })
+                count += 1
         except Exception as e:
             print(f"Nation feed error: {e}")
         
-        # Source 3: Kenya News Agency
+        # Source 3: Kenya News Agency (KNA) - Agriculture (5 articles)
         try:
             kna_feed = feedparser.parse("https://www.kenyanews.go.ke/agriculture/feed/")
-            for entry in kna_feed.entries[:]:
+            count = 0
+            for entry in kna_feed.entries:
+                if count >= 5:
+                    break
+                
+                entry_date = parse_entry_date(entry)
+                
+                if entry_date and entry_date < seven_days_ago:
+                    continue
+                
                 articles.append({
                     "title": entry.title,
                     "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
                     "url": entry.link,
                     "source": "Kenya News Agency",
                     "date": entry.get("published", "Recent"),
-                    "timestamp": time.time()
+                    "timestamp": entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
                 })
+                count += 1
         except Exception as e:
             print(f"KNA feed error: {e}")
+        
+        # Source 4: The EastAfrican - Agriculture/Regional (5 articles)
+        try:
+            eastafrican_feed = feedparser.parse("https://www.theeastafrican.co.ke/rss")
+            count = 0
+            for entry in eastafrican_feed.entries:
+                if count >= 5:
+                    break
+                
+                # Filter for agriculture-related content
+                title_lower = entry.title.lower()
+                summary_lower = entry.summary.lower()
+                ag_keywords = ['agriculture', 'farming', 'crop', 'livestock', 'farm', 'harvest', 'food security']
+                
+                if not any(keyword in title_lower or keyword in summary_lower for keyword in ag_keywords):
+                    continue
+                
+                entry_date = parse_entry_date(entry)
+                
+                if entry_date and entry_date < seven_days_ago:
+                    continue
+                
+                articles.append({
+                    "title": entry.title,
+                    "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
+                    "url": entry.link,
+                    "source": "The EastAfrican",
+                    "date": entry.get("published", "Recent"),
+                    "timestamp": entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
+                })
+                count += 1
+        except Exception as e:
+            print(f"EastAfrican feed error: {e}")
+        
+        # Sort articles by date (newest first)
+        articles.sort(key=lambda x: x['timestamp'], reverse=True)
         
         # Cache the results
         st.session_state[cache_key] = articles
@@ -3782,22 +3872,36 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # SECTION 3: LIVE AGRICULTURE NEWS
     # ============================================================
     st.markdown("#### 📰 LIVE AGRICULTURE NEWS")
-    st.caption("Real-time updates from The Standard, Nation Africa, and KNA")
+    st.caption("Real-time updates from The Standard, Nation Africa, The EastAfrican, and KNA (last 7 days only)")
     
     news_articles = fetch_live_agriculture_news()
     
     if news_articles:
+        # Group by source for better organization
+        news_by_source = {}
         for article in news_articles:
-            with st.expander(f"📰 {article['title']}"):
-                st.caption(f"Source: {article['source']} | {article['date']}")
-                st.write(article['summary'])
-                st.markdown(f"[Read full article]({article['url']})")
+            source = article['source']
+            if source not in news_by_source:
+                news_by_source[source] = []
+            news_by_source[source].append(article)
+        
+        # Display news by source
+        for source, source_articles in news_by_source.items():
+            st.markdown(f"**📌 {source}**")
+            for article in source_articles[:5]:  # Show up to 5 per source
+                with st.expander(f"📰 {article['title']}"):
+                    st.caption(f"Published: {article['date']}")
+                    st.write(article['summary'])
+                    st.markdown(f"[Read full article]({article['url']})")
+            st.markdown("---")
     else:
-        st.info("📰 Unable to fetch live news. Please check your connection.")
+        st.info("📰 No agriculture news from the last 7 days.")
         st.markdown("""
         **Direct links to agriculture news:**
         - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya)
         - [Nation Africa - Agriculture](https://nation.africa/kenya/agriculture)
+        - [The EastAfrican](https://www.theeastafrican.co.ke)
+        - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
         """)
 
     # ============================================================
@@ -4437,5 +4541,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
