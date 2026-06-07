@@ -3608,32 +3608,19 @@ def fetch_live_agriculture_news():
             print(f"❌ Standard feed error: {e}")
         
         # ============================================================
-        # SOURCE 2: Nation Africa - Agriculture (5 articles)
+        # SOURCE 2: Nation Africa - Main RSS Feed (includes business/agriculture) (5 articles)
         # ============================================================
         try:
-            # Try multiple possible RSS URLs for Nation Africa
-            nation_urls = [
-                "https://nation.africa/kenya/agriculture/rss",
-                "https://www.nation.africa/kenya/agriculture/rss",
-                "https://nation.africa/feeds/agriculture/rss"
-            ]
-            
-            nation_feed = None
-            for url in nation_urls:
-                try:
-                    test_feed = feedparser.parse(url)
-                    if test_feed.entries:
-                        nation_feed = test_feed
-                        print(f"✅ Nation Africa feed found at: {url}")
-                        break
-                except:
-                    continue
-            
-            if nation_feed and nation_feed.entries:
-                count = 0
-                for entry in nation_feed.entries:
-                    if count >= 5:
-                        break
+            # Using the main RSS feed as the specific page is broken
+            nation_feed = feedparser.parse("https://nation.africa/feeds/rss.xml")
+            count = 0
+            for entry in nation_feed.entries:
+                if count >= 5:
+                    break
+                
+                # Filter for agriculture or farming related keywords
+                title = entry.title.lower()
+                if any(keyword in title for keyword in ['farm', 'agriculture', 'crop', 'livestock', 'harvest']):
                     articles.append({
                         "title": entry.title,
                         "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
@@ -3642,23 +3629,23 @@ def fetch_live_agriculture_news():
                         "date": entry.get("published", "Recent")
                     })
                     count += 1
-                print(f"✅ Nation Africa: {count} articles fetched")
-            else:
-                print(f"⚠️ Nation Africa feed has no entries")
-                # Add fallback link
+            
+            if count == 0:
+                # Fallback link
                 articles.append({
-                    "title": "Nation Africa - Agriculture Section",
-                    "summary": "Visit Nation Africa for the latest agriculture news and farming updates from Kenya.",
-                    "url": "https://nation.africa/kenya/agriculture",
+                    "title": "Nation Africa - Business Section (includes Agriculture)",
+                    "summary": "Visit Nation Africa's Business section for agriculture and farming news.",
+                    "url": "https://nation.africa/kenya/business",
                     "source": "Nation Africa",
                     "date": "Visit website"
                 })
+                print("⚠️ Nation Africa feed had no agriculture-related articles")
         except Exception as e:
             print(f"❌ Nation feed error: {e}")
             articles.append({
-                "title": "Nation Africa - Agriculture Section",
-                "summary": "Visit Nation Africa for the latest agriculture news.",
-                "url": "https://nation.africa/kenya/agriculture",
+                "title": "Nation Africa - Business Section",
+                "summary": "Visit Nation Africa for the latest agriculture and business news.",
+                "url": "https://nation.africa/kenya/business",
                 "source": "Nation Africa",
                 "date": "Visit website"
             })
@@ -3897,7 +3884,14 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     st.caption("Live updates from The Standard, Nation Africa, Kenya News Agency, and The EastAfrican")
     
     news_articles = fetch_live_agriculture_news()
-    
+
+    # Temporary debug - remove after confirming working
+    with st.expander("🔧 Debug: News Feed Status (visible to you only)", expanded=False):
+        st.write(f"Total articles fetched: {len(news_articles) if 'news_articles' in dir() else 0}")
+        for source in ["The Standard", "Nation Africa", "Kenya News Agency", "The EastAfrican"]:
+            count = len([a for a in news_articles if a['source'] == source]) if 'news_articles' in dir() else 0
+            st.write(f"  {source}: {count} articles")
+
     if news_articles:
         # Display articles in a clean, simple format
         for article in news_articles:
@@ -3910,7 +3904,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         st.markdown("""
         **📌 Direct links to agriculture news sources:**
         - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya)
-        - [Nation Africa - Agriculture](https://nation.africa/kenya/agriculture)
+        - [Nation Africa - Business & Economy](https://nation.africa/kenya/business)
         - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
         """)
 
@@ -4551,5 +4545,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
