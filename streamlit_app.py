@@ -3904,7 +3904,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         st.markdown("""
         **📌 Direct links to agriculture news sources:**
         - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya)
-        - [Nation Africa - Business & Economy](https://nation.africa/kenya/business)
+        - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold)
         - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
         """)
 
@@ -3950,13 +3950,21 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # ============================================================
     with st.expander("📚 Agricultural Resources for Kenyan Farmers"):
         st.markdown("""
-        **Live Data Sources:**
-        - [Kenya Meteorological Department](https://meteo.go.ke) - Live weather warnings
-        - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya) - Agriculture news
-        - [KALRO](https://kalro.org) - Research and advisory
-        - [Kenya News Agency](https://www.kenyanews.go.ke) - Government news
+        **Live News Sources (RSS Feeds):**
+        - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya) - Live agriculture news feed
+        - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/) - Government agriculture news
+        
+        **Agriculture Sections (Direct Links):**
+        - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold) - Weekly farming pullout
+        
+        **Government & Research:**
+        - [Kenya Meteorological Department](https://meteo.go.ke) - Weather warnings
+        - [KALRO](https://kalro.org) - Agricultural research
+        - [KEPHIS](https://www.kephis.org) - Seed certification
+        
+        **Farmer Support:**
+        - National Agricultural Extension Hotline: **0800 720 123**
         """)
-
 
 def get_weather_advisory(weather_warnings, disease_name, location):
     """Generate a tailored advisory based on weather warnings and disease"""
@@ -4545,4 +4553,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
