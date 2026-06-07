@@ -3894,7 +3894,9 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # ============================================================
     # SECTION 5: NEW TREATMENTS/CHEMICALS (Real-time Search)
     # ============================================================
-    st.markdown("#### 🧪 NEW TREATMENTS/CHEMICALS FOR THE DIAGNOSIS")
+    
+    # Dynamic title based on diagnosed disease
+    st.markdown(f"#### 🧪 NEW TREATMENTS/CHEMICALS FOR {disease_name.upper()}")
     st.caption("Search manufacturer websites for products NOT yet in our database")
     
     # Initialize session state for search
@@ -3906,15 +3908,15 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         st.session_state.search_performed = False
     
     # Button to start search
-    if st.button("🔍 Search for New Products", use_container_width=True, key="search_chemicals_btn"):
+    if st.button(f"🔍 Search for New {disease_name} Products", use_container_width=True, key="search_chemicals_btn"):
         st.session_state.search_chemicals = True
         st.session_state.search_performed = False
         st.rerun()
     
     # Show confirmation dialog if search was requested
     if st.session_state.search_chemicals and not st.session_state.search_performed:
-        st.warning("⚠️ **Searching manufacturer websites may take some time**")
-        st.info("📌 The system will search for NEW products related to your diagnosis that are NOT already in our database.")
+        st.warning("⚠️ **Searching manufacturer websites may take 10-20 seconds**")
+        st.info(f"📌 The system will search for NEW products related to **{disease_name}** that are NOT already in our database.")
         
         manufacturers = [
             "Greenlife Crop Protection Africa",
@@ -3973,7 +3975,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         results = st.session_state.chemical_search_results
         
         if results.get("new_products"):
-            st.success(f"✅ Found {len(results['new_products'])} NEW product(s) not in our database!")
+            st.success(f"✅ Found {len(results['new_products'])} NEW product(s) for {disease_name} not in our database!")
             for product in results['new_products']:
                 with st.expander(f"🆕 {product['name']}"):
                     st.markdown(f"**Manufacturer:** {product['manufacturer']}")
@@ -3981,7 +3983,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
                     st.markdown(f"**Why it's new:** {product['relevance']}")
                     st.warning("⚠️ **Important:** This product is not yet verified. Consult your local agrovet before use.")
         else:
-            st.info("✅ No NEW products found. All known products for this disease are already in our database.")
+            st.info(f"✅ No NEW products found for {disease_name}. All known products are already in our database.")
             st.caption("💡 Manufacturers typically update their websites quarterly. Check back later for new products.")
         
         if st.button("✖ Clear Results", use_container_width=True, key="clear_results"):
@@ -3990,7 +3992,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
             st.rerun()
     
     # Always show known products from database (for reference)
-    with st.expander("📋 Products Already in Our Database", expanded=False):
+    with st.expander(f"📋 Existing Products in Database for {disease_name}", expanded=False):
         treatment = get_full_treatment(disease_name, get_references())
         chem_text = treatment.get('chemical_control', '')
         
