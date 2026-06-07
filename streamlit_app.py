@@ -3560,6 +3560,9 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # ============================================================
     st.markdown("#### 🌤️ CURRENT WEATHER & DISEASE RISK")
     
+    # TIP COMES FIRST - BEFORE THE ICONS
+    st.caption("ℹ️ **Tip:** Hover over the ❔ icons for detailed explanations of each weather parameter.")
+    
     weather = get_weather_with_risk_assessment(location, disease_name, treatment_data)
 
     if weather:
@@ -3602,14 +3605,82 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         </div>
         """
         st.markdown(weather_text, unsafe_allow_html=True)
-        
-        # Tip about tooltips
-        st.caption("ℹ️ **Tip:** Hover over the ❔ icons for detailed explanations of each weather parameter.")
     else:
         st.info("🌤️ Unable to fetch weather data. Please check your internet connection.")
 
     # ============================================================
-    # SECTION 2: REAL-TIME NEWS FROM KENYAN MEDIA
+    # SECTION 2: KENYA METEOROLOGICAL DEPARTMENT WEATHER WARNINGS
+    # ============================================================
+    st.markdown("#### 🚨 KENYA MET DEPARTMENT WEATHER WARNINGS")
+    st.caption("Official alerts from Kenya Meteorological Department")
+
+    def fetch_kenya_meteo_warnings():
+        """Fetch weather warnings from Kenya Meteorological Department"""
+        import feedparser
+        
+        try:
+            # Kenya Met Department CAP RSS feed (official)
+            # Source: https://meteo.go.ke/warnings
+            feed = feedparser.parse("https://meteo.go.ke/api/cap/rss.xml")
+            warnings = []
+            
+            for entry in feed.entries[:5]:
+                # Extract affected areas from description
+                description = entry.get("description", "")
+                areas = []
+                if "counties" in description.lower():
+                    # Parse county names from description
+                    import re
+                    county_matches = re.findall(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(County|county)', description)
+                    areas = [m[0] for m in county_matches]
+                
+                warnings.append({
+                    "type": entry.get("title", "Weather Alert"),
+                    "areas": areas if areas else ["Various counties"],
+                    "severity": entry.get("severity", "Yellow"),
+                    "issued": entry.get("published", ""),
+                    "advice": entry.get("summary", "Monitor local weather conditions.")
+                })
+            return warnings
+        except Exception as e:
+            print(f"Error fetching Kenya Met warnings: {e}")
+            return []
+    
+    # Fetch and display Kenya Met warnings
+    try:
+        met_warnings = fetch_kenya_meteo_warnings()
+        
+        if met_warnings:
+            for warning in met_warnings:
+                severity = warning.get('severity', 'Yellow')
+                if severity == "Red":
+                    severity_icon = "🔴"
+                    bg_color = "#ffebee"
+                elif severity == "Orange":
+                    severity_icon = "🟠"
+                    bg_color = "#fff3e0"
+                else:
+                    severity_icon = "🟡"
+                    bg_color = "#fff8e1"
+                
+                st.markdown(f"""
+                <div style="background: {bg_color}; padding: 15px; border-radius: 10px; margin: 10px 0;">
+                    <p><strong>{severity_icon} {warning['type']} - {warning['severity']} Alert</strong><br>
+                    <small>Issued: {warning['issued']}</small></p>
+                    <p><strong>Affected Areas:</strong> {', '.join(warning['areas'])}</p>
+                    <p><strong>Advice:</strong> {warning['advice']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("📭 No active weather warnings for Kenya at this time.")
+            st.caption("ℹ️ Regular weather updates from [Kenya Meteorological Department](https://meteo.go.ke)")
+    except Exception as e:
+        st.info("📭 Weather warning service temporarily unavailable.")
+        st.caption("📌 For official warnings, visit [Kenya Meteorological Department](https://meteo.go.ke)")
+        print(f"Met warnings error: {e}")
+
+    # ============================================================
+    # SECTION 3: REAL-TIME NEWS FROM KENYAN MEDIA
     # ============================================================
     st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
     st.caption("Live updates from The Standard, Nation Africa, and Kenya News Agency")
@@ -3696,12 +3767,11 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         print(f"News feed error: {e}")
 
     # ============================================================
-    # SECTION 3: KALRO AGRICULTURAL UPDATES
+    # SECTION 4: KALRO AGRICULTURAL UPDATES
     # ============================================================
     st.markdown("#### 🌾 KALRO AGRICULTURAL UPDATES")
     st.caption("From Kenya Agricultural and Livestock Research Organization")
     
-    # Static KALRO updates (since no RSS feed available)
     kalro_updates = [
         {
             "title": "KALRO Flags High Aflatoxin Levels in Market Grains",
@@ -3725,7 +3795,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     st.caption("📌 For more KALRO updates, visit [kalro.org](https://kalro.org)")
 
     # ============================================================
-    # SECTION 4: WEATHER-BASED FARMING TIP
+    # SECTION 5: WEATHER-BASED FARMING TIP
     # ============================================================
     st.markdown("---")
     st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
@@ -3790,7 +3860,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         st.info("🌱 **Check local weather conditions** regularly for optimal timing of farm activities.")
     
     # ============================================================
-    # SECTION 5: RESOURCE DIRECTORY
+    # SECTION 6: RESOURCE DIRECTORY
     # ============================================================
     with st.expander("📚 Agricultural Resources for Kenyan Farmers"):
         st.markdown("""
@@ -3805,6 +3875,10 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         - [Nation Africa - Agriculture](https://nation.africa/kenya/agriculture)
         - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
         - [The EastAfrican](https://www.theeastafrican.co.ke)
+        
+        **Weather & Warnings:**
+        - [Kenya Meteorological Department - Warnings](https://meteo.go.ke/warnings)
+        - [Kenya Meteorological Department - 7-Day Forecast](https://meteo.go.ke/forecast)
         
         **Farmer Support:**
         - National Agricultural Extension Hotline: **0800 720 123**
@@ -4367,3 +4441,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
