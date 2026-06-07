@@ -9,3 +9,4 @@ streamlit-analytics2
 huggingface_hub
 streamlit-geolocation
 feedparser
+python-dateutil
