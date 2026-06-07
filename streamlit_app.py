@@ -3894,7 +3894,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # ============================================================
     # SECTION 5: NEW TREATMENTS/CHEMICALS (Real-time Search)
     # ============================================================
-    st.markdown("#### 🧪 NEW TREATMENTS/CHEMICALS")
+    st.markdown("#### 🧪 NEW TREATMENTS/CHEMICALS FOR THE DIAGNOSIS")
     st.caption("Search manufacturer websites for products NOT yet in our database")
     
     # Initialize session state for search
@@ -3913,7 +3913,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     
     # Show confirmation dialog if search was requested
     if st.session_state.search_chemicals and not st.session_state.search_performed:
-        st.warning("⚠️ **Searching manufacturer websites may take 10-20 seconds**")
+        st.warning("⚠️ **Searching manufacturer websites may take some time**")
         st.info("📌 The system will search for NEW products related to your diagnosis that are NOT already in our database.")
         
         manufacturers = [
