@@ -3612,7 +3612,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     st.caption("ℹ️ **Tip:** Hover over the ❔ icons for detailed explanations.")
     
     # ============================================================
-    # SECTION 1: WEATHER & DISEASE RISK (Your existing weather code)
+    # SECTION 1: WEATHER & DISEASE RISK
     # ============================================================
     st.markdown("#### 🌤️ CURRENT WEATHER & DISEASE RISK")
     
@@ -3628,15 +3628,15 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         """
         
         if weather['temperature'] != 'N/A':
-            weather_text += f'<p>🌡️ <strong>Temperature:</strong> {weather["temperature"]}°C <span style="cursor: help; color: #666;" title="Current air temperature. Ideal for most crops is 20-30°C. High temperatures (>30°C) can cause heat stress, low temperatures (<15°C) can slow growth.">❔</span></p>'
+            weather_text += f'<p>🌡️ <strong>Temperature:</strong> {weather["temperature"]}°C</p>'
         
         if weather['humidity'] != 'N/A':
-            weather_text += f'<p>💧 <strong>Humidity:</strong> {weather["humidity"]}% <span style="cursor: help; color: #666;" title="Relative humidity. High humidity (>80%) favors fungal diseases. Low humidity (<40%) favors pests like spider mites. Ideal range is 40-70%.">❔</span></p>'
+            weather_text += f'<p>💧 <strong>Humidity:</strong> {weather["humidity"]}%</p>'
         
-        weather_text += f'<p>☔ <strong>Current Rainfall:</strong> {weather["rain"]} mm <span style="cursor: help; color: #666;" title="Rainfall in the last hour. Less than 2mm is safe for spraying. More than 10mm can wash off chemicals.">❔</span></p>'
+        weather_text += f'<p>☔ <strong>Current Rainfall:</strong> {weather["rain"]} mm</p>'
         
         if weather['wind'] != 'N/A':
-            weather_text += f'<p>🌬️ <strong>Wind Speed:</strong> {weather["wind"]} km/h <span style="cursor: help; color: #666;" title="Best for spraying: 5-15 km/h. High winds (>25 km/h) cause spray drift.">❔</span></p>'
+            weather_text += f'<p>🌬️ <strong>Wind Speed:</strong> {weather["wind"]} km/h</p>'
         
         if weather['temp_max'] and weather['temp_min']:
             weather_text += f'<p>📅 <strong>Today\'s Forecast:</strong> High {weather["temp_max"]}°C / Low {weather["temp_min"]}°C</p>'
@@ -3647,8 +3647,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         weather_text += f"""
             <hr>
             <p><strong>🎯 DISEASE RISK ASSESSMENT FOR {disease_name}:</strong><br>
-            <span class="{risk_class}">{risk_msg}</span>
-            <span style="cursor: help; color: #666; margin-left: 5px;" title="Based on current weather conditions and the disease's known characteristics. High risk means conditions favor disease development.">❔</span></p>
+            <span class="{risk_class}">{risk_msg}</span></p>
         </div>
         """
         st.markdown(weather_text, unsafe_allow_html=True)
@@ -3664,177 +3663,112 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     
     if weather_warnings:
         for warning in weather_warnings:
-            if warning['severity'] == "Yellow":
-                severity_color = "🟡"
-            elif warning['severity'] == "Orange":
-                severity_color = "🟠"
-            else:
-                severity_color = "🔴"
-            
-            st.warning(f"{severity_color} **{warning['type']} Alert** - Issued: {warning['issued']}")
-            st.markdown(f"**Affected Areas:** {', '.join(warning['areas'])}")
-            st.markdown(f"**Advice for Farmers:** {warning['advice']}")
-            
-            # Link to disease risk if relevant
-            if warning['type'] == "Heavy Rainfall":
-                st.info("💡 **Farmers' Tip:** Heavy rain increases risk of fungal diseases. Consider preventive fungicide application after rain stops.")
-            elif warning['type'] == "Strong Winds":
-                st.info("💡 **Farmers' Tip:** Postpone spraying operations until winds calm to avoid chemical drift and waste.")
-            
+            st.warning(f"⚠️ **{warning['type']} Alert** - {warning.get('issued', 'Current')}")
+            st.markdown(f"**Affected Areas:** {', '.join(warning.get('areas', []))}")
+            st.markdown(f"**Advice:** {warning.get('advice', 'Monitor local conditions.')}")
             st.markdown("---")
     else:
         st.info("📭 No active weather warnings for your region at this time.")
-        st.caption("ℹ️ Regular weather updates from Kenya Meteorological Department [citation:10]")
     
     # ============================================================
     # SECTION 3: KALRO AGRICULTURAL ADVISORIES
     # ============================================================
     st.markdown("#### 🌾 KALRO AGRICULTURAL UPDATES")
-    st.caption("From Kenya Agricultural and Livestock Research Organization [citation:1]")
+    st.caption("From Kenya Agricultural and Livestock Research Organization")
     
     kalro_updates = fetch_kalro_updates(limit=3)
     
     if kalro_updates:
         for update in kalro_updates:
             with st.expander(f"📢 {update['title']}"):
-                st.caption(f"Source: {update['source']} | {update['date']}")
-                st.write(update['summary'])
+                st.caption(f"Source: {update.get('source', 'KALRO')} | {update.get('date', 'Recent')}")
+                st.write(update.get('summary', ''))
                 if update.get('url'):
                     st.markdown(f"[Read more]({update['url']})")
-                
-                # Add relevance to current disease if applicable
-                if disease_name and "aflatoxin" in update['title'].lower():
-                    st.info("💡 **Relevant to your crop:** This advisory addresses post-harvest handling which affects grain quality and market access.")
     else:
         st.info("📭 Loading KALRO updates...")
     
     # ============================================================
-# SECTION 4: LATEST AGRICULTURE NEWS FROM KENYAN MEDIA
-# ============================================================
-st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
-st.caption("From Nation Africa, The Standard, The Star, and Daily Nation")
-
-# Fetch news relevant to the diagnosed disease/crop
-search_term = disease_name.split()[0] if disease_name else crop_type
-news_articles = fetch_kenya_agriculture_news(query=search_term, limit=6)
-
-if news_articles:
-    for article in news_articles:
-        with st.expander(f"📰 {article['title']}"):
-            st.caption(f"Source: {article['source']} | {article.get('date', 'Recent')}")
-            st.write(article['summary'])
-            st.markdown(f"[Read full article]({article['url']})")
-else:
-    # Display sample headlines from Nation Africa's agriculture section
-    st.markdown("""
-    **📰 Nation Africa - Agriculture News**
-    
-    - [Nation Africa Agriculture Section](https://nation.africa/kenya/agriculture) - Latest farming news and tips
-    - [Smart farming technologies transforming Kenyan agriculture](https://nation.africa/kenya/agriculture) 
-    - [Weather patterns shift: What farmers need to know](https://nation.africa/kenya/agriculture)
-    - [Market prices for key crops this season](https://nation.africa/kenya/agriculture)
-    
-    ---
-    
-    **📰 The Standard - FarmKenya**
-    
-    - [FarmKenya: Smart Harvest weekly pullout](https://www.standardmedia.co.ke/farmkenya)
-    - [KTN Farmers TV - Weekly farming shows](https://www.standardmedia.co.ke/farmkenya)
-    
-    ---
-    
-    **📰 Daily Monitor - Regional Agriculture** (Uganda)
-    
-    - [Daily Monitor Agriculture](https://www.monitor.co.ug/uganda/agriculture) - Cross-border farming insights
-    
-    ---
-    
-    **📰 The EastAfrican - Regional Perspective**
-    
-    - [East African agriculture and trade news](https://www.theeastafrican.co.ke)
-    """)
-    
-    st.caption("📌 For the latest updates, visit [Nation Africa Agriculture](https://nation.africa/kenya/agriculture), [The Standard FarmKenya](https://www.standardmedia.co.ke/farmkenya), and [The Star Agriculture](https://www.the-star.co.ke)")
-
-# Also add Nation Media Group's special agriculture initiatives
-with st.expander("🌾 Nation Media Group Agriculture Resources", expanded=False):
-    st.markdown("""
-    **Nation Media Group (NMG)** - East Africa's largest independent media house [citation:1]
-    
-    - **Daily Nation (Nation Africa)** - Kenya's leading newspaper with dedicated agriculture coverage
-    - **The EastAfrican** - Regional perspective on agriculture and trade
-    - **Daily Monitor** - Uganda's premier news source for farming updates
-    - **NMG Agriculture Vertical** - One of NMG's six core content pillars driving agricultural journalism [citation:3]
-    
-    **Key Agriculture Initiatives:**
-    - Regular farming columns and expert advice
-    - Market price reports for crops and livestock
-    - Weather forecasts and climate adaptation stories
-    - Coverage of agricultural policies and government programs
-    
-    📱 **Follow Nation Africa Agriculture:**
-    - Website: [nation.africa/kenya/agriculture](https://nation.africa/kenya/agriculture)
-    - Nation Media Group reaches over 64 million online users monthly [citation:3]
-    """)
-
+    # SECTION 4: LATEST AGRICULTURE NEWS FROM KENYAN MEDIA
     # ============================================================
-    # SECTION 5: WEATHER-BASED FARMING TIP (Enhanced)
+    st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
+    st.caption("From Nation Africa, The Standard, and Daily Nation")
+    
+    # THIS IS THE FIX - search_term is now defined INSIDE the function
+    search_term = disease_name.split()[0] if disease_name else crop_type
+    news_articles = fetch_kenya_agriculture_news(query=search_term, limit=6)
+    
+    if news_articles:
+        for article in news_articles:
+            with st.expander(f"📰 {article['title']}"):
+                st.caption(f"Source: {article['source']} | {article.get('date', 'Recent')}")
+                st.write(article.get('summary', ''))
+                st.markdown(f"[Read full article]({article['url']})")
+    else:
+        st.markdown("""
+        **📰 Nation Africa - Agriculture News**
+        
+        - [Nation Africa Agriculture Section](https://nation.africa/kenya/agriculture) - Latest farming news
+        - [Weather patterns shift: What farmers need to know](https://nation.africa/kenya/agriculture)
+        - [Market prices for key crops this season](https://nation.africa/kenya/agriculture)
+        
+        ---
+        
+        **📰 The Standard - FarmKenya**
+        
+        - [FarmKenya: Smart Harvest weekly pullout](https://www.standardmedia.co.ke/farmkenya)
+        
+        ---
+        
+        **📰 The EastAfrican - Regional Perspective**
+        
+        - [East African agriculture and trade news](https://www.theeastafrican.co.ke)
+        """)
+        
+        st.caption("📌 For the latest updates, visit [Nation Africa Agriculture](https://nation.africa/kenya/agriculture) and [The Standard FarmKenya](https://www.standardmedia.co.ke/farmkenya)")
+    
+    # ============================================================
+    # SECTION 5: WEATHER-BASED FARMING TIP
     # ============================================================
     st.markdown("---")
     st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
     
-    # Get tailored advisory based on weather warnings
-    advisories = get_weather_advisory(weather_warnings, disease_name, location)
-    
-    if advisories:
-        for advisory in advisories:
-            if advisory['type'] == "warning":
-                st.warning(advisory['message'])
-                if advisory.get('related_disease_advice'):
-                    st.info(f"🌱 **Regarding {disease_name}:** {advisory['related_disease_advice']}")
-    else:
-        # Fallback to basic weather tip
-        if weather:
-            temp = weather.get('temperature')
-            humidity = weather.get('humidity')
-            rain_prob = weather.get('rain_prob')
-            
-            if rain_prob and rain_prob > 70:
-                st.success("🌧️ **Rain expected.** Consider postponing pesticide/fungicide application until after the rain to avoid wash-off.")
-            elif temp and temp > 30:
-                st.warning("🔥 **High temperatures expected.** Ensure adequate irrigation and consider applying mulch to retain soil moisture.")
-            elif humidity and humidity > 80:
-                st.info("💨 **High humidity conditions.** Favorable for fungal diseases. Consider preventive fungicide application.")
-            else:
-                st.info("🌱 **Optimal conditions for farm operations.** Good time for field scouting and regular crop monitoring.")
+    if weather:
+        temp = weather.get('temperature')
+        humidity = weather.get('humidity')
+        rain_prob = weather.get('rain_prob')
+        
+        if rain_prob and rain_prob > 70:
+            st.success("🌧️ **Rain expected.** Consider postponing pesticide/fungicide application until after the rain to avoid wash-off.")
+        elif temp and temp > 30:
+            st.warning("🔥 **High temperatures expected.** Ensure adequate irrigation and consider applying mulch to retain soil moisture.")
+        elif humidity and humidity > 80:
+            st.info("💨 **High humidity conditions.** Favorable for fungal diseases. Consider preventive fungicide application.")
         else:
-            st.info("🌱 Check local weather conditions regularly for optimal timing of farm activities.")
+            st.info("🌱 **Optimal conditions for farm operations.** Good time for field scouting and regular crop monitoring.")
+    else:
+        st.info("🌱 Check local weather conditions regularly for optimal timing of farm activities.")
     
     # ============================================================
     # SECTION 6: RESOURCE DIRECTORY
     # ============================================================
-    with st.expander("📚 Agricultural Resources for Kenyan Farmers", expanded=False):
+    with st.expander("📚 Agricultural Resources for Kenyan Farmers"):
         st.markdown("""
         **Government & Research Institutions:**
-        - [Kenya Agricultural and Livestock Research Organization (KALRO)](https://kalro.org) - Research-backed farming advice
-        - [Kenya Meteorological Department](https://meteo.go.ke) - Weather forecasts and warnings
-        - [Kenya Plant Health Inspectorate Service (KEPHIS)](https://www.kephis.org) - Certified seed and plant health
-        - [Ministry of Agriculture, Livestock, Fisheries and Cooperatives](https://kilimo.go.ke)
+        - [Kenya Agricultural and Livestock Research Organization (KALRO)](https://kalro.org)
+        - [Kenya Meteorological Department](https://meteo.go.ke)
+        - [Kenya Plant Health Inspectorate Service (KEPHIS)](https://www.kephis.org)
         
-        **News & Information (Nation Media Group):**
-        - [Nation Africa - Agriculture](https://nation.africa/kenya/agriculture) - Kenya's leading news source [citation:1]
-        - [The EastAfrican](https://www.theeastafrican.co.ke) - Regional perspective
-        - [Daily Monitor (Uganda)](https://www.monitor.co.ug/uganda/agriculture) - Cross-border farming news
-        
-        **Other News Sources:**
-        - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya) - Agriculture news, Smart Harvest pullout
-        - [The Star - Agriculture](https://www.the-star.co.ke) - Farming news and KNA reports
-        - [Farmers.co.ke](https://farmers.co.ke) - Digital marketplace and agri-content
+        **News & Information:**
+        - [Nation Africa - Agriculture](https://nation.africa/kenya/agriculture)
+        - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya)
+        - [The EastAfrican](https://www.theeastafrican.co.ke)
         
         **Farmer Support:**
-        - [National Agricultural Extension Hotline: 0800 720 123]
-        - [KALRO Farmer Helpline: 0111 050 050]
+        - [Ministry of Agriculture](https://kilimo.go.ke)
+        - National Agricultural Extension Hotline: 0800 720 123
         """)
+        
 
 def display_options_menu(top_predictions, references, location, class_names, current_disease_name, current_crop_type, current_treatment_data=None):
     """Display dynamic options menu - menu header in its own curved box with all functionality"""
@@ -4391,3 +4325,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
