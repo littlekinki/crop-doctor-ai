@@ -10,6 +10,8 @@ Description: AI-powered crop disease diagnosis system with Grad-CAM visualizatio
 
 import streamlit as st
 import streamlit_analytics2 as streamlit_analytics
+import streamlit.components.v1 as components
+from streamlit_geolocation import streamlit_geolocation
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
@@ -3774,8 +3776,6 @@ def display_top_location_buttons():
             time.sleep(0.5)
             st.rerun()
 
-from streamlit_geolocation import streamlit_geolocation
-
 def display_top_location_dialog():
     """Display location dialog with reliable GPS"""
 
@@ -3784,7 +3784,7 @@ def display_top_location_dialog():
 
     st.markdown("---")
     st.markdown("### 📍 Change Your Location")
-    
+
     # Show current location
     st.success(f"📍 **Current location:** {st.session_state.location}")
 
@@ -3811,7 +3811,7 @@ def display_top_location_dialog():
     # GPS UI - shown when user clicks GPS button
     if st.session_state.get('show_gps_ui', False):
         st.markdown("---")
-        
+
         # Check for GPS data from URL after redirect
         query_params = st.query_params
         if 'gps_lat' in query_params and 'gps_lon' in query_params:
@@ -3819,17 +3819,17 @@ def display_top_location_dialog():
                 lat = float(query_params['gps_lat'])
                 lon = float(query_params['gps_lon'])
                 accuracy = float(query_params.get('gps_accuracy', 0))
-                
+
                 with st.spinner("Getting location name..."):
                     location_name = get_location_name_from_coords(lat, lon)
-                
+
                 st.session_state.location = location_name
                 st.session_state.location_method = "gps"
                 st.session_state.show_top_location_dialog = False
                 st.session_state.show_gps_ui = False
-                
+
                 st.query_params.clear()
-                
+
                 st.success(f"✅ GPS Location set: {location_name}")
                 st.info(f"📍 Coordinates: {lat:.6f}, {lon:.6f}")
                 time.sleep(1.5)
@@ -3840,17 +3840,17 @@ def display_top_location_dialog():
         else:
             # Show GPS request interface
             st.markdown("#### 📱 Getting your GPS location")
-            
+
             components.html("""
             <!DOCTYPE html>
             <html>
             <head>
                 <style>
                     body { font-family: sans-serif; padding: 10px 0; margin: 0; }
-                    #status { 
-                        padding: 20px; 
-                        border-radius: 10px; 
-                        margin: 10px 0; 
+                    #status {
+                        padding: 20px;
+                        border-radius: 10px;
+                        margin: 10px 0;
                         text-align: center;
                         background: #f0f2f6;
                     }
@@ -3877,7 +3877,7 @@ def display_top_location_dialog():
                         var statusDiv = document.getElementById('status');
                         statusDiv.innerHTML = '⏳ Requesting location...';
                         statusDiv.className = '';
-                        
+
                         if (navigator.geolocation) {
                             navigator.geolocation.getCurrentPosition(
                                 function(position) {
@@ -3911,10 +3911,11 @@ def display_top_location_dialog():
             </body>
             </html>
             """, height=250)
-            
+
             st.caption("💡 If GPS doesn't work, click 'Manual Entry' to type your location.")
 
     st.markdown("---")
+
 
 # Add this to handle GPS form submission (add this function before main())
 def handle_gps_submission():
