@@ -3777,7 +3777,7 @@ def display_top_location_buttons():
             st.rerun()
 
 def display_top_location_dialog():
-    """Display location dialog with simplified GPS"""
+    """Display location dialog - Manual entry only (100% reliable)"""
 
     if not st.session_state.get('show_top_location_dialog', False):
         return
@@ -3785,114 +3785,46 @@ def display_top_location_dialog():
     st.markdown("---")
     st.markdown("### 📍 Change Your Location")
     
-    # Show current location
     st.success(f"📍 **Current location:** {st.session_state.location}")
 
     st.markdown("---")
-    st.markdown("#### Choose how to set your location:")
+    st.markdown("#### Enter your location manually:")
+    st.caption("✅ This is the most reliable method for accurate weather forecasts")
+    st.caption("📝 Examples: Kisumu, Kenya | Eldoret, Uasin Gishu County, Kenya | Machakos, Kenya | Nakuru, Kenya")
+
+    current_loc_parts = st.session_state.location.split(',')
+    default_city = current_loc_parts[0].strip() if len(current_loc_parts) > 0 else "Ekerenyo, Nyamira County"
+    default_region = current_loc_parts[1].strip() if len(current_loc_parts) > 1 else ""
+    default_country = current_loc_parts[-1].strip() if len(current_loc_parts) > 0 else "Kenya"
 
     col1, col2 = st.columns(2)
-
     with col1:
-        if st.button("📱 Use GPS", use_container_width=True, key="top_gps_btn"):
-            st.session_state.waiting_for_gps = True
-            st.rerun()
-
+        new_city = st.text_input("City/Town *", value=default_city, key="top_manual_city")
+        new_region = st.text_input("County/Region (optional)", value=default_region, key="top_manual_region")
     with col2:
-        if st.button("✏️ Manual Entry", use_container_width=True, key="top_manual_btn"):
-            st.session_state.show_top_manual_entry = True
-            st.session_state.show_top_location_dialog = False
-            st.rerun()
+        new_country = st.text_input("Country", value=default_country, key="top_manual_country")
 
-    if st.button("❌ Cancel", use_container_width=True, key="top_cancel_btn"):
-        st.session_state.show_top_location_dialog = False
-        st.rerun()
+    st.caption("* Required field")
 
-    # Handle GPS waiting state
-    if st.session_state.get('waiting_for_gps', False):
-        st.markdown("---")
-        st.markdown("#### 📱 Getting your GPS location")
-        
-        # Simple HTML/JS that works
-        gps_html = """
-        <div id="gps_status" style="padding: 20px; text-align: center; background: #f0f2f6; border-radius: 10px; margin: 10px 0;">
-            ⏳ Requesting GPS location...<br>
-            <span style="font-size: 14px;">Please allow location access when your browser asks.</span>
-        </div>
-        <div id="gps_debug" style="font-size: 12px; color: #666; text-align: center; margin: 10px 0;"></div>
-        
-        <script>
-        var statusDiv = document.getElementById('gps_status');
-        var debugDiv = document.getElementById('gps_debug');
-        
-        debugDiv.innerHTML = 'Checking browser support...';
-        
-        if (navigator.geolocation) {
-            debugDiv.innerHTML = 'Browser supports GPS. Requesting location...';
-            
-            navigator.geolocation.getCurrentPosition(
-                function(pos) {
-                    var lat = pos.coords.latitude;
-                    var lon = pos.coords.longitude;
-                    var acc = pos.coords.accuracy;
-                    debugDiv.innerHTML = 'Got coordinates! Redirecting...';
-                    statusDiv.innerHTML = '✅ Location obtained! Redirecting...';
-                    
-                    // Redirect with GPS data
-                    var url = window.location.href.split('?')[0];
-                    url += '?gps_lat=' + lat + '&gps_lon=' + lon + '&gps_accuracy=' + acc;
-                    window.location.href = url;
-                },
-                function(err) {
-                    var msg = '';
-                    if (err.code == 1) {
-                        msg = '❌ Permission Denied<br><br>📌 How to fix:<br>1. Click the lock icon 🔒 in your browser address bar<br>2. Find "Location"<br>3. Change to "Allow"<br>4. Refresh and try again';
-                    } else if (err.code == 2) {
-                        msg = '❌ GPS Unavailable<br>Please enable location services on your device';
-                    } else if (err.code == 3) {
-                        msg = '❌ Timeout<br>Please try again';
-                    } else {
-                        msg = '❌ Error: ' + err.message;
-                    }
-                    statusDiv.innerHTML = msg;
-                    debugDiv.innerHTML = 'Error code: ' + err.code;
-                },
-                { enableHighAccuracy: true, timeout: 10000 }
-            );
-        } else {
-            statusDiv.innerHTML = '❌ Browser does not support GPS<br>Please use Manual Entry';
-            debugDiv.innerHTML = 'Geolocation not available';
-        }
-        </script>
-        """
-        
-        st.markdown(gps_html, unsafe_allow_html=True)
-        
-        # Check if we have GPS data in URL
-        if st.query_params.get('gps_lat') and st.query_params.get('gps_lon'):
-            try:
-                lat = float(st.query_params['gps_lat'])
-                lon = float(st.query_params['gps_lon'])
-                accuracy = float(st.query_params.get('gps_accuracy', 0))
-                
-                location_name = get_location_name_from_coords(lat, lon)
-                
-                st.session_state.location = location_name
-                st.session_state.location_method = "gps"
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("💾 Save Location", use_container_width=True, key="top_save_btn"):
+            if new_city:
+                if new_region:
+                    st.session_state.location = f"{new_city}, {new_region}, {new_country}"
+                else:
+                    st.session_state.location = f"{new_city}, {new_country}"
+                st.session_state.location_method = "manual"
                 st.session_state.show_top_location_dialog = False
-                st.session_state.waiting_for_gps = False
-                
-                st.query_params.clear()
-                
-                st.success(f"✅ GPS Location set: {location_name}")
+                st.success(f"✅ Location saved: {st.session_state.location}")
+                st.balloons()
                 time.sleep(1)
                 st.rerun()
-            except Exception as e:
-                st.error(f"Error: {e}")
-                st.query_params.clear()
-        
-        if st.button("✖ Cancel GPS", use_container_width=True):
-            st.session_state.waiting_for_gps = False
+            else:
+                st.error("Please enter at least a city/town.")
+    with col2:
+        if st.button("❌ Cancel", use_container_width=True, key="top_cancel_btn"):
+            st.session_state.show_top_location_dialog = False
             st.rerun()
 
     st.markdown("---")
