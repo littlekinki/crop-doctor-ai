@@ -3772,8 +3772,10 @@ def display_top_location_buttons():
             time.sleep(0.5)
             st.rerun()
 
+from streamlit_geolocation import streamlit_geolocation
+
 def display_top_location_dialog():
-    """Display location dialog - using IP detection with working ip-api.com"""
+    """Display location dialog with GPS option for phones"""
 
     if not st.session_state.get('show_top_location_dialog', False):
         return
@@ -3781,31 +3783,8 @@ def display_top_location_dialog():
     st.markdown("---")
     st.markdown("### 📍 Change Your Location")
 
-    # Show current location and method
-    if st.session_state.get('location_method') == "ip":
-        st.info(f"📍 **Current location (IP-based):** {st.session_state.location}")
-        st.caption("⚠️ IP location is approximate - may show your ISP's server location, not your exact farm")
-    elif st.session_state.get('location_method') == "manual":
-        st.success(f"📍 **Current location (manually set):** {st.session_state.location}")
-        st.caption("✓ Manual entry provides the most accurate weather forecasts")
-    else:
-        st.info(f"📍 **Current location:** {st.session_state.location}")
-
-    # Brief explanation of IP vs Manual
-    with st.expander("📌 Which location method should I use?"):
-        st.markdown("""
-        | Method | Accuracy | Best for |
-        |--------|----------|----------|
-        | **Manual Entry** | ✓ High (exact) | Getting accurate weather for your exact farm location |
-        | **Auto-detect (IP)** | ⚠️ Approximate | Quick estimate when you don't know your exact location name |
-
-        **How IP detection works:**
-        - Uses your internet provider's server location
-        - In Kenya, this often shows Nairobi or another major city
-        - May not reflect your actual farm location
-
-        **✅ Recommendation:** Use **Manual Entry** for the most accurate weather forecasts.
-        """)
+    # Show current location
+    st.success(f"📍 **Current location:** {st.session_state.location}")
 
     st.markdown("---")
     st.markdown("#### Choose how to set your location:")
@@ -3815,57 +3794,49 @@ def display_top_location_dialog():
     with col1:
         st.markdown("""
         <div class="location-option-card" style="text-align: center;">
-            <div class="location-option-icon">🌐</div>
-            <div class="location-option-title">Auto-detect (IP)</div>
-            <div class="location-option-desc">Quick estimate based on your internet connection</div>
+            <div class="location-option-icon">📱</div>
+            <div class="location-option-title">Use Phone GPS</div>
+            <div class="location-option-desc">✓ Most accurate (requires permission)</div>
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("🌐 Auto-detect (IP)", use_container_width=True, key="top_ip_btn"):
-            with st.spinner("Detecting location via IP address..."):
-                location_data = get_location_from_ip()  # Your working function
-                if location_data and location_data.get('city'):
-                    new_city = location_data['city']
-                    new_region = location_data.get('region', '')
-                    new_country = location_data.get('country', 'Kenya')
+        if st.button("📱 Use GPS", use_container_width=True, key="top_gps_btn"):
+            with st.spinner("Getting your GPS location. Please allow permission when prompted..."):
+                try:
+                    location_data = streamlit_geolocation()
 
-                    if new_region:
-                        detected_location = f"{new_city}, {new_region}, {new_country}"
+                    if location_data and location_data.get('latitude'):
+                        lat = location_data['latitude']
+                        lon = location_data['longitude']
+                        accuracy = location_data.get('accuracy', 0)
+
+                        location_name = get_location_name_from_coords(lat, lon)
+
+                        st.session_state.location = location_name
+                        st.session_state.location_method = "gps"
+                        st.session_state.show_top_location_dialog = False
+
+                        st.success(f"✅ GPS Location set: {location_name}")
+                        st.info(f"📍 Accuracy: ~{accuracy:.0f} meters")
+                        time.sleep(1)
+                        st.rerun()
                     else:
-                        detected_location = f"{new_city}, {new_country}"
+                        st.error("Could not get GPS location. Make sure you allowed location access.")
+                        st.info("💡 You can also use Manual Entry to type your location.")
 
-                    # Show what was detected
-                    st.info(f"📍 IP detection suggests: **{detected_location}**")
-                    st.caption("⚠️ This is based on your internet provider's server location and may not be your exact farm location.")
-
-                    col_confirm, col_cancel = st.columns(2)
-                    with col_confirm:
-                        if st.button("✓ Use this location", use_container_width=True):
-                            st.session_state.location = detected_location
-                            st.session_state.location_method = "ip"
-                            st.session_state.show_top_location_dialog = False
-                            st.success(f"✅ Location set to: {detected_location}")
-                            st.info("💡 For more accurate weather, you can always use Manual Entry to enter your exact location.")
-                            time.sleep(1.5)
-                            st.rerun()
-                    with col_cancel:
-                        if st.button("✗ No, enter manually", use_container_width=True):
+                        if st.button("📝 Try Manual Entry", use_container_width=True):
                             st.session_state.show_top_manual_entry = True
                             st.session_state.show_top_location_dialog = False
                             st.rerun()
-                else:
-                    st.error("Could not detect location via IP. Please use manual entry.")
-                    if st.button("📝 Enter Manually", use_container_width=True):
-                        st.session_state.show_top_manual_entry = True
-                        st.session_state.show_top_location_dialog = False
-                        st.rerun()
+                except Exception as e:
+                    st.error(f"GPS error: {e}")
 
     with col2:
         st.markdown("""
         <div class="location-option-card" style="text-align: center;">
             <div class="location-option-icon">✏️</div>
             <div class="location-option-title">Enter Manually</div>
-            <div class="location-option-desc">✓ Most accurate (recommended)</div>
+            <div class="location-option-desc">Type your location (city, county, country)</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -3880,6 +3851,7 @@ def display_top_location_dialog():
         st.rerun()
 
     st.markdown("---")
+
 
 # Add this to handle GPS form submission (add this function before main())
 def handle_gps_submission():
