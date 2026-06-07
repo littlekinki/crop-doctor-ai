@@ -3613,86 +3613,44 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # ============================================================
     st.markdown("#### 🚨 KENYA MET DEPARTMENT WEATHER WARNINGS")
     st.caption("Official alerts from Kenya Meteorological Department")
-    
+
     def fetch_kenya_meteo_warnings():
-        """Fetch recent weather warnings from Kenya Meteorological Department"""
+        """Fetch weather warnings from Kenya Meteorological Department"""
         import feedparser
-        from datetime import datetime, timedelta
         
         try:
+            # Kenya Met Department CAP RSS feed (official)
+            # Source: https://meteo.go.ke/warnings
             feed = feedparser.parse("https://meteo.go.ke/api/cap/rss.xml")
             warnings = []
-            seven_days_ago = datetime.now() - timedelta(days=7)
             
-            kenyan_counties = [
-                "Nairobi", "Mombasa", "Kisumu", "Nakuru", "Kiambu", "Machakos", 
-                "Eldoret", "Uasin Gishu", "Kericho", "Kakamega", "Bungoma", "Busia",
-                "Trans Nzoia", "Kilifi", "Kwale", "Tana River", "Lamu", "Garissa",
-                "Wajir", "Mandera", "Marsabit", "Isiolo", "Meru", "Tharaka Nithi",
-                "Embu", "Kitui", "Makueni", "Kajiado", "Narok", "Nyandarua",
-                "Laikipia", "Nyeri", "Kirinyaga", "Murang'a", "Vihiga", "Siaya",
-                "Homabay", "Migori", "Kisii", "Nyamira", "Bomet", "Turkana",
-                "West Pokot", "Samburu", "Nandi", "Elgeyo Marakwet", "Baringo"
-            ]
-            
-            for entry in feed.entries[:10]:
-                published_str = entry.get("published", "")
-                try:
-                    from dateutil import parser
-                    published_date = parser.parse(published_str)
-                except:
-                    published_date = datetime.now()
+            for entry in feed.entries[:5]:
+                # Extract affected areas from description
+                description = entry.get("description", "")
+                areas = []
+                if "counties" in description.lower():
+                    # Parse county names from description
+                    import re
+                    county_matches = re.findall(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(County|county)', description)
+                    areas = [m[0] for m in county_matches]
                 
-                if published_date >= seven_days_ago:
-                    description = entry.get("description", "")
-                    title = entry.get("title", "")
-                    
-                    affected_counties = []
-                    for county in kenyan_counties:
-                        if county.lower() in description.lower() or county.lower() in title.lower():
-                            affected_counties.append(county)
-                    
-                    if not affected_counties:
-                        import re
-                        region_patterns = [
-                            "Highlands West", "Highlands East", "Lake Victoria Basin",
-                            "Rift Valley", "Southeastern Lowlands", "Coast",
-                            "Northwestern", "Northeastern", "Central Highlands"
-                        ]
-                        for region in region_patterns:
-                            if region.lower() in description.lower():
-                                affected_counties.append(region)
-                    
-                    if not affected_counties:
-                        affected_counties = ["Various areas"]
-                    
-                    warnings.append({
-                        "type": title,
-                        "areas": affected_counties,
-                        "severity": entry.get("severity", "Yellow"),
-                        "issued": published_str,
-                        "advice": entry.get("summary", "Monitor local weather conditions."),
-                        "description": description[:300] + "..." if len(description) > 300 else description
-                    })
-            
-            return warnings[:5]
+                warnings.append({
+                    "type": entry.get("title", "Weather Alert"),
+                    "areas": areas if areas else ["Various counties"],
+                    "severity": entry.get("severity", "Yellow"),
+                    "issued": entry.get("published", ""),
+                    "advice": entry.get("summary", "Monitor local weather conditions.")
+                })
+            return warnings
         except Exception as e:
             print(f"Error fetching Kenya Met warnings: {e}")
             return []
     
-    def is_user_affected(warning_areas, user_location):
-        """Check if the user's location is in the affected areas"""
-        user_location_lower = user_location.lower()
-        for area in warning_areas:
-            if area.lower() in user_location_lower:
-                return True
-        return False
-    
+    # Fetch and display Kenya Met warnings
     try:
         met_warnings = fetch_kenya_meteo_warnings()
         
         if met_warnings:
-            user_affected = False
             for warning in met_warnings:
                 severity = warning.get('severity', 'Yellow')
                 if severity == "Red":
@@ -3705,34 +3663,16 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
                     severity_icon = "🟡"
                     bg_color = "#fff8e1"
                 
-                affects_user = is_user_affected(warning['areas'], location)
-                area_badge = " 🔴 **YOUR AREA AFFECTED!**" if affects_user else ""
-                
-                if affects_user:
-                    user_affected = True
-                
                 st.markdown(f"""
                 <div style="background: {bg_color}; padding: 15px; border-radius: 10px; margin: 10px 0;">
-                    <p><strong>{severity_icon} {warning['type']} - {warning['severity']} Alert{area_badge}</strong><br>
+                    <p><strong>{severity_icon} {warning['type']} - {warning['severity']} Alert</strong><br>
                     <small>Issued: {warning['issued']}</small></p>
                     <p><strong>Affected Areas:</strong> {', '.join(warning['areas'])}</p>
                     <p><strong>Advice:</strong> {warning['advice']}</p>
                 </div>
                 """, unsafe_allow_html=True)
-                
-                if "Heavy Rainfall" in warning['type'] and affects_user:
-                    st.info("💡 **Farmer Action:** Postpone pesticide/fungicide application. Heavy rain (20mm+) will wash off chemicals. Protect young seedlings from waterlogging.")
-                elif "Strong Winds" in warning['type'] and affects_user:
-                    st.info("💡 **Farmer Action:** Secure greenhouses and temporary structures. Delay spraying operations to avoid chemical drift.")
-                elif "Large waves" in warning['type'] and affects_user:
-                    st.info("💡 **Farmer Action:** Avoid fishing activities. Secure boats and fishing gear.")
-                
-                st.markdown("---")
-            
-            if not user_affected:
-                st.info("✅ No active weather warnings for your specific county. Continue normal farming activities.")
         else:
-            st.info("📭 No recent weather warnings (last 7 days).")
+            st.info("📭 No active weather warnings for Kenya at this time.")
             st.caption("ℹ️ Regular weather updates from [Kenya Meteorological Department](https://meteo.go.ke)")
     except Exception as e:
         st.info("📭 Weather warning service temporarily unavailable.")
@@ -3745,10 +3685,12 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
     st.caption("Live updates from The Standard, Nation Africa, and Kenya News Agency")
     
+    # Fetch real-time news using feedparser
     try:
         import feedparser
         articles = []
         
+        # Source 1: The Standard - Agriculture RSS Feed
         try:
             standard_feed = feedparser.parse("https://www.standardmedia.co.ke/rss/agriculture.php")
             for entry in standard_feed.entries[:3]:
@@ -3762,6 +3704,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         except Exception as e:
             print(f"Error fetching The Standard feed: {e}")
         
+        # Source 2: Nation Africa - Agriculture
         try:
             nation_feed = feedparser.parse("https://nation.africa/kenya/agriculture/rss")
             for entry in nation_feed.entries[:2]:
@@ -3775,6 +3718,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         except Exception as e:
             print(f"Error fetching Nation Africa feed: {e}")
         
+        # Source 3: Kenya News Agency (KNA) - Agriculture
         try:
             kna_feed = feedparser.parse("https://www.kenyanews.go.ke/agriculture/feed/")
             for entry in kna_feed.entries[:2]:
@@ -3788,6 +3732,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         except Exception as e:
             print(f"Error fetching KNA feed: {e}")
         
+        # Display articles
         if articles:
             for article in articles:
                 with st.expander(f"📰 {article['title']}"):
@@ -3795,6 +3740,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
                     st.write(article['summary'])
                     st.markdown(f"[Read full article]({article['url']})")
         else:
+            # Fallback to static links if feeds fail
             st.markdown("""
             **📰 The Standard - FarmKenya**
             - [FarmKenya: Smart Harvest weekly pullout](https://www.standardmedia.co.ke/farmkenya)
@@ -3808,6 +3754,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
             st.caption("📌 Live news feeds temporarily unavailable. Direct links provided above.")
             
     except ImportError:
+        # feedparser not installed
         st.info("📰 Live news feeds available. Install feedparser for real-time updates: pip install feedparser")
         st.markdown("""
         **📰 Recommended news sources:**
@@ -3937,6 +3884,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         - National Agricultural Extension Hotline: **0800 720 123**
         - KALRO Farmer Helpline: **0111 050 050**
         """)
+
 
 def display_options_menu(top_predictions, references, location, class_names, current_disease_name, current_crop_type, current_treatment_data=None):
     """Display dynamic options menu - menu header in its own curved box with all functionality"""
