@@ -3777,14 +3777,14 @@ def display_top_location_buttons():
             st.rerun()
 
 def display_top_location_dialog():
-    """Display location dialog with reliable GPS"""
+    """Display location dialog with simplified GPS"""
 
     if not st.session_state.get('show_top_location_dialog', False):
         return
 
     st.markdown("---")
     st.markdown("### 📍 Change Your Location")
-
+    
     # Show current location
     st.success(f"📍 **Current location:** {st.session_state.location}")
 
@@ -3795,7 +3795,7 @@ def display_top_location_dialog():
 
     with col1:
         if st.button("📱 Use GPS", use_container_width=True, key="top_gps_btn"):
-            st.session_state.show_gps_ui = True
+            st.session_state.waiting_for_gps = True
             st.rerun()
 
     with col2:
@@ -3808,111 +3808,92 @@ def display_top_location_dialog():
         st.session_state.show_top_location_dialog = False
         st.rerun()
 
-    # GPS UI - shown when user clicks GPS button
-    if st.session_state.get('show_gps_ui', False):
+    # Handle GPS waiting state
+    if st.session_state.get('waiting_for_gps', False):
         st.markdown("---")
-
-        # Check for GPS data from URL after redirect
-        query_params = st.query_params
-        if 'gps_lat' in query_params and 'gps_lon' in query_params:
+        st.markdown("#### 📱 Getting your GPS location")
+        
+        # Simple HTML/JS that works
+        gps_html = """
+        <div id="gps_status" style="padding: 20px; text-align: center; background: #f0f2f6; border-radius: 10px; margin: 10px 0;">
+            ⏳ Requesting GPS location...<br>
+            <span style="font-size: 14px;">Please allow location access when your browser asks.</span>
+        </div>
+        <div id="gps_debug" style="font-size: 12px; color: #666; text-align: center; margin: 10px 0;"></div>
+        
+        <script>
+        var statusDiv = document.getElementById('gps_status');
+        var debugDiv = document.getElementById('gps_debug');
+        
+        debugDiv.innerHTML = 'Checking browser support...';
+        
+        if (navigator.geolocation) {
+            debugDiv.innerHTML = 'Browser supports GPS. Requesting location...';
+            
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    var lat = pos.coords.latitude;
+                    var lon = pos.coords.longitude;
+                    var acc = pos.coords.accuracy;
+                    debugDiv.innerHTML = 'Got coordinates! Redirecting...';
+                    statusDiv.innerHTML = '✅ Location obtained! Redirecting...';
+                    
+                    // Redirect with GPS data
+                    var url = window.location.href.split('?')[0];
+                    url += '?gps_lat=' + lat + '&gps_lon=' + lon + '&gps_accuracy=' + acc;
+                    window.location.href = url;
+                },
+                function(err) {
+                    var msg = '';
+                    if (err.code == 1) {
+                        msg = '❌ Permission Denied<br><br>📌 How to fix:<br>1. Click the lock icon 🔒 in your browser address bar<br>2. Find "Location"<br>3. Change to "Allow"<br>4. Refresh and try again';
+                    } else if (err.code == 2) {
+                        msg = '❌ GPS Unavailable<br>Please enable location services on your device';
+                    } else if (err.code == 3) {
+                        msg = '❌ Timeout<br>Please try again';
+                    } else {
+                        msg = '❌ Error: ' + err.message;
+                    }
+                    statusDiv.innerHTML = msg;
+                    debugDiv.innerHTML = 'Error code: ' + err.code;
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        } else {
+            statusDiv.innerHTML = '❌ Browser does not support GPS<br>Please use Manual Entry';
+            debugDiv.innerHTML = 'Geolocation not available';
+        }
+        </script>
+        """
+        
+        st.markdown(gps_html, unsafe_allow_html=True)
+        
+        # Check if we have GPS data in URL
+        if st.query_params.get('gps_lat') and st.query_params.get('gps_lon'):
             try:
-                lat = float(query_params['gps_lat'])
-                lon = float(query_params['gps_lon'])
-                accuracy = float(query_params.get('gps_accuracy', 0))
-
-                with st.spinner("Getting location name..."):
-                    location_name = get_location_name_from_coords(lat, lon)
-
+                lat = float(st.query_params['gps_lat'])
+                lon = float(st.query_params['gps_lon'])
+                accuracy = float(st.query_params.get('gps_accuracy', 0))
+                
+                location_name = get_location_name_from_coords(lat, lon)
+                
                 st.session_state.location = location_name
                 st.session_state.location_method = "gps"
                 st.session_state.show_top_location_dialog = False
-                st.session_state.show_gps_ui = False
-
+                st.session_state.waiting_for_gps = False
+                
                 st.query_params.clear()
-
+                
                 st.success(f"✅ GPS Location set: {location_name}")
-                st.info(f"📍 Coordinates: {lat:.6f}, {lon:.6f}")
-                time.sleep(1.5)
+                time.sleep(1)
                 st.rerun()
             except Exception as e:
                 st.error(f"Error: {e}")
                 st.query_params.clear()
-        else:
-            # Show GPS request interface
-            st.markdown("#### 📱 Getting your GPS location")
-
-            components.html("""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <style>
-                    body { font-family: sans-serif; padding: 10px 0; margin: 0; }
-                    #status {
-                        padding: 20px;
-                        border-radius: 10px;
-                        margin: 10px 0;
-                        text-align: center;
-                        background: #f0f2f6;
-                    }
-                    .success { background: #e8f5e9; color: #2e7d32; }
-                    .error { background: #ffebee; color: #c62828; }
-                    button {
-                        background: #2E7D32;
-                        color: white;
-                        border: none;
-                        padding: 10px 20px;
-                        border-radius: 25px;
-                        cursor: pointer;
-                        margin-top: 10px;
-                    }
-                </style>
-            </head>
-            <body>
-                <div id="status">⏳ Requesting GPS location...<br>Please click "Allow" when your browser asks.</div>
-                <div style="text-align: center;">
-                    <button onclick="getGPS()">🔄 Try Again</button>
-                </div>
-                <script>
-                    function getGPS() {
-                        var statusDiv = document.getElementById('status');
-                        statusDiv.innerHTML = '⏳ Requesting location...';
-                        statusDiv.className = '';
-
-                        if (navigator.geolocation) {
-                            navigator.geolocation.getCurrentPosition(
-                                function(position) {
-                                    var lat = position.coords.latitude;
-                                    var lon = position.coords.longitude;
-                                    var accuracy = position.coords.accuracy;
-                                    statusDiv.innerHTML = '✅ Got location! Saving...';
-                                    statusDiv.className = 'success';
-                                    var url = window.location.href.split('?')[0];
-                                    url += '?gps_lat=' + lat + '&gps_lon=' + lon + '&gps_accuracy=' + accuracy;
-                                    window.location.href = url;
-                                },
-                                function(error) {
-                                    var msg = '';
-                                    if (error.code == 1) msg = '❌ Permission denied. Click the lock icon in your browser and allow location.';
-                                    else if (error.code == 2) msg = '❌ GPS signal not found. Make sure location is enabled.';
-                                    else if (error.code == 3) msg = '❌ Timeout. Please try again.';
-                                    else msg = '❌ Error: ' + error.message;
-                                    statusDiv.innerHTML = msg;
-                                    statusDiv.className = 'error';
-                                },
-                                { enableHighAccuracy: true, timeout: 15000 }
-                            );
-                        } else {
-                            statusDiv.innerHTML = '❌ Browser does not support GPS. Please use Manual Entry.';
-                            statusDiv.className = 'error';
-                        }
-                    }
-                    getGPS();
-                </script>
-            </body>
-            </html>
-            """, height=250)
-
-            st.caption("💡 If GPS doesn't work, click 'Manual Entry' to type your location.")
+        
+        if st.button("✖ Cancel GPS", use_container_width=True):
+            st.session_state.waiting_for_gps = False
+            st.rerun()
 
     st.markdown("---")
 
