@@ -3559,7 +3559,7 @@ def fetch_live_kenya_met_warnings():
         return []
 
 def fetch_live_agriculture_news():
-    """Fetch live agriculture news from multiple Kenyan sources - shows newest first"""
+    """Fetch live agriculture news from multiple Kenyan sources - with fallbacks"""
     import feedparser
     import time
     from datetime import datetime, timedelta
@@ -3575,11 +3575,9 @@ def fetch_live_agriculture_news():
                 return st.session_state[cache_key]
         
         articles = []
-        seven_days_ago = datetime.now() - timedelta(days=7)
         
-        # Helper function to parse date from feed entry
+        # Helper function to parse date
         def parse_entry_date(entry):
-            """Try to parse date from RSS entry"""
             date_str = entry.get("published", "")
             if not date_str:
                 date_str = entry.get("updated", "")
@@ -3587,185 +3585,186 @@ def fetch_live_agriculture_news():
                 return None
             
             try:
-                # Try different date formats
                 from dateutil import parser
                 return parser.parse(date_str)
             except:
-                # Try common RSS date format
                 try:
-                    # Format like: "Sat, 06 Jun 2026 11:59:32 +0300"
                     return datetime.strptime(date_str[:25], "%a, %d %b %Y %H:%M:%S")
                 except:
                     try:
-                        # Format like: "2026-06-06T11:59:32+03:00"
                         return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
                     except:
                         return None
         
-        def is_recent(entry_date):
-            """Check if article is from last 7 days (or None - assume recent)"""
-            if entry_date is None:
-                return True  # Can't determine date - assume recent
-            return entry_date >= seven_days_ago
-        
         # Source 1: The Standard - Agriculture RSS Feed
         try:
             standard_feed = feedparser.parse("https://www.standardmedia.co.ke/rss/agriculture.php")
-            count = 0
-            for entry in standard_feed.entries:
-                if count >= 5:
-                    break
-                
-                entry_date = parse_entry_date(entry)
-                date_display = entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
-                
-                # Add age indicator
-                age_indicator = ""
-                if entry_date:
-                    days_ago = (datetime.now() - entry_date).days
-                    if days_ago <= 1:
-                        age_indicator = " 🔥 NEW"
-                    elif days_ago <= 3:
-                        age_indicator = " 📅"
-                    elif days_ago <= 7:
-                        age_indicator = f" ({days_ago} days ago)"
-                    else:
-                        age_indicator = f" ⚠️ {days_ago} days ago"
-                
+            if standard_feed.entries:
+                for entry in standard_feed.entries[:5]:
+                    entry_date = parse_entry_date(entry)
+                    date_display = entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
+                    
+                    articles.append({
+                        "title": entry.title,
+                        "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
+                        "url": entry.link,
+                        "source": "The Standard",
+                        "date": date_display,
+                        "timestamp": entry_date
+                    })
+            else:
+                # Feed is empty - add fallback links
                 articles.append({
-                    "title": entry.title,
-                    "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
-                    "url": entry.link,
+                    "title": "The Standard - FarmKenya Agriculture Section",
+                    "summary": "Visit The Standard's FarmKenya for the latest agriculture news, Smart Harvest pullout, and farming tips.",
+                    "url": "https://www.standardmedia.co.ke/farmkenya",
                     "source": "The Standard",
-                    "date": date_display,
-                    "days_ago": (datetime.now() - entry_date).days if entry_date else 0,
-                    "age_indicator": age_indicator,
-                    "timestamp": entry_date
+                    "date": "Link",
+                    "timestamp": None
                 })
-                count += 1
         except Exception as e:
             print(f"Standard feed error: {e}")
+            articles.append({
+                "title": "The Standard - FarmKenya Agriculture Section",
+                "summary": "Visit The Standard's FarmKenya for the latest agriculture news and farming tips.",
+                "url": "https://www.standardmedia.co.ke/farmkenya",
+                "source": "The Standard",
+                "date": "Link",
+                "timestamp": None
+            })
         
         # Source 2: Nation Africa - Agriculture
         try:
             nation_feed = feedparser.parse("https://nation.africa/kenya/agriculture/rss")
-            count = 0
-            for entry in nation_feed.entries:
-                if count >= 5:
-                    break
-                
-                entry_date = parse_entry_date(entry)
-                date_display = entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
-                
-                age_indicator = ""
-                if entry_date:
-                    days_ago = (datetime.now() - entry_date).days
-                    if days_ago <= 1:
-                        age_indicator = " 🔥 NEW"
-                    elif days_ago <= 3:
-                        age_indicator = " 📅"
-                    elif days_ago <= 7:
-                        age_indicator = f" ({days_ago} days ago)"
-                    else:
-                        age_indicator = f" ⚠️ {days_ago} days ago"
-                
+            if nation_feed.entries:
+                for entry in nation_feed.entries[:5]:
+                    entry_date = parse_entry_date(entry)
+                    date_display = entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
+                    
+                    articles.append({
+                        "title": entry.title,
+                        "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
+                        "url": entry.link,
+                        "source": "Nation Africa",
+                        "date": date_display,
+                        "timestamp": entry_date
+                    })
+            else:
                 articles.append({
-                    "title": entry.title,
-                    "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
-                    "url": entry.link,
+                    "title": "Nation Africa - Agriculture Section",
+                    "summary": "Visit Nation Africa for the latest agriculture news and farming updates from Kenya.",
+                    "url": "https://nation.africa/kenya/agriculture",
                     "source": "Nation Africa",
-                    "date": date_display,
-                    "days_ago": (datetime.now() - entry_date).days if entry_date else 0,
-                    "age_indicator": age_indicator,
-                    "timestamp": entry_date
+                    "date": "Link",
+                    "timestamp": None
                 })
-                count += 1
         except Exception as e:
             print(f"Nation feed error: {e}")
+            articles.append({
+                "title": "Nation Africa - Agriculture Section",
+                "summary": "Visit Nation Africa for the latest agriculture news.",
+                "url": "https://nation.africa/kenya/agriculture",
+                "source": "Nation Africa",
+                "date": "Link",
+                "timestamp": None
+            })
         
         # Source 3: Kenya News Agency (KNA) - Agriculture
         try:
             kna_feed = feedparser.parse("https://www.kenyanews.go.ke/agriculture/feed/")
-            count = 0
-            for entry in kna_feed.entries:
-                if count >= 5:
-                    break
-                
-                entry_date = parse_entry_date(entry)
-                date_display = entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
-                
-                age_indicator = ""
-                if entry_date:
-                    days_ago = (datetime.now() - entry_date).days
-                    if days_ago <= 1:
-                        age_indicator = " 🔥 NEW"
-                    elif days_ago <= 3:
-                        age_indicator = " 📅"
-                    elif days_ago <= 7:
-                        age_indicator = f" ({days_ago} days ago)"
-                    else:
-                        age_indicator = f" ⚠️ {days_ago} days ago"
-                
+            if kna_feed.entries:
+                for entry in kna_feed.entries[:5]:
+                    entry_date = parse_entry_date(entry)
+                    date_display = entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
+                    
+                    articles.append({
+                        "title": entry.title,
+                        "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
+                        "url": entry.link,
+                        "source": "Kenya News Agency",
+                        "date": date_display,
+                        "timestamp": entry_date
+                    })
+            else:
                 articles.append({
-                    "title": entry.title,
-                    "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
-                    "url": entry.link,
+                    "title": "Kenya News Agency - Agriculture",
+                    "summary": "Government news agency covering agriculture, food security, and farming in Kenya.",
+                    "url": "https://www.kenyanews.go.ke/agriculture/",
                     "source": "Kenya News Agency",
-                    "date": date_display,
-                    "days_ago": (datetime.now() - entry_date).days if entry_date else 0,
-                    "age_indicator": age_indicator,
-                    "timestamp": entry_date
+                    "date": "Link",
+                    "timestamp": None
                 })
-                count += 1
         except Exception as e:
             print(f"KNA feed error: {e}")
+            articles.append({
+                "title": "Kenya News Agency - Agriculture",
+                "summary": "Government news on agriculture and food security.",
+                "url": "https://www.kenyanews.go.ke/agriculture/",
+                "source": "Kenya News Agency",
+                "date": "Link",
+                "timestamp": None
+            })
         
         # Source 4: The EastAfrican
         try:
             eastafrican_feed = feedparser.parse("https://www.theeastafrican.co.ke/rss")
-            count = 0
-            for entry in eastafrican_feed.entries:
-                if count >= 5:
-                    break
+            if eastafrican_feed.entries:
+                count = 0
+                for entry in eastafrican_feed.entries:
+                    if count >= 5:
+                        break
+                    
+                    # Filter for agriculture-related content
+                    title_lower = entry.title.lower()
+                    summary_lower = entry.summary.lower()
+                    ag_keywords = ['agriculture', 'farming', 'crop', 'livestock', 'farm', 'harvest', 'food security', 'agri']
+                    
+                    if not any(keyword in title_lower or keyword in summary_lower for keyword in ag_keywords):
+                        continue
+                    
+                    entry_date = parse_entry_date(entry)
+                    date_display = entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
+                    
+                    articles.append({
+                        "title": entry.title,
+                        "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
+                        "url": entry.link,
+                        "source": "The EastAfrican",
+                        "date": date_display,
+                        "timestamp": entry_date
+                    })
+                    count += 1
                 
-                # Filter for agriculture-related content
-                title_lower = entry.title.lower()
-                summary_lower = entry.summary.lower()
-                ag_keywords = ['agriculture', 'farming', 'crop', 'livestock', 'farm', 'harvest', 'food security', 'agri']
-                
-                if not any(keyword in title_lower or keyword in summary_lower for keyword in ag_keywords):
-                    continue
-                
-                entry_date = parse_entry_date(entry)
-                date_display = entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
-                
-                age_indicator = ""
-                if entry_date:
-                    days_ago = (datetime.now() - entry_date).days
-                    if days_ago <= 1:
-                        age_indicator = " 🔥 NEW"
-                    elif days_ago <= 3:
-                        age_indicator = " 📅"
-                    elif days_ago <= 7:
-                        age_indicator = f" ({days_ago} days ago)"
-                    else:
-                        age_indicator = f" ⚠️ {days_ago} days ago"
-                
+                if count == 0:
+                    articles.append({
+                        "title": "The EastAfrican - Regional News",
+                        "summary": "East Africa's premier news source for regional agriculture, trade, and food security.",
+                        "url": "https://www.theeastafrican.co.ke",
+                        "source": "The EastAfrican",
+                        "date": "Link",
+                        "timestamp": None
+                    })
+            else:
                 articles.append({
-                    "title": entry.title,
-                    "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
-                    "url": entry.link,
+                    "title": "The EastAfrican - Regional News",
+                    "summary": "Regional news on agriculture, trade, and food security in East Africa.",
+                    "url": "https://www.theeastafrican.co.ke",
                     "source": "The EastAfrican",
-                    "date": date_display,
-                    "days_ago": (datetime.now() - entry_date).days if entry_date else 0,
-                    "age_indicator": age_indicator,
-                    "timestamp": entry_date
+                    "date": "Link",
+                    "timestamp": None
                 })
-                count += 1
         except Exception as e:
             print(f"EastAfrican feed error: {e}")
+            articles.append({
+                "title": "The EastAfrican",
+                "summary": "Regional agriculture and trade news from East Africa.",
+                "url": "https://www.theeastafrican.co.ke",
+                "source": "The EastAfrican",
+                "date": "Link",
+                "timestamp": None
+            })
         
-        # Sort articles by date (newest first) - articles with no date go to end
+        # Sort articles by date (newest first)
         articles.sort(key=lambda x: x['timestamp'] if x['timestamp'] else datetime.min, reverse=True)
         
         # Cache the results
@@ -3776,7 +3775,6 @@ def fetch_live_agriculture_news():
     except Exception as e:
         print(f"Error fetching news: {e}")
         return []
-
 
 def fetch_live_kalro_updates():
     """
@@ -3936,7 +3934,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     news_articles = fetch_live_agriculture_news()
     
     if news_articles:
-        # Group by source for better organization
+        # Group by source
         news_by_source = {}
         for article in news_articles:
             source = article['source']
@@ -3947,20 +3945,28 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         # Display news by source
         for source, source_articles in news_by_source.items():
             st.markdown(f"**📌 {source}**")
-            for article in source_articles[:5]:  # Show up to 5 per source
-                with st.expander(f"📰 {article['title']}{article.get('age_indicator', '')}"):
-                    st.caption(f"Published: {article['date']}")
-                    st.write(article['summary'])
-                    st.markdown(f"[Read full article]({article['url']})")
+            for article in source_articles[:5]:
+                if article['date'] == "Link":
+                    # This is a fallback link, not a real article
+                    st.markdown(f"🔗 [{article['title']}]({article['url']})")
+                    st.caption(article['summary'])
+                else:
+                    with st.expander(f"📰 {article['title']}"):
+                        st.caption(f"Published: {article['date']}")
+                        st.write(article['summary'])
+                        st.markdown(f"[Read full article]({article['url']})")
             st.markdown("---")
     else:
-        st.info("📰 No agriculture news available at this time.")
+        st.info("📰 Unable to fetch live news at this time.")
         st.markdown("""
-        **Direct links to agriculture news:**
-        - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya)
-        - [Nation Africa - Agriculture](https://nation.africa/kenya/agriculture)
-        - [The EastAfrican](https://www.theeastafrican.co.ke)
-        - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
+        **📌 Direct links to agriculture news sources:**
+        
+        | Source | Link |
+        |--------|------|
+        | The Standard - FarmKenya | [Click here](https://www.standardmedia.co.ke/farmkenya) |
+        | Nation Africa - Agriculture | [Click here](https://nation.africa/kenya/agriculture) |
+        | Kenya News Agency - Agriculture | [Click here](https://www.kenyanews.go.ke/agriculture/) |
+        | The EastAfrican | [Click here](https://www.theeastafrican.co.ke) |
         """)
 
     # ============================================================
