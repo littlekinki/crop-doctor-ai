@@ -3420,7 +3420,7 @@ def display_xai_analysis(disease_data):
 # NEWS AND WEATHER HELPERS FOR ONLINE MODE
 # ============================================================
 
-def fetch_kalro_updates(limit=3):
+def fetch_kalro_updates(limit=10):
     """Fetch real-time updates from KALRO website"""
     import feedparser
     import requests
@@ -3463,7 +3463,7 @@ def fetch_kenya_meteo_warnings():
         print(f"Error fetching weather warnings: {e}")
         return []
 
-def fetch_kenya_agriculture_news(query=None, limit=5):
+def fetch_kenya_agriculture_news(query=None, limit=10):
     """Fetch real-time agriculture news from Kenyan news sources"""
     import feedparser
     articles = []
@@ -3848,7 +3848,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         - [KALRO](https://kalro.org) - Research and advisory
         - [Kenya News Agency](https://www.kenyanews.go.ke) - Government news
         """)
-        
+
 
 def get_weather_advisory(weather_warnings, disease_name, location):
     """Generate a tailored advisory based on weather warnings and disease"""
@@ -4437,3 +4437,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
