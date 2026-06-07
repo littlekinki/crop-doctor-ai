@@ -3578,7 +3578,7 @@ def fetch_live_agriculture_news():
         # Source 1: The Standard - Agriculture (REAL RSS)
         try:
             standard_feed = feedparser.parse("https://www.standardmedia.co.ke/rss/agriculture.php")
-            for entry in standard_feed.entries[:3]:
+            for entry in standard_feed.entries[:]:
                 articles.append({
                     "title": entry.title,
                     "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
@@ -3593,7 +3593,7 @@ def fetch_live_agriculture_news():
         # Source 2: Nation Africa - Agriculture
         try:
             nation_feed = feedparser.parse("https://nation.africa/kenya/agriculture/rss")
-            for entry in nation_feed.entries[:2]:
+            for entry in nation_feed.entries[:]:
                 articles.append({
                     "title": entry.title,
                     "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
@@ -3608,7 +3608,7 @@ def fetch_live_agriculture_news():
         # Source 3: Kenya News Agency
         try:
             kna_feed = feedparser.parse("https://www.kenyanews.go.ke/agriculture/feed/")
-            for entry in kna_feed.entries[:2]:
+            for entry in kna_feed.entries[:]:
                 articles.append({
                     "title": entry.title,
                     "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
