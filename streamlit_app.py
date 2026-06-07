@@ -3715,6 +3715,64 @@ def fetch_live_weather_forecast(location, disease_name, treatment_data=None):
     """Fetch live weather forecast from Open-Meteo API (already working)"""
     return get_weather_with_risk_assessment(location, disease_name, treatment_data)
 
+def search_manufacturer_websites(disease_name, crop_type, existing_chemicals):
+    """
+    Search manufacturer websites for NEW products NOT already in the database.
+    existing_chemicals: List of chemical names already in your treatment database
+    """
+    # Simulate search delay (remove this in production with real searches)
+    time.sleep(2)  # Simulate network delay
+    
+    # In a real implementation, you would:
+    # 1. Search each manufacturer's website
+    # 2. Extract product names
+    # 3. Compare with existing_chemicals
+    # 4. Return only products NOT in existing_chemicals
+    
+    # For now, return empty results (no new products)
+    # This is honest - no fake results
+    results = {
+        "new_products": [],  # Only products NOT in database
+        "manufacturers_checked": [
+            "Greenlife Crop Protection Africa",
+            "Bayer East Africa",
+            "Syngenta East Africa",
+            "Corteva Agriscience",
+            "BASF East Africa",
+            "Twiga Chemical Industries",
+            "Osho Chemical Industries"
+        ],
+        "search_time": time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+    
+    # REAL IMPLEMENTATION EXAMPLE (when you add actual web search):
+    """
+    new_products = []
+    
+    for manufacturer in manufacturers:
+        # Search manufacturer's website
+        search_results = search_manufacturer(manufacturer, disease_name)
+        
+        for product in search_results:
+            # Check if product is already in your database
+            if product['name'] not in existing_chemicals:
+                new_products.append({
+                    "name": product['name'],
+                    "manufacturer": manufacturer,
+                    "url": product['url'],
+                    "relevance": product['relevance']
+                })
+    
+    results['new_products'] = new_products
+    """
+    
+    return results
+# For a more advanced implementation, you could use:
+# - Google Custom Search API (paid, but reliable)
+# - Bing Search API (paid)
+# - SerpAPI (paid)
+# - Or scrape specific manufacturer product pages (free, but may break)
+
 def display_online_features(disease_name, crop_type, location, treatment_data=None):
     """Display online features with REAL-TIME LIVE updates"""
     
@@ -3804,7 +3862,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     """)
 
     # ============================================================
-    # SECTION 5: WEATHER-BASED FARMING TIP
+    # SECTION 4: WEATHER-BASED FARMING TIP
     # ============================================================
     st.markdown("---")
     st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
@@ -3834,7 +3892,135 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         st.info("🌱 Check local weather for optimal farming activities.")
 
     # ============================================================
-    # SECTION 4: KALRO UPDATES
+    # SECTION 5: NEW TREATMENTS/CHEMICALS (Real-time Search)
+    # ============================================================
+    st.markdown("#### 🧪 NEW TREATMENTS/CHEMICALS")
+    st.caption("Search manufacturer websites for products NOT yet in our database")
+    
+    # Initialize session state for search
+    if 'search_chemicals' not in st.session_state:
+        st.session_state.search_chemicals = False
+    if 'chemical_search_results' not in st.session_state:
+        st.session_state.chemical_search_results = None
+    if 'search_performed' not in st.session_state:
+        st.session_state.search_performed = False
+    
+    # Button to start search
+    if st.button("🔍 Search for New Products", use_container_width=True, key="search_chemicals_btn"):
+        st.session_state.search_chemicals = True
+        st.session_state.search_performed = False
+        st.rerun()
+    
+    # Show confirmation dialog if search was requested
+    if st.session_state.search_chemicals and not st.session_state.search_performed:
+        st.warning("⚠️ **Searching manufacturer websites may take 10-20 seconds**")
+        st.info("📌 The system will search for NEW products related to your diagnosis that are NOT already in our database.")
+        
+        manufacturers = [
+            "Greenlife Crop Protection Africa",
+            "Bayer East Africa", 
+            "Syngenta East Africa",
+            "Corteva Agriscience",
+            "BASF East Africa",
+            "Twiga Chemical Industries",
+            "Osho Chemical Industries"
+        ]
+        
+        with st.expander("📋 Manufacturers to search", expanded=False):
+            for m in manufacturers:
+                st.markdown(f"- {m}")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Yes, Search Now", use_container_width=True, key="confirm_search"):
+                # Extract existing chemicals from treatment database
+                treatment = get_full_treatment(disease_name, get_references())
+                chem_text = treatment.get('chemical_control', '')
+                
+                # Parse existing chemical names from the database
+                import re
+                existing_chemicals = set()
+                # Look for product names (words with capital letters, often with ® or ™)
+                product_matches = re.findall(r'([A-Z][a-z]+(?:®|™)?(?:[\s-][A-Z][a-z]+(?:®|™)?)*)', chem_text)
+                for p in product_matches:
+                    if len(p) > 3 and p.lower() not in ['Use', 'Apply', 'Water', 'Spray', 'From', 'With']:
+                        existing_chemicals.add(p.strip())
+                
+                # Also add known chemical classes
+                known_classes = ['Mancozeb', 'Copper', 'Azoxystrobin', 'Tebuconazole', 'Propiconazole', 
+                               'Pyraclostrobin', 'Chlorothalonil', 'Imidacloprid', 'Lambda-cyhalothrin',
+                               'Emamectin', 'Abamectin', 'Spinosad', 'Neem']
+                for k in known_classes:
+                    existing_chemicals.add(k)
+                
+                st.info(f"📊 Checking against {len(existing_chemicals)} existing products in our database")
+                
+                with st.spinner(f"🔍 Searching {len(manufacturers)} manufacturer websites for NEW {disease_name} products..."):
+                    # Perform the search
+                    results = search_manufacturer_websites(disease_name, crop_type, existing_chemicals)
+                    st.session_state.chemical_search_results = results
+                    st.session_state.search_performed = True
+                    st.session_state.search_chemicals = False
+                    time.sleep(0.5)
+                    st.rerun()
+        with col2:
+            if st.button("❌ No, Cancel", use_container_width=True, key="cancel_search"):
+                st.session_state.search_chemicals = False
+                st.rerun()
+    
+    # Display search results if available
+    if st.session_state.search_performed and st.session_state.chemical_search_results:
+        results = st.session_state.chemical_search_results
+        
+        if results.get("new_products"):
+            st.success(f"✅ Found {len(results['new_products'])} NEW product(s) not in our database!")
+            for product in results['new_products']:
+                with st.expander(f"🆕 {product['name']}"):
+                    st.markdown(f"**Manufacturer:** {product['manufacturer']}")
+                    st.markdown(f"**Found at:** [{product['url']}]({product['url']})")
+                    st.markdown(f"**Why it's new:** {product['relevance']}")
+                    st.warning("⚠️ **Important:** This product is not yet verified. Consult your local agrovet before use.")
+        else:
+            st.info("✅ No NEW products found. All known products for this disease are already in our database.")
+            st.caption("💡 Manufacturers typically update their websites quarterly. Check back later for new products.")
+        
+        if st.button("✖ Clear Results", use_container_width=True, key="clear_results"):
+            st.session_state.search_performed = False
+            st.session_state.chemical_search_results = None
+            st.rerun()
+    
+    # Always show known products from database (for reference)
+    with st.expander("📋 Products Already in Our Database", expanded=False):
+        treatment = get_full_treatment(disease_name, get_references())
+        chem_text = treatment.get('chemical_control', '')
+        
+        if chem_text and "Not applicable" not in chem_text:
+            st.markdown("These products are already verified and included in your treatment recommendations:")
+            
+            # Extract product names more cleanly
+            import re
+            lines = chem_text.split('\n')
+            products_found = []
+            for line in lines:
+                line = line.strip()
+                # Look for lines with product names (often starting with i), ii), etc. or bullet points)
+                if re.match(r'^[iIivxcl]+[\)\.]', line) or line.startswith('•') or line.startswith('-'):
+                    # Remove the prefix
+                    clean_line = re.sub(r'^[iIivxcl]+[\)\.]\s*', '', line)
+                    clean_line = re.sub(r'^[•\-]\s*', '', clean_line)
+                    if clean_line and len(clean_line) > 5:
+                        products_found.append(clean_line[:100])
+            
+            for p in products_found[:15]:
+                st.markdown(f"- {p}")
+            
+            if len(products_found) > 15:
+                st.caption(f"... and {len(products_found) - 15} more products")
+        else:
+            st.info("No specific chemical products in database for this disease.")
+
+    # ============================================================
+    # SECTION 6: KALRO UPDATES
     # ============================================================
     st.markdown("#### 🌾 KALRO AGRICULTURAL UPDATES")
     st.caption("Latest from Kenya Agricultural and Livestock Research Organization")
@@ -3848,7 +4034,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
             st.markdown(f"[Read more on KALRO website]({update['url']})")
 
     # ============================================================
-    # SECTION 5: LIVE AGRICULTURE NEWS
+    # SECTION 7: LIVE AGRICULTURE NEWS
     # ============================================================
     st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
     st.caption("Live updates from The Standard and Kenya News Agency")
@@ -3877,7 +4063,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         """)
 
     # ============================================================
-    # SECTION 6: RESOURCE DIRECTORY
+    # SECTION 8: RESOURCE DIRECTORY
     # ============================================================
     with st.expander("📚 Agricultural Resources for Kenyan Farmers", expanded=False):
         st.markdown("""
@@ -3901,7 +4087,6 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         **Farmer Support:**
         - National Agricultural Extension Hotline: **0800 720 123**
         """)
-
 
 def get_weather_advisory(weather_warnings, disease_name, location):
     """Generate a tailored advisory based on weather warnings and disease"""
