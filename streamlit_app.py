@@ -469,8 +469,8 @@ if 'current_save_path' not in st.session_state:
     st.session_state.current_save_path = None
 if 'location_change_method' not in st.session_state:
     st.session_state.location_change_method = None
-if 'waiting_for_gps' not in st.session_state:
-    st.session_state.waiting_for_gps = False
+#if 'waiting_for_gps' not in st.session_state:
+    #st.session_state.waiting_for_gps = False
 # Privacy notice state
 if 'privacy_notice_dismissed' not in st.session_state:
     st.session_state.privacy_notice_dismissed = False
@@ -479,16 +479,16 @@ if 'show_top_location_dialog' not in st.session_state:
     st.session_state.show_top_location_dialog = False
 if 'show_top_manual_entry' not in st.session_state:
     st.session_state.show_top_manual_entry = False
-if 'request_gps' not in st.session_state:
-    st.session_state.request_gps = False
-if 'gps_location' not in st.session_state:
-    st.session_state.gps_location = None
+#if 'request_gps' not in st.session_state:
+    #st.session_state.request_gps = False
+#if 'gps_location' not in st.session_state:
+#    st.session_state.gps_location = None
 if 'location_method' not in st.session_state:
     st.session_state.location_method = "manual"
-if 'show_gps_dialog' not in st.session_state:
-    st.session_state.show_gps_dialog = False
-if 'show_gps_ui' not in st.session_state:
-    st.session_state.show_gps_ui = False
+#if 'show_gps_dialog' not in st.session_state:
+#    st.session_state.show_gps_dialog = False
+#if 'show_gps_ui' not in st.session_state:
+#   st.session_state.show_gps_ui = False
 
 # ============================================================
 # HELPER FUNCTION: Check Internet Connection (for mode switch suggestion)
