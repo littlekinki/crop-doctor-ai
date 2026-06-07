@@ -3850,49 +3850,23 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         st.caption("ℹ️ Follow [@MeteoKenya](https://twitter.com/MeteoKenya) on X for real-time updates")
 
     # ============================================================
-    # SECTION 3: SOCIAL MEDIA RESOURCES
+    # SECTION 3: REAL-TIME WEATHER ALERTS
     # ============================================================
-    st.markdown("#### 📱 FOLLOW FOR REAL-TIME UPDATES")
-    st.caption("Get instant alerts from Kenyan agricultural organizations on X (Twitter)")
+    st.markdown("#### 📱 REAL-TIME WEATHER ALERTS")
     
-    with st.expander("📱 Click to view X (Twitter) handles", expanded=False):
-        st.markdown("""
-        | Organization | X Handle | Best for |
-        |--------------|----------|----------|
-        | **Kenya Meteorological Department** | [@MeteoKenya](https://twitter.com/MeteoKenya) | Daily weather, warnings, climate |
-        | **KALRO** | [@KALROKenya](https://twitter.com/KALROKenya) | Research, new seed varieties |
-        | **Ministry of Agriculture** | [@AgricultureKE](https://twitter.com/AgricultureKE) | Policies, subsidies, advisory |
-        | **The Standard - FarmKenya** | [@FarmKenya](https://twitter.com/FarmKenya) | Agriculture news, Smart Harvest |
-        | **Nation - Seeds of Gold** | [@SeedsOfGold](https://twitter.com/SeedsOfGold) | Weekly farming pullout |
-        """)
-        st.info("💡 **No X account needed** - Click any link to view public updates.")
+    st.info("""
+    **📱 Get real-time weather alerts from Kenya Meteorological Department**
+    
+    👉 **Follow @MeteoKenya on X (Twitter)** for:
+    - ⚡ Instant severe weather warnings (heavy rain, floods, strong winds)
+    - 🌤️ Daily and 5-day weather forecasts
+    - 🌧️ Rainfall predictions and alerts
+    
+    **➡️ [Click here to view @MeteoKenya on X (Twitter)](https://twitter.com/MeteoKenya)** (No account needed - just click to view)
+    """)
 
     # ============================================================
-    # SECTION 4: LIVE AGRICULTURE NEWS
-    # ============================================================
-    st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
-    st.caption("Live updates from The Standard and Kenya News Agency")
-    
-    with st.spinner("📰 Fetching latest agriculture news... Please wait"):
-        news_articles = fetch_live_agriculture_news()
-    
-    if news_articles:
-        for article in news_articles:
-            with st.expander(f"📰 {article['title']}"):
-                st.caption(f"Source: {article['source']} | {article['date']}")
-                st.write(article['summary'])
-                st.markdown(f"[Read full article]({article['url']})")
-    else:
-        st.info("📭 No recent news found.")
-        st.markdown("""
-        **📌 Direct links to agriculture news:**
-        - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya)
-        - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
-        - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold)
-        """)
-
-    # ============================================================
-    # SECTION 5: KALRO UPDATES
+    # SECTION 4: KALRO UPDATES
     # ============================================================
     st.markdown("#### 🌾 KALRO AGRICULTURAL UPDATES")
     st.caption("Latest from Kenya Agricultural and Livestock Research Organization")
@@ -3906,7 +3880,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
             st.markdown(f"[Read more on KALRO website]({update['url']})")
     
     # ============================================================
-    # SECTION 6: WEATHER-BASED FARMING TIP
+    # SECTION 5: WEATHER-BASED FARMING TIP
     # ============================================================
     st.markdown("---")
     st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
@@ -3936,7 +3910,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         st.info("🌱 Check local weather for optimal farming activities.")
     
     # ============================================================
-    # SECTION 7: RESOURCE DIRECTORY
+    # SECTION 6: RESOURCE DIRECTORY
     # ============================================================
     with st.expander("📚 Agricultural Resources for Kenyan Farmers", expanded=False):
         st.markdown("""
@@ -4549,3 +4523,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
