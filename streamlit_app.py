@@ -3804,20 +3804,6 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     """)
 
     # ============================================================
-    # SECTION 4: KALRO UPDATES
-    # ============================================================
-    st.markdown("#### 🌾 KALRO AGRICULTURAL UPDATES")
-    st.caption("Latest from Kenya Agricultural and Livestock Research Organization")
-    
-    with st.spinner("🔄 Fetching latest KALRO updates..."):
-        kalro_updates = fetch_live_kalro_updates()
-    
-    for update in kalro_updates:
-        with st.expander(f"📢 {update['title']}"):
-            st.write(update['summary'])
-            st.markdown(f"[Read more on KALRO website]({update['url']})")
-    
-    # ============================================================
     # SECTION 5: WEATHER-BASED FARMING TIP
     # ============================================================
     st.markdown("---")
@@ -3846,6 +3832,20 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
             st.success("🌱 **Optimal conditions.** Good time for spraying, fertilising, and field scouting.")
     else:
         st.info("🌱 Check local weather for optimal farming activities.")
+
+    # ============================================================
+    # SECTION 4: KALRO UPDATES
+    # ============================================================
+    st.markdown("#### 🌾 KALRO AGRICULTURAL UPDATES")
+    st.caption("Latest from Kenya Agricultural and Livestock Research Organization")
+    
+    with st.spinner("🔄 Fetching latest KALRO updates..."):
+        kalro_updates = fetch_live_kalro_updates()
+    
+    for update in kalro_updates:
+        with st.expander(f"📢 {update['title']}"):
+            st.write(update['summary'])
+            st.markdown(f"[Read more on KALRO website]({update['url']})")
 
     # ============================================================
     # SECTION 5: LIVE AGRICULTURE NEWS
