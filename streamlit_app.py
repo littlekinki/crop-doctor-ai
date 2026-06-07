@@ -3425,7 +3425,7 @@ def fetch_kalro_updates(limit=10):
     import feedparser
     import requests
     from bs4 import BeautifulSoup
-
+    
     try:
         # KALRO doesn't have an RSS feed, but we can scrape their news section
         response = requests.get("https://kalro.org", timeout=10)
@@ -3437,19 +3437,19 @@ def fetch_kalro_updates(limit=10):
             pass
     except Exception as e:
         print(f"Error fetching KALRO updates: {e}")
-
+    
     # Fallback to static sample if scraping fails
     return []
 
 def fetch_kenya_meteo_warnings():
     """Fetch real-time weather warnings from Kenya Meteorological Department"""
     import feedparser
-
+    
     try:
         # Kenya Met Department CAP RSS feed
         feed = feedparser.parse("https://meteo.go.ke/api/cap/rss.xml")
         warnings = []
-
+        
         for entry in feed.entries[:5]:
             warnings.append({
                 "type": entry.title,
@@ -3467,7 +3467,7 @@ def fetch_kenya_agriculture_news(query=None, limit=10):
     """Fetch real-time agriculture news from Kenyan news sources"""
     import feedparser
     articles = []
-
+    
     # Source 1: The Standard - Agriculture RSS Feed (REAL)
     try:
         standard_feed = feedparser.parse("https://www.standardmedia.co.ke/rss/agriculture.php")
@@ -3482,7 +3482,7 @@ def fetch_kenya_agriculture_news(query=None, limit=10):
             })
     except Exception as e:
         print(f"Error fetching The Standard feed: {e}")
-
+    
     # Source 2: Nation Africa - Agriculture (REAL - if RSS available)
     try:
         # Nation Africa agriculture RSS (verify this URL)
@@ -3498,7 +3498,7 @@ def fetch_kenya_agriculture_news(query=None, limit=10):
             })
     except Exception as e:
         print(f"Error fetching Nation Africa feed: {e}")
-
+    
     # Source 3: Kenya News Agency (KNA) - Agriculture (REAL)
     try:
         # KNA is a government news agency with good agriculture coverage
@@ -3514,7 +3514,7 @@ def fetch_kenya_agriculture_news(query=None, limit=10):
             })
     except Exception as e:
         print(f"Error fetching KNA feed: {e}")
-
+    
     return articles
 
 # ============================================================
@@ -3525,22 +3525,20 @@ def fetch_live_kenya_met_warnings():
     """Fetch live weather warnings from Kenya Meteorological Department RSS feed"""
     import feedparser
     import time
-
+    
     try:
-        # Cache warnings for 1 hour to avoid excessive requests
+        # Cache warnings for 1 hour
         cache_key = 'met_warnings_cache'
         cache_time_key = 'met_warnings_time'
-
-        # Check cache (1 hour expiry)
+        
         current_time = time.time()
         if cache_key in st.session_state and cache_time_key in st.session_state:
             if current_time - st.session_state[cache_time_key] < 3600:  # 1 hour
                 return st.session_state[cache_key]
-
-        # Fetch fresh data
+        
         feed = feedparser.parse("https://meteo.go.ke/api/cap/rss.xml")
         warnings = []
-
+        
         for entry in feed.entries[:5]:
             warnings.append({
                 "title": entry.get("title", "Weather Alert"),
@@ -3548,47 +3546,33 @@ def fetch_live_kenya_met_warnings():
                 "published": entry.get("published", ""),
                 "link": entry.get("link", "")
             })
-
-        # Cache the results
+        
         st.session_state[cache_key] = warnings
         st.session_state[cache_time_key] = current_time
-
+        
         return warnings
     except Exception as e:
         print(f"Error fetching Kenya Met warnings: {e}")
         return []
 
 def fetch_live_agriculture_news():
-    """Fetch live agriculture news from multiple Kenyan sources - 5 articles each"""
+    """Fetch live agriculture news from The Standard and Kenya News Agency"""
     import feedparser
     import time
-    from datetime import datetime
-
+    
     try:
         # Cache news for 15 minutes
         cache_key = 'news_cache'
         cache_time_key = 'news_time'
-
+        
         current_time = time.time()
         if cache_key in st.session_state and cache_time_key in st.session_state:
             if current_time - st.session_state[cache_time_key] < 900:  # 15 minutes
                 return st.session_state[cache_key]
-
+        
         articles = []
-
-        # Helper function to parse date
-        def parse_date(date_str):
-            if not date_str:
-                return None
-            try:
-                from dateutil import parser
-                return parser.parse(date_str)
-            except:
-                return None
-
-        # ============================================================
-        # SOURCE 1: The Standard - Agriculture (5 articles)
-        # ============================================================
+        
+        # Source 1: The Standard - Agriculture (5 articles)
         try:
             standard_feed = feedparser.parse("https://www.standardmedia.co.ke/rss/agriculture.php")
             count = 0
@@ -3599,60 +3583,14 @@ def fetch_live_agriculture_news():
                     "title": entry.title,
                     "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
                     "url": entry.link,
-                    "source": "The Standard",
+                    "source": "🌾 The Standard",
                     "date": entry.get("published", "Recent")
                 })
                 count += 1
-            print(f"✅ The Standard: {count} articles fetched")
         except Exception as e:
-            print(f"❌ Standard feed error: {e}")
-
-        # ============================================================
-        # SOURCE 2: Nation Africa - Main RSS Feed (includes business/agriculture) (5 articles)
-        # ============================================================
-        try:
-            # Using the main RSS feed as the specific page is broken
-            nation_feed = feedparser.parse("https://nation.africa/feeds/rss.xml")
-            count = 0
-            for entry in nation_feed.entries:
-                if count >= 5:
-                    break
-
-                # Filter for agriculture or farming related keywords
-                title = entry.title.lower()
-                if any(keyword in title for keyword in ['farm', 'agriculture', 'crop', 'livestock', 'harvest']):
-                    articles.append({
-                        "title": entry.title,
-                        "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
-                        "url": entry.link,
-                        "source": "Nation Africa",
-                        "date": entry.get("published", "Recent")
-                    })
-                    count += 1
-
-            if count == 0:
-                # Fallback link
-                articles.append({
-                    "title": "Nation Africa - Business Section (includes Agriculture)",
-                    "summary": "Visit Nation Africa's Business section for agriculture and farming news.",
-                    "url": "https://nation.africa/kenya/business",
-                    "source": "Nation Africa",
-                    "date": "Visit website"
-                })
-                print("⚠️ Nation Africa feed had no agriculture-related articles")
-        except Exception as e:
-            print(f"❌ Nation feed error: {e}")
-            articles.append({
-                "title": "Nation Africa - Business Section",
-                "summary": "Visit Nation Africa for the latest agriculture and business news.",
-                "url": "https://nation.africa/kenya/business",
-                "source": "Nation Africa",
-                "date": "Visit website"
-            })
-
-        # ============================================================
-        # SOURCE 3: Kenya News Agency (KNA) - Agriculture (5 articles)
-        # ============================================================
+            print(f"Standard feed error: {e}")
+        
+        # Source 2: Kenya News Agency (5 articles)
         try:
             kna_feed = feedparser.parse("https://www.kenyanews.go.ke/agriculture/feed/")
             if kna_feed.entries:
@@ -3664,132 +3602,73 @@ def fetch_live_agriculture_news():
                         "title": entry.title,
                         "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
                         "url": entry.link,
-                        "source": "Kenya News Agency",
+                        "source": "📰 Kenya News Agency",
                         "date": entry.get("published", "Recent")
                     })
                     count += 1
-                print(f"✅ KNA: {count} articles fetched")
-            else:
-                print(f"⚠️ KNA feed has no entries")
-                articles.append({
-                    "title": "Kenya News Agency - Agriculture",
-                    "summary": "Government news agency covering agriculture, food security, and farming in Kenya.",
-                    "url": "https://www.kenyanews.go.ke/agriculture/",
-                    "source": "Kenya News Agency",
-                    "date": "Visit website"
-                })
         except Exception as e:
-            print(f"❌ KNA feed error: {e}")
-            articles.append({
-                "title": "Kenya News Agency - Agriculture",
-                "summary": "Government news on agriculture and food security.",
-                "url": "https://www.kenyanews.go.ke/agriculture/",
-                "source": "Kenya News Agency",
-                "date": "Visit website"
-            })
-
-        # ============================================================
-        # SOURCE 4: The EastAfrican - Agriculture (5 articles)
-        # ============================================================
-        try:
-            eastafrican_feed = feedparser.parse("https://www.theeastafrican.co.ke/rss")
-            count = 0
-            if eastafrican_feed.entries:
-                for entry in eastafrican_feed.entries:
-                    if count >= 5:
-                        break
-
-                    # Filter for agriculture-related content
-                    title_lower = entry.title.lower()
-                    ag_keywords = ['agriculture', 'farming', 'crop', 'livestock', 'farm', 'harvest', 'food', 'agri']
-
-                    if any(keyword in title_lower for keyword in ag_keywords):
-                        articles.append({
-                            "title": entry.title,
-                            "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
-                            "url": entry.link,
-                            "source": "The EastAfrican",
-                            "date": entry.get("published", "Recent")
-                        })
-                        count += 1
-                print(f"✅ The EastAfrican: {count} articles fetched")
-            else:
-                print(f"⚠️ EastAfrican feed has no entries")
-        except Exception as e:
-            print(f"❌ EastAfrican feed error: {e}")
-
-        # Cache the results
+            print(f"KNA feed error: {e}")
+        
         st.session_state[cache_key] = articles
         st.session_state[cache_time_key] = current_time
-
-        print(f"📊 Total articles fetched: {len(articles)}")
+        
         return articles
     except Exception as e:
-        print(f"❌ Error fetching news: {e}")
+        print(f"Error fetching news: {e}")
         return []
 
 def fetch_live_kalro_updates():
-    """
-    Fetch live KALRO updates by scraping their website
-    Since KALRO has no RSS feed, we scrape their news section
-    """
+    """Fetch latest updates from KALRO website"""
     import requests
     from bs4 import BeautifulSoup
     import time
-
+    
     try:
-        # Cache KALRO updates for 1 hour
         cache_key = 'kalro_cache'
         cache_time_key = 'kalro_time'
-
+        
         current_time = time.time()
         if cache_key in st.session_state and cache_time_key in st.session_state:
             if current_time - st.session_state[cache_time_key] < 3600:  # 1 hour
                 return st.session_state[cache_key]
-
-        # Scrape KALRO website
+        
         response = requests.get("https://kalro.org", timeout=15)
         updates = []
-
+        
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
-
-            # Look for news/articles on the homepage
-            # KALRO website structure - adjust selectors based on actual HTML
-            articles = soup.find_all('article', limit=3) or soup.find_all('div', class_='news-item', limit=3)
-
+            articles = soup.find_all('article', limit=3)
+            
             for article in articles:
                 title_elem = article.find('h2') or article.find('h3') or article.find('a')
                 title = title_elem.get_text(strip=True) if title_elem else "KALRO Update"
-
+                
                 summary_elem = article.find('p')
                 summary = summary_elem.get_text(strip=True)[:200] if summary_elem else "Click to read more"
-
+                
                 link_elem = article.find('a')
                 link = link_elem.get('href') if link_elem else "https://kalro.org"
                 if link and not link.startswith('http'):
                     link = "https://kalro.org" + link
-
+                
                 updates.append({
                     "title": title,
                     "summary": summary,
                     "url": link,
                     "source": "KALRO"
                 })
-
-        # If scraping fails, provide a message (not static content)
+        
         if not updates:
             updates = [{
-                "title": "Check KALRO Website for Latest Updates",
-                "summary": "Visit the KALRO website for the latest research findings, new seed varieties, and agricultural advisories.",
+                "title": "Visit KALRO Website for Latest Updates",
+                "summary": "Check the KALRO website for research findings, new seed varieties, and agricultural advisories.",
                 "url": "https://kalro.org",
                 "source": "KALRO"
             }]
-
-        # Cache the results
+        
         st.session_state[cache_key] = updates
         st.session_state[cache_time_key] = current_time
-
+        
         return updates
     except Exception as e:
         print(f"Error fetching KALRO updates: {e}")
@@ -3806,20 +3685,18 @@ def fetch_live_weather_forecast(location, disease_name, treatment_data=None):
 
 def display_online_features(disease_name, crop_type, location, treatment_data=None):
     """Display online features with REAL-TIME LIVE updates"""
-
+    
     st.markdown("---")
     st.markdown("### 📡 ONLINE MODE - LIVE UPDATES")
-
-    # Add a timestamp to show when data was last updated
     st.caption(f"🕐 Data last refreshed: {datetime.now().strftime('%H:%M:%S')}")
-
+    
     # ============================================================
-    # SECTION 1: WEATHER & DISEASE RISK (LIVE)
+    # SECTION 1: WEATHER & DISEASE RISK
     # ============================================================
     st.markdown("#### 🌤️ CURRENT WEATHER & DISEASE RISK")
     st.caption("ℹ️ **Tip:** Hover over the ❔ icons for detailed explanations.")
-
-    weather = fetch_live_weather_forecast(location, disease_name, treatment_data)
+    
+    weather = get_weather_with_risk_assessment(location, disease_name, treatment_data)
 
     if weather:
         risk_class = weather.get('risk_class', '')
@@ -3829,24 +3706,24 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         <div class="weather-card">
             <h4>🌤️ WEATHER FOR {weather['location']}</h4>
         """
-
+        
         if weather['temperature'] != 'N/A':
             weather_text += f'<p>🌡️ <strong>Temperature:</strong> {weather["temperature"]}°C <span style="cursor: help; color: #666;" title="Current air temperature. Ideal for most crops is 20-30°C.">❔</span></p>'
-
+        
         if weather['humidity'] != 'N/A':
             weather_text += f'<p>💧 <strong>Humidity:</strong> {weather["humidity"]}% <span style="cursor: help; color: #666;" title="High humidity (>80%) favors fungal diseases. Low humidity (<40%) favors pests.">❔</span></p>'
-
+        
         weather_text += f'<p>☔ <strong>Current Rainfall:</strong> {weather["rain"]} mm <span style="cursor: help; color: #666;" title="Less than 2mm is safe for spraying. More than 10mm can wash off chemicals.">❔</span></p>'
-
+        
         if weather['wind'] != 'N/A':
             weather_text += f'<p>🌬️ <strong>Wind Speed:</strong> {weather["wind"]} km/h <span style="cursor: help; color: #666;" title="Best for spraying: 5-15 km/h.">❔</span></p>'
-
+        
         if weather['temp_max'] and weather['temp_min']:
             weather_text += f'<p>📅 <strong>Today\'s Forecast:</strong> High {weather["temp_max"]}°C / Low {weather["temp_min"]}°C</p>'
-
+        
         if weather['rain_prob']:
             weather_text += f'<p>🌧️ <strong>Rain Probability:</strong> {weather["rain_prob"]}% (Expected: {weather["rain_sum"]} mm)</p>'
-
+        
         weather_text += f"""
             <hr>
             <p><strong>🎯 DISEASE RISK ASSESSMENT FOR {disease_name}:</strong><br>
@@ -3859,13 +3736,14 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         st.info("🌤️ Unable to fetch live weather data.")
 
     # ============================================================
-    # SECTION 2: LIVE KENYA MET WEATHER WARNINGS
+    # SECTION 2: KENYA MET WEATHER WARNINGS
     # ============================================================
-    st.markdown("#### 🚨 LIVE KENYA MET WEATHER WARNINGS")
+    st.markdown("#### 🚨 KENYA MET WEATHER WARNINGS")
     st.caption("Real-time alerts from Kenya Meteorological Department")
-
-    met_warnings = fetch_live_kenya_met_warnings()
-
+    
+    with st.spinner("🔄 Checking for active weather warnings..."):
+        met_warnings = fetch_live_kenya_met_warnings()
+    
     if met_warnings:
         for warning in met_warnings:
             with st.expander(f"⚠️ {warning['title']}"):
@@ -3875,63 +3753,81 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
                     st.markdown(f"[View official alert]({warning['link']})")
     else:
         st.info("✅ No active weather warnings at this time.")
-        st.caption("ℹ️ Regular updates from [Kenya Meteorological Department](https://meteo.go.ke)")
+        st.caption("ℹ️ Follow [@MeteoKenya](https://twitter.com/MeteoKenya) on X for real-time updates")
 
     # ============================================================
-    # SECTION 3: LIVE AGRICULTURE NEWS
+    # SECTION 3: SOCIAL MEDIA RESOURCES
+    # ============================================================
+    st.markdown("#### 📱 FOLLOW FOR REAL-TIME UPDATES")
+    st.caption("Get instant alerts from Kenyan agricultural organizations on X (Twitter)")
+    
+    with st.expander("📱 Click to view X (Twitter) handles", expanded=False):
+        st.markdown("""
+        | Organization | X Handle | Best for |
+        |--------------|----------|----------|
+        | **Kenya Meteorological Department** | [@MeteoKenya](https://twitter.com/MeteoKenya) | Daily weather, warnings, climate |
+        | **KALRO** | [@KALROKenya](https://twitter.com/KALROKenya) | Research, new seed varieties |
+        | **Ministry of Agriculture** | [@AgricultureKE](https://twitter.com/AgricultureKE) | Policies, subsidies, advisory |
+        | **The Standard - FarmKenya** | [@FarmKenya](https://twitter.com/FarmKenya) | Agriculture news, Smart Harvest |
+        | **Nation - Seeds of Gold** | [@SeedsOfGold](https://twitter.com/SeedsOfGold) | Weekly farming pullout |
+        """)
+        st.info("💡 **No X account needed** - Click any link to view public updates.")
+
+    # ============================================================
+    # SECTION 4: LIVE AGRICULTURE NEWS
     # ============================================================
     st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
-    st.caption("Live updates from The Standard, Nation Africa, Kenya News Agency, and The EastAfrican")
-
-    news_articles = fetch_live_agriculture_news()
-
-    # Temporary debug - remove after confirming working
-    with st.expander("🔧 Debug: News Feed Status (visible to you only)", expanded=False):
-        st.write(f"Total articles fetched: {len(news_articles) if 'news_articles' in dir() else 0}")
-        for source in ["The Standard", "Nation Africa", "Kenya News Agency", "The EastAfrican"]:
-            count = len([a for a in news_articles if a['source'] == source]) if 'news_articles' in dir() else 0
-            st.write(f"  {source}: {count} articles")
-
+    st.caption("Live updates from The Standard and Kenya News Agency")
+    
+    with st.spinner("📰 Fetching latest agriculture news... Please wait"):
+        news_articles = fetch_live_agriculture_news()
+    
     if news_articles:
-        # Display articles in a clean, simple format
         for article in news_articles:
             with st.expander(f"📰 {article['title']}"):
                 st.caption(f"Source: {article['source']} | {article['date']}")
                 st.write(article['summary'])
                 st.markdown(f"[Read full article]({article['url']})")
     else:
-        st.info("📭 No recent news found. Please check your internet connection.")
+        st.info("📭 No recent news found.")
         st.markdown("""
-        **📌 Direct links to agriculture news sources:**
+        **📌 Direct links to agriculture news:**
         - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya)
-        - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold)
         - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
+        - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold)
         """)
 
     # ============================================================
-    # SECTION 4: LIVE KALRO UPDATES (Scraped)
+    # SECTION 5: KALRO UPDATES
     # ============================================================
     st.markdown("#### 🌾 KALRO AGRICULTURAL UPDATES")
     st.caption("Latest from Kenya Agricultural and Livestock Research Organization")
-
-    kalro_updates = fetch_live_kalro_updates()
-
+    
+    with st.spinner("🔄 Fetching latest KALRO updates..."):
+        kalro_updates = fetch_live_kalro_updates()
+    
     for update in kalro_updates:
         with st.expander(f"📢 {update['title']}"):
             st.write(update['summary'])
             st.markdown(f"[Read more on KALRO website]({update['url']})")
-
+    
     # ============================================================
-    # SECTION 5: WEATHER-BASED FARMING TIP (LIVE)
+    # SECTION 6: WEATHER-BASED FARMING TIP
     # ============================================================
     st.markdown("---")
-    st.markdown("#### 💡 LIVE WEATHER-BASED FARMING TIP")
-
+    st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
+    
     if weather:
         rain_sum = weather.get('rain_sum', 0)
         rain_prob = weather.get('rain_prob', 0)
         temp = weather.get('temperature', 0)
-
+        
+        if isinstance(temp, str):
+            try:
+                temp = float(temp)
+            except:
+                temp = 0
+        
         if rain_sum and rain_sum > 10:
             st.warning("🌧️ **Heavy rain expected!** Postpone spraying. Protect young seedlings from waterlogging.")
         elif rain_prob and rain_prob > 70:
@@ -3944,37 +3840,43 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
             st.success("🌱 **Optimal conditions.** Good time for spraying, fertilizing, and field scouting.")
     else:
         st.info("🌱 Check local weather for optimal farming activities.")
-
+    
     # ============================================================
-    # SECTION 6: RESOURCE DIRECTORY
+    # SECTION 7: RESOURCE DIRECTORY
     # ============================================================
-    with st.expander("📚 Agricultural Resources for Kenyan Farmers"):
+    with st.expander("📚 Agricultural Resources for Kenyan Farmers", expanded=False):
         st.markdown("""
-        **Live News Sources (RSS Feeds):**
-        - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya) - Live agriculture news feed
-        - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/) - Government agriculture news
-
-        **Agriculture Sections (Direct Links):**
+        **Live News & Weather:**
+        - [Kenya Meteorological Department](https://meteo.go.ke) - Official weather warnings
+        - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya) - Agriculture news
+        - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/) - Government news
         - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold) - Weekly farming pullout
-
-        **Government & Research:**
-        - [Kenya Meteorological Department](https://meteo.go.ke) - Weather warnings
+        
+        **Research & Advisory:**
         - [KALRO](https://kalro.org) - Agricultural research
         - [KEPHIS](https://www.kephis.org) - Seed certification
-
+        - [Ministry of Agriculture](https://kilimo.go.ke) - Government policies
+        
+        **Follow on X (Twitter) for Instant Updates:**
+        - [@MeteoKenya](https://twitter.com/MeteoKenya) - Weather warnings
+        - [@KALROKenya](https://twitter.com/KALROKenya) - Research updates
+        - [@FarmKenya](https://twitter.com/FarmKenya) - Agriculture news
+        - [@SeedsOfGold](https://twitter.com/SeedsOfGold) - Farming features
+        
         **Farmer Support:**
         - National Agricultural Extension Hotline: **0800 720 123**
         """)
 
+
 def get_weather_advisory(weather_warnings, disease_name, location):
     """Generate a tailored advisory based on weather warnings and disease"""
     advisories = []
-
+    
     for warning in weather_warnings:
         # Check if user's location is in affected areas
         location_parts = location.lower().split(',')
         is_affected = any(area.lower() in location.lower() for area in warning.get('areas', []))
-
+        
         if is_affected or len(weather_warnings) > 0:
             if warning['type'] == "Heavy Rainfall":
                 advisories.append({
@@ -3994,7 +3896,7 @@ def get_weather_advisory(weather_warnings, disease_name, location):
                     "message": f"🌵 **Dry conditions forecast**. Ensure adequate irrigation and consider mulch to retain moisture.",
                     "related_disease_advice": "Monitor for pest outbreaks (aphids, spider mites thrive in dry conditions)."
                 })
-
+    
     return advisories
 
 
@@ -4553,3 +4455,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
