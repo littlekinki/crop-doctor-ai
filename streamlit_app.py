@@ -3559,7 +3559,7 @@ def fetch_live_kenya_met_warnings():
         return []
 
 def fetch_live_agriculture_news():
-    """Fetch live agriculture news from multiple Kenyan sources - 5 articles each, filtered to last 7 days"""
+    """Fetch live agriculture news from multiple Kenyan sources - shows newest first"""
     import feedparser
     import time
     from datetime import datetime, timedelta
@@ -3596,9 +3596,19 @@ def fetch_live_agriculture_news():
                     # Format like: "Sat, 06 Jun 2026 11:59:32 +0300"
                     return datetime.strptime(date_str[:25], "%a, %d %b %Y %H:%M:%S")
                 except:
-                    return None
+                    try:
+                        # Format like: "2026-06-06T11:59:32+03:00"
+                        return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                    except:
+                        return None
         
-        # Source 1: The Standard - Agriculture RSS Feed (5 articles)
+        def is_recent(entry_date):
+            """Check if article is from last 7 days (or None - assume recent)"""
+            if entry_date is None:
+                return True  # Can't determine date - assume recent
+            return entry_date >= seven_days_ago
+        
+        # Source 1: The Standard - Agriculture RSS Feed
         try:
             standard_feed = feedparser.parse("https://www.standardmedia.co.ke/rss/agriculture.php")
             count = 0
@@ -3607,24 +3617,36 @@ def fetch_live_agriculture_news():
                     break
                 
                 entry_date = parse_entry_date(entry)
+                date_display = entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
                 
-                # Skip if article is older than 7 days
-                if entry_date and entry_date < seven_days_ago:
-                    continue
+                # Add age indicator
+                age_indicator = ""
+                if entry_date:
+                    days_ago = (datetime.now() - entry_date).days
+                    if days_ago <= 1:
+                        age_indicator = " 🔥 NEW"
+                    elif days_ago <= 3:
+                        age_indicator = " 📅"
+                    elif days_ago <= 7:
+                        age_indicator = f" ({days_ago} days ago)"
+                    else:
+                        age_indicator = f" ⚠️ {days_ago} days ago"
                 
                 articles.append({
                     "title": entry.title,
                     "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
                     "url": entry.link,
                     "source": "The Standard",
-                    "date": entry.get("published", "Recent"),
-                    "timestamp": entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
+                    "date": date_display,
+                    "days_ago": (datetime.now() - entry_date).days if entry_date else 0,
+                    "age_indicator": age_indicator,
+                    "timestamp": entry_date
                 })
                 count += 1
         except Exception as e:
             print(f"Standard feed error: {e}")
         
-        # Source 2: Nation Africa - Agriculture (5 articles)
+        # Source 2: Nation Africa - Agriculture
         try:
             nation_feed = feedparser.parse("https://nation.africa/kenya/agriculture/rss")
             count = 0
@@ -3633,23 +3655,35 @@ def fetch_live_agriculture_news():
                     break
                 
                 entry_date = parse_entry_date(entry)
+                date_display = entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
                 
-                if entry_date and entry_date < seven_days_ago:
-                    continue
+                age_indicator = ""
+                if entry_date:
+                    days_ago = (datetime.now() - entry_date).days
+                    if days_ago <= 1:
+                        age_indicator = " 🔥 NEW"
+                    elif days_ago <= 3:
+                        age_indicator = " 📅"
+                    elif days_ago <= 7:
+                        age_indicator = f" ({days_ago} days ago)"
+                    else:
+                        age_indicator = f" ⚠️ {days_ago} days ago"
                 
                 articles.append({
                     "title": entry.title,
                     "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
                     "url": entry.link,
                     "source": "Nation Africa",
-                    "date": entry.get("published", "Recent"),
-                    "timestamp": entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
+                    "date": date_display,
+                    "days_ago": (datetime.now() - entry_date).days if entry_date else 0,
+                    "age_indicator": age_indicator,
+                    "timestamp": entry_date
                 })
                 count += 1
         except Exception as e:
             print(f"Nation feed error: {e}")
         
-        # Source 3: Kenya News Agency (KNA) - Agriculture (5 articles)
+        # Source 3: Kenya News Agency (KNA) - Agriculture
         try:
             kna_feed = feedparser.parse("https://www.kenyanews.go.ke/agriculture/feed/")
             count = 0
@@ -3658,23 +3692,35 @@ def fetch_live_agriculture_news():
                     break
                 
                 entry_date = parse_entry_date(entry)
+                date_display = entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
                 
-                if entry_date and entry_date < seven_days_ago:
-                    continue
+                age_indicator = ""
+                if entry_date:
+                    days_ago = (datetime.now() - entry_date).days
+                    if days_ago <= 1:
+                        age_indicator = " 🔥 NEW"
+                    elif days_ago <= 3:
+                        age_indicator = " 📅"
+                    elif days_ago <= 7:
+                        age_indicator = f" ({days_ago} days ago)"
+                    else:
+                        age_indicator = f" ⚠️ {days_ago} days ago"
                 
                 articles.append({
                     "title": entry.title,
                     "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
                     "url": entry.link,
                     "source": "Kenya News Agency",
-                    "date": entry.get("published", "Recent"),
-                    "timestamp": entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
+                    "date": date_display,
+                    "days_ago": (datetime.now() - entry_date).days if entry_date else 0,
+                    "age_indicator": age_indicator,
+                    "timestamp": entry_date
                 })
                 count += 1
         except Exception as e:
             print(f"KNA feed error: {e}")
         
-        # Source 4: The EastAfrican - Agriculture/Regional (5 articles)
+        # Source 4: The EastAfrican
         try:
             eastafrican_feed = feedparser.parse("https://www.theeastafrican.co.ke/rss")
             count = 0
@@ -3685,30 +3731,42 @@ def fetch_live_agriculture_news():
                 # Filter for agriculture-related content
                 title_lower = entry.title.lower()
                 summary_lower = entry.summary.lower()
-                ag_keywords = ['agriculture', 'farming', 'crop', 'livestock', 'farm', 'harvest', 'food security']
+                ag_keywords = ['agriculture', 'farming', 'crop', 'livestock', 'farm', 'harvest', 'food security', 'agri']
                 
                 if not any(keyword in title_lower or keyword in summary_lower for keyword in ag_keywords):
                     continue
                 
                 entry_date = parse_entry_date(entry)
+                date_display = entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
                 
-                if entry_date and entry_date < seven_days_ago:
-                    continue
+                age_indicator = ""
+                if entry_date:
+                    days_ago = (datetime.now() - entry_date).days
+                    if days_ago <= 1:
+                        age_indicator = " 🔥 NEW"
+                    elif days_ago <= 3:
+                        age_indicator = " 📅"
+                    elif days_ago <= 7:
+                        age_indicator = f" ({days_ago} days ago)"
+                    else:
+                        age_indicator = f" ⚠️ {days_ago} days ago"
                 
                 articles.append({
                     "title": entry.title,
                     "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
                     "url": entry.link,
                     "source": "The EastAfrican",
-                    "date": entry.get("published", "Recent"),
-                    "timestamp": entry_date.strftime("%Y-%m-%d") if entry_date else "Recent"
+                    "date": date_display,
+                    "days_ago": (datetime.now() - entry_date).days if entry_date else 0,
+                    "age_indicator": age_indicator,
+                    "timestamp": entry_date
                 })
                 count += 1
         except Exception as e:
             print(f"EastAfrican feed error: {e}")
         
-        # Sort articles by date (newest first)
-        articles.sort(key=lambda x: x['timestamp'], reverse=True)
+        # Sort articles by date (newest first) - articles with no date go to end
+        articles.sort(key=lambda x: x['timestamp'] if x['timestamp'] else datetime.min, reverse=True)
         
         # Cache the results
         st.session_state[cache_key] = articles
@@ -3718,6 +3776,7 @@ def fetch_live_agriculture_news():
     except Exception as e:
         print(f"Error fetching news: {e}")
         return []
+
 
 def fetch_live_kalro_updates():
     """
@@ -3872,7 +3931,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # SECTION 3: LIVE AGRICULTURE NEWS
     # ============================================================
     st.markdown("#### 📰 LIVE AGRICULTURE NEWS")
-    st.caption("Real-time updates from The Standard, Nation Africa, The EastAfrican, and KNA (last 7 days only)")
+    st.caption("Real-time updates from The Standard, Nation Africa, The EastAfrican, and KNA")
     
     news_articles = fetch_live_agriculture_news()
     
@@ -3889,13 +3948,13 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         for source, source_articles in news_by_source.items():
             st.markdown(f"**📌 {source}**")
             for article in source_articles[:5]:  # Show up to 5 per source
-                with st.expander(f"📰 {article['title']}"):
+                with st.expander(f"📰 {article['title']}{article.get('age_indicator', '')}"):
                     st.caption(f"Published: {article['date']}")
                     st.write(article['summary'])
                     st.markdown(f"[Read full article]({article['url']})")
             st.markdown("---")
     else:
-        st.info("📰 No agriculture news from the last 7 days.")
+        st.info("📰 No agriculture news available at this time.")
         st.markdown("""
         **Direct links to agriculture news:**
         - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya)
@@ -4541,3 +4600,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
