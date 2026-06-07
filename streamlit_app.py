@@ -3754,81 +3754,62 @@ def display_privacy_notice():
         st.markdown("---")
 
 def display_top_location_buttons():
-    """Display Change Location and Refresh buttons at the top"""
-
-    # Show current location with method indicator
-    if st.session_state.get('location_method') == "ip":
-        st.caption("🌐 Location: IP-based (approximate)")
-    elif st.session_state.get('location_method') == "manual":
-        st.caption("✓ Location: Manually set (accurate)")
-    else:
-        st.caption("📍 Location set")
-
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
-        if st.button("📍 Change Location", use_container_width=True, key="change_location_top_btn"):
+    """Display Change Location and Refresh buttons"""
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📍 Change Location", use_container_width=True):
             st.session_state.show_top_location_dialog = True
             st.rerun()
-    with col_btn2:
-        if st.button("🔄 Refresh Weather", use_container_width=True, key="refresh_weather_top_btn"):
+    with col2:
+        if st.button("🔄 Refresh Weather", use_container_width=True):
             st.session_state.weather_info = None
             st.success("✅ Weather data refreshed!")
             time.sleep(0.5)
             st.rerun()
 
-def display_top_location_dialog():
-    """Display location dialog - Manual entry only (100% reliable)"""
 
+def display_top_location_dialog():
+    """Manual location entry dialog"""
     if not st.session_state.get('show_top_location_dialog', False):
         return
 
     st.markdown("---")
     st.markdown("### 📍 Change Your Location")
-    
     st.success(f"📍 **Current location:** {st.session_state.location}")
-
     st.markdown("---")
     st.markdown("#### Enter your location manually:")
-    st.caption("✅ This is the most reliable method for accurate weather forecasts")
-    st.caption("📝 Examples: Kisumu, Kenya | Eldoret, Uasin Gishu County, Kenya | Machakos, Kenya | Nakuru, Kenya")
+    st.caption("📝 Examples: Kisumu, Kenya | Eldoret, Uasin Gishu County, Kenya | Machakos, Kenya")
 
     current_loc_parts = st.session_state.location.split(',')
-    default_city = current_loc_parts[0].strip() if len(current_loc_parts) > 0 else "Ekerenyo, Nyamira County"
+    default_city = current_loc_parts[0].strip() if current_loc_parts else "Ekerenyo, Nyamira County"
     default_region = current_loc_parts[1].strip() if len(current_loc_parts) > 1 else ""
-    default_country = current_loc_parts[-1].strip() if len(current_loc_parts) > 0 else "Kenya"
+    default_country = current_loc_parts[-1].strip() if current_loc_parts else "Kenya"
 
     col1, col2 = st.columns(2)
     with col1:
-        new_city = st.text_input("City/Town *", value=default_city, key="top_manual_city")
-        new_region = st.text_input("County/Region (optional)", value=default_region, key="top_manual_region")
+        new_city = st.text_input("City/Town *", value=default_city)
+        new_region = st.text_input("County/Region (optional)", value=default_region)
     with col2:
-        new_country = st.text_input("Country", value=default_country, key="top_manual_country")
-
-    st.caption("* Required field")
+        new_country = st.text_input("Country", value=default_country)
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("💾 Save Location", use_container_width=True, key="top_save_btn"):
+        if st.button("💾 Save Location", use_container_width=True):
             if new_city:
-                if new_region:
-                    st.session_state.location = f"{new_city}, {new_region}, {new_country}"
-                else:
-                    st.session_state.location = f"{new_city}, {new_country}"
-                st.session_state.location_method = "manual"
+                location = f"{new_city}, {new_country}" if not new_region else f"{new_city}, {new_region}, {new_country}"
+                st.session_state.location = location
                 st.session_state.show_top_location_dialog = False
-                st.success(f"✅ Location saved: {st.session_state.location}")
-                st.balloons()
+                st.success(f"✅ Location saved: {location}")
                 time.sleep(1)
                 st.rerun()
             else:
                 st.error("Please enter at least a city/town.")
     with col2:
-        if st.button("❌ Cancel", use_container_width=True, key="top_cancel_btn"):
+        if st.button("❌ Cancel", use_container_width=True):
             st.session_state.show_top_location_dialog = False
             st.rerun()
 
     st.markdown("---")
-
 
 # Add this to handle GPS form submission (add this function before main())
 def handle_gps_submission():
@@ -4185,5 +4166,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
