@@ -8,3 +8,4 @@ requests==2.32.3
 streamlit-analytics2
 huggingface_hub
 streamlit-geolocation
+feedparser
