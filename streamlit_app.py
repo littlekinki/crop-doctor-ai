@@ -3553,8 +3553,7 @@ def fetch_live_kenya_met_warnings():
         return []
 
 def fetch_live_agriculture_news():
-    """Fetch live agriculture news from ALL Kenyan sources: The Standard, Nation Africa, KNA, and The EastAfrican"""
-
+    """Fetch live agriculture news from reliable Kenyan sources"""
     try:
         # Cache news for 15 minutes
         cache_key = 'news_cache'
@@ -3568,7 +3567,7 @@ def fetch_live_agriculture_news():
         articles = []
         
         # ============================================================
-        # SOURCE 1: The Standard - Agriculture (RSS Feed)
+        # SOURCE 1: The Standard - Agriculture (WORKING)
         # ============================================================
         try:
             standard_feed = feedparser.parse("https://www.standardmedia.co.ke/rss/agriculture.php")
@@ -3584,136 +3583,75 @@ def fetch_live_agriculture_news():
                     "date": entry.get("published", "Recent")
                 })
                 count += 1
-            print(f"✅ The Standard: {count} articles fetched")
+            print(f"✅ The Standard: {count} articles")
         except Exception as e:
-            print(f"❌ Standard feed error: {e}")
+            print(f"❌ Standard error: {e}")
         
         # ============================================================
-        # SOURCE 2: Nation Africa - Seeds of Gold (Web Scraping)
-        # ============================================================
-        try:
-            # Scrape the Seeds of Gold page for articles
-            response = requests.get("https://nation.africa/kenya/business/seeds-of-gold", timeout=15)
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.content, 'html.parser')
-                
-                # Find article links on the page
-                articles_found = 0
-                for link in soup.find_all('a', href=True):
-                    href = link.get('href', '')
-                    title = link.get_text(strip=True)
-                    
-                    # Look for article links that contain '/kenya/business/seeds-of-gold/'
-                    if '/kenya/business/seeds-of-gold/' in href and len(title) > 30 and articles_found < 5:
-                        full_url = href if href.startswith('http') else f"https://nation.africa{href}"
-                        
-                        # Get summary (look for following paragraph)
-                        summary = ""
-                        parent = link.find_parent('div')
-                        if parent:
-                            summary_elem = parent.find('p')
-                            if summary_elem:
-                                summary = summary_elem.get_text(strip=True)[:200]
-                        
-                        articles.append({
-                            "title": title[:150],
-                            "summary": summary if summary else "Click to read this article from Seeds of Gold.",
-                            "url": full_url,
-                            "source": "🌱 Nation Africa - Seeds of Gold",
-                            "date": "Recent"
-                        })
-                        articles_found += 1
-                
-                print(f"✅ Nation Africa: {articles_found} articles fetched")
-            else:
-                print(f"⚠️ Nation Africa page returned status: {response.status_code}")
-                # Add fallback link
-                articles.append({
-                    "title": "Nation Africa - Seeds of Gold",
-                    "summary": "Visit the Seeds of Gold section for weekly farming pullout and agricultural features.",
-                    "url": "https://nation.africa/kenya/business/seeds-of-gold",
-                    "source": "🌱 Nation Africa - Seeds of Gold",
-                    "date": "Visit website"
-                })
-        except Exception as e:
-            print(f"❌ Nation Africa scraping error: {e}")
-            articles.append({
-                "title": "Nation Africa - Seeds of Gold",
-                "summary": "Visit the Seeds of Gold section for agriculture news and farming tips.",
-                "url": "https://nation.africa/kenya/business/seeds-of-gold",
-                "source": "🌱 Nation Africa - Seeds of Gold",
-                "date": "Visit website"
-            })
-        
-        # ============================================================
-        # SOURCE 3: Kenya News Agency (KNA) - Agriculture (RSS Feed)
+        # SOURCE 2: Kenya News Agency (WORKING)
         # ============================================================
         try:
             kna_feed = feedparser.parse("https://www.kenyanews.go.ke/agriculture/feed/")
-            if kna_feed.entries:
-                count = 0
-                for entry in kna_feed.entries:
-                    if count >= 5:
-                        break
-                    articles.append({
-                        "title": entry.title,
-                        "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
-                        "url": entry.link,
-                        "source": "📰 Kenya News Agency",
-                        "date": entry.get("published", "Recent")
-                    })
-                    count += 1
-                print(f"✅ KNA: {count} articles fetched")
-            else:
-                print(f"⚠️ KNA feed has no entries")
+            count = 0
+            for entry in kna_feed.entries:
+                if count >= 5:
+                    break
+                articles.append({
+                    "title": entry.title,
+                    "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
+                    "url": entry.link,
+                    "source": "📰 Kenya News Agency",
+                    "date": entry.get("published", "Recent")
+                })
+                count += 1
+            print(f"✅ KNA: {count} articles")
         except Exception as e:
-            print(f"❌ KNA feed error: {e}")
+            print(f"❌ KNA error: {e}")
         
         # ============================================================
-        # SOURCE 4: The EastAfrican - Agriculture (RSS with filtering)
+        # SOURCE 3: Nation Africa - Seeds of Gold (Direct Link Only)
+        # Note: No RSS feed available, so we add a direct link
+        # ============================================================
+        articles.append({
+            "title": "Nation Africa - Seeds of Gold",
+            "summary": "Visit the Seeds of Gold section for weekly farming pullout, agricultural features, and farming tips from Nation Africa.",
+            "url": "https://nation.africa/kenya/business/seeds-of-gold",
+            "source": "🌱 Nation Africa",
+            "date": "Visit website"
+        })
+        
+        # ============================================================
+        # SOURCE 4: The EastAfrican (RSS with agriculture filter)
         # ============================================================
         try:
             eastafrican_feed = feedparser.parse("https://www.theeastafrican.co.ke/rss")
             count = 0
-            if eastafrican_feed.entries:
-                for entry in eastafrican_feed.entries:
-                    if count >= 5:
-                        break
-                    
-                    # Filter for agriculture-related content
-                    title_lower = entry.title.lower()
-                    summary_lower = entry.summary.lower() if entry.summary else ""
-                    ag_keywords = ['agriculture', 'farming', 'crop', 'livestock', 'farm', 'harvest', 'food', 'agri', 'maize', 'coffee', 'tea']
-                    
-                    if any(keyword in title_lower or keyword in summary_lower for keyword in ag_keywords):
-                        articles.append({
-                            "title": entry.title,
-                            "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
-                            "url": entry.link,
-                            "source": "🌍 The EastAfrican",
-                            "date": entry.get("published", "Recent")
-                        })
-                        count += 1
-                print(f"✅ The EastAfrican: {count} articles fetched")
-            else:
-                print(f"⚠️ EastAfrican feed has no entries")
+            for entry in eastafrican_feed.entries:
+                if count >= 3:
+                    break
+                title_lower = entry.title.lower()
+                if any(word in title_lower for word in ['farm', 'agriculture', 'crop', 'harvest', 'food']):
+                    articles.append({
+                        "title": entry.title,
+                        "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
+                        "url": entry.link,
+                        "source": "🌍 The EastAfrican",
+                        "date": entry.get("published", "Recent")
+                    })
+                    count += 1
+            print(f"✅ EastAfrican: {count} articles")
         except Exception as e:
-            print(f"❌ EastAfrican feed error: {e}")
-        
-        # Sort articles by date (newest first) where possible
-        # Articles without dates go to the end
-        articles.sort(key=lambda x: x['date'] if x['date'] != "Recent" and x['date'] != "Visit website" else "", reverse=True)
+            print(f"❌ EastAfrican error: {e}")
         
         # Cache the results
         st.session_state[cache_key] = articles
         st.session_state[cache_time_key] = current_time
         
-        print(f"📊 TOTAL articles fetched: {len(articles)}")
+        print(f"📊 TOTAL articles: {len(articles)}")
         return articles
     except Exception as e:
-        print(f"❌ Error fetching news: {e}")
+        print(f"❌ News fetch error: {e}")
         return []
-
 
 def fetch_live_kalro_updates():
     """Fetch latest updates from KALRO website"""
@@ -3908,7 +3846,36 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
             st.success("🌱 **Optimal conditions.** Good time for spraying, fertilising, and field scouting.")
     else:
         st.info("🌱 Check local weather for optimal farming activities.")
+
+    # ============================================================
+    # SECTION 5: LIVE AGRICULTURE NEWS
+    # ============================================================
+    st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
+    st.caption("Live updates from The Standard and Kenya News Agency")
     
+    with st.spinner("📰 Fetching latest agriculture news... Please wait"):
+        news_articles = fetch_live_agriculture_news()
+    
+    if news_articles:
+        for article in news_articles:
+            # Check if this is a direct link (not a real article)
+            if article['date'] == "Visit website":
+                st.markdown(f"🔗 **{article['source']}** : [{article['title']}]({article['url']})")
+                st.caption(article['summary'])
+            else:
+                with st.expander(f"📰 {article['title']}"):
+                    st.caption(f"Source: {article['source']} | {article['date']}")
+                    st.write(article['summary'])
+                    st.markdown(f"[Read full article]({article['url']})")
+    else:
+        st.info("📭 No recent news found. Please check your internet connection.")
+        st.markdown("""
+        **📌 Direct links to agriculture news:**
+        - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya)
+        - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
+        - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold)
+        """)
+
     # ============================================================
     # SECTION 6: RESOURCE DIRECTORY
     # ============================================================
