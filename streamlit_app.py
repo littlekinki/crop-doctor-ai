@@ -3867,7 +3867,7 @@ def search_manufacturer_websites(disease_name, crop_type, existing_chemicals):
 # - Or scrape specific manufacturer product pages (free, but may break)
 
 def display_online_features(disease_name, crop_type, location, treatment_data=None):
-    """Display online features with REAL-TIME LIVE updates"""
+    """Display online features including weather, news, and agricultural updates"""
     
     st.markdown("---")
     st.markdown("### 📡 ONLINE MODE - LIVE UPDATES")
@@ -3877,49 +3877,42 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # SECTION 1: WEATHER & DISEASE RISK
     # ============================================================
     st.markdown("#### 🌤️ CURRENT WEATHER & DISEASE RISK")
-    st.caption("ℹ️ **Tip:** Hover over the ❔ icons for detailed explanations.")
+    st.caption("ℹ️ **Tip:** Hover over the ❔ icons for detailed explanations of each weather parameter.")
     
     weather = get_weather_with_risk_assessment(location, disease_name, treatment_data)
 
     if weather:
         risk_class = weather.get('risk_class', '')
         risk_msg = weather.get('risk_msg', '')
-    
+
         weather_text = f"""
         <div class="weather-card">
             <h4>🌤️ WEATHER FOR {weather['location']}</h4>
         """
         
-        # Temperature with tooltip
         if weather['temperature'] != 'N/A':
             weather_text += f'<p>🌡️ <strong>Temperature:</strong> {weather["temperature"]}°C <span style="cursor: help; color: #666;" title="Current air temperature. Ideal for most crops is 20-30°C. High temperatures (>30°C) can cause heat stress, low temperatures (<15°C) can slow growth.">❔</span></p>'
         else:
             weather_text += '<p>🌡️ <strong>Temperature:</strong> --</p>'
         
-        # Humidity with tooltip
         if weather['humidity'] != 'N/A':
             weather_text += f'<p>💧 <strong>Humidity:</strong> {weather["humidity"]}% <span style="cursor: help; color: #666;" title="Relative humidity. High humidity (>80%) favors fungal diseases. Low humidity (<40%) favors pests like spider mites. Ideal range is 40-70%.">❔</span></p>'
         else:
             weather_text += '<p>💧 <strong>Humidity:</strong> --</p>'
         
-        # Current Rainfall with tooltip
         weather_text += f'<p>☔ <strong>Current Rainfall:</strong> {weather["rain"]} mm <span style="cursor: help; color: #666;" title="Rainfall in the last hour. Less than 2mm is safe for spraying. More than 10mm can wash off chemicals.">❔</span></p>'
         
-        # Wind Speed with tooltip
         if weather['wind'] != 'N/A':
             weather_text += f'<p>🌬️ <strong>Wind Speed:</strong> {weather["wind"]} km/h <span style="cursor: help; color: #666;" title="Best for spraying: 5-15 km/h. High winds (>25 km/h) cause spray drift. Calm conditions (<5 km/h) may cause poor spray distribution.">❔</span></p>'
         else:
             weather_text += '<p>🌬️ <strong>Wind Speed:</strong> --</p>'
         
-        # Today's Forecast with tooltip (FIXED - added missing tooltip)
         if weather['temp_max'] and weather['temp_min']:
             weather_text += f'<p>📅 <strong>Today\'s Forecast:</strong> High {weather["temp_max"]}°C / Low {weather["temp_min"]}°C <span style="cursor: help; color: #666;" title="Expected temperature range for today (from midnight to midnight). Use this to plan activities like transplanting or harvesting. High temperatures above 30°C can stress plants.">❔</span></p>'
         
-        # Rain Probability with tooltip (FIXED - added missing tooltip)
         if weather['rain_prob']:
             weather_text += f'<p>🌧️ <strong>Rain Probability:</strong> {weather["rain_prob"]}% (Expected: {weather["rain_sum"]} mm) <span style="cursor: help; color: #666;" title="Chance of rain during the remaining hours today. {weather["rain_prob"]}% means it may rain. Expected rainfall: {weather["rain_sum"]}mm. Safe for spraying if under 2mm. Postpone spraying if expected rain exceeds 10mm.">❔</span></p>'
         
-        # Disease Risk Assessment with tooltip
         weather_text += f"""
             <hr>
             <p><strong>🎯 DISEASE RISK ASSESSMENT FOR {disease_name}:</strong><br>
@@ -3928,9 +3921,6 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         </div>
         """
         st.markdown(weather_text, unsafe_allow_html=True)
-        
-        # Tip about tooltips
-        st.caption("ℹ️ **Tip:** Hover over the ❔ icons for detailed explanations of each weather parameter.")
     else:
         st.info("🌤️ Unable to fetch weather data. Please check your internet connection.")
 
@@ -3958,20 +3948,65 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # SECTION 3: REAL-TIME WEATHER ALERTS
     # ============================================================
     st.markdown("#### 📱 REAL-TIME WEATHER ALERTS")
-    
+
     st.info("""
-    **📱 Get real-time weather alerts from Kenya Meteorological Department**
+    **Follow the Kenya Meteorological Department on X (Twitter) for live updates**
     
-    👉 **Follow @MeteoKenya on X (Twitter)** for:
-    - ⚡ Instant severe weather warnings (heavy rain, floods, strong winds)
-    - 🌤️ Daily and 5-day weather forecasts
-    - 🌧️ Rainfall predictions and alerts
+    The Kenya Meteorological Department (`@MeteoKenya`) uses X to issue **immediate** weather warnings, daily forecasts, and heavy rainfall advisories.
     
-    **➡️ [Click here to view @MeteoKenya on X (Twitter)](https://twitter.com/MeteoKenya)** (No account needed - just click to view)
+    ✅ **Why follow?**
+    - Get severe weather alerts instantly (heavy rain, floods, strong winds)
+    - Receive daily and 5-day weather forecasts
+    - Stay informed about conditions affecting your farm
+    
+    👉 **[Follow @MeteoKenya on X](https://twitter.com/MeteoKenya)** (No account needed. Just click to view)
     """)
 
     # ============================================================
-    # SECTION 4: WEATHER-BASED FARMING TIP
+    # SECTION 4: LIVE AGRICULTURE NEWS
+    # ============================================================
+    st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
+    st.caption("Live updates from The Standard and Kenya News Agency")
+    
+    with st.spinner("📰 Fetching latest agriculture news... Please wait"):
+        news_articles = fetch_live_agriculture_news()
+    
+    if news_articles:
+        for article in news_articles:
+            # Check if this is a direct link (not a real article)
+            if article.get('date') == "Visit website" or article.get('source') == "🌱 Nation Africa":
+                st.markdown(f"🔗 **{article['source']}** : [{article['title']}]({article['url']})")
+                st.caption(article['summary'])
+            else:
+                with st.expander(f"📰 {article['title']}"):
+                    st.caption(f"Source: {article['source']} | {article['date']}")
+                    st.write(article['summary'])
+                    st.markdown(f"[Read full article]({article['url']})")
+    else:
+        st.info("📭 No recent news found. Please check your internet connection.")
+        st.markdown("""
+        **📌 Direct links to agriculture news:**
+        - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya)
+        - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
+        - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold)
+        """)
+
+    # ============================================================
+    # SECTION 5: KALRO AGRICULTURAL UPDATES
+    # ============================================================
+    st.markdown("#### 🌾 KALRO AGRICULTURAL UPDATES")
+    st.caption("Latest from Kenya Agricultural and Livestock Research Organization")
+    
+    with st.spinner("🔄 Fetching latest KALRO updates..."):
+        kalro_updates = fetch_live_kalro_updates()
+    
+    for update in kalro_updates:
+        with st.expander(f"📢 {update['title']}"):
+            st.write(update['summary'])
+            st.markdown(f"[Read more on KALRO website]({update['url']})")
+    
+    # ============================================================
+    # SECTION 6: WEATHER-BASED FARMING TIP
     # ============================================================
     st.markdown("---")
     st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
@@ -3996,185 +4031,12 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         elif temp and temp < 15:
             st.info("❄️ **Cool temperatures.** Delay transplanting sensitive crops.")
         else:
-            st.success("🌱 **Optimal conditions.** Good time for spraying, fertilising, and field scouting.")
+            st.success("🌱 **Optimal conditions.** Good time for spraying, fertilizing, and field scouting.")
     else:
         st.info("🌱 Check local weather for optimal farming activities.")
-
+    
     # ============================================================
-    # SECTION 5: NEW TREATMENTS/CHEMICALS (Real-time Search)
-    # ============================================================
-    
-    # Dynamic title based on diagnosed disease
-    st.markdown(f"#### 🧪 NEW TREATMENTS/CHEMICALS FOR {disease_name.upper()}")
-    st.caption("Search manufacturer websites for products NOT yet in our database")
-    
-    # Initialize session state for search
-    if 'search_chemicals' not in st.session_state:
-        st.session_state.search_chemicals = False
-    if 'chemical_search_results' not in st.session_state:
-        st.session_state.chemical_search_results = None
-    if 'search_performed' not in st.session_state:
-        st.session_state.search_performed = False
-    
-    # Button to start search
-    if st.button(f"🔍 Search for New {disease_name} Products", use_container_width=True, key="search_chemicals_btn"):
-        st.session_state.search_chemicals = True
-        st.session_state.search_performed = False
-        st.rerun()
-    
-    # Show confirmation dialog if search was requested
-    if st.session_state.search_chemicals and not st.session_state.search_performed:
-        st.warning("⚠️ **Searching manufacturer websites may take 10-20 seconds**")
-        st.info(f"📌 The system will search for NEW products related to **{disease_name}** that are NOT already in our database.")
-        
-        manufacturers = [
-            "Greenlife Crop Protection Africa",
-            "Bayer East Africa", 
-            "Syngenta East Africa",
-            "Corteva Agriscience",
-            "BASF East Africa",
-            "Twiga Chemical Industries",
-            "Osho Chemical Industries"
-        ]
-        
-        with st.expander("📋 Manufacturers to search", expanded=False):
-            for m in manufacturers:
-                st.markdown(f"- {m}")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("✅ Yes, Search Now", use_container_width=True, key="confirm_search"):
-                # Extract existing chemicals from treatment database
-                treatment = get_full_treatment(disease_name, get_references())
-                chem_text = treatment.get('chemical_control', '')
-                
-                # Parse existing chemical names from the database
-                import re
-                existing_chemicals = set()
-                # Look for product names (words with capital letters, often with ® or ™)
-                product_matches = re.findall(r'([A-Z][a-z]+(?:®|™)?(?:[\s-][A-Z][a-z]+(?:®|™)?)*)', chem_text)
-                for p in product_matches:
-                    if len(p) > 3 and p.lower() not in ['Use', 'Apply', 'Water', 'Spray', 'From', 'With']:
-                        existing_chemicals.add(p.strip())
-                
-                # Also add known chemical classes
-                known_classes = ['Mancozeb', 'Copper', 'Azoxystrobin', 'Tebuconazole', 'Propiconazole', 
-                               'Pyraclostrobin', 'Chlorothalonil', 'Imidacloprid', 'Lambda-cyhalothrin',
-                               'Emamectin', 'Abamectin', 'Spinosad', 'Neem']
-                for k in known_classes:
-                    existing_chemicals.add(k)
-                
-                st.info(f"📊 Checking against {len(existing_chemicals)} existing products in our database")
-                
-                with st.spinner(f"🔍 Searching {len(manufacturers)} manufacturer websites for NEW {disease_name} products..."):
-                    # Perform the search
-                    results = search_manufacturer_websites(disease_name, crop_type, existing_chemicals)
-                    st.session_state.chemical_search_results = results
-                    st.session_state.search_performed = True
-                    st.session_state.search_chemicals = False
-                    time.sleep(0.5)
-                    st.rerun()
-        with col2:
-            if st.button("❌ No, Cancel", use_container_width=True, key="cancel_search"):
-                st.session_state.search_chemicals = False
-                st.rerun()
-    
-    # Display search results if available
-    if st.session_state.search_performed and st.session_state.chemical_search_results:
-        results = st.session_state.chemical_search_results
-        
-        if results.get("new_products"):
-            st.success(f"✅ Found {len(results['new_products'])} NEW product(s) for {disease_name} not in our database!")
-            for product in results['new_products']:
-                with st.expander(f"🆕 {product['name']}"):
-                    st.markdown(f"**Manufacturer:** {product['manufacturer']}")
-                    st.markdown(f"**Found at:** [{product['url']}]({product['url']})")
-                    st.markdown(f"**Why it's new:** {product['relevance']}")
-                    st.warning("⚠️ **Important:** This product is not yet verified. Consult your local agrovet before use.")
-        else:
-            st.info(f"✅ No NEW products found for {disease_name}. All known products are already in our database.")
-            st.caption("💡 Manufacturers typically update their websites quarterly. Check back later for new products.")
-        
-        if st.button("✖ Clear Results", use_container_width=True, key="clear_results"):
-            st.session_state.search_performed = False
-            st.session_state.chemical_search_results = None
-            st.rerun()
-    
-    # Always show known products from database (for reference)
-    with st.expander(f"📋 Existing Products in Database for {disease_name}", expanded=False):
-        treatment = get_full_treatment(disease_name, get_references())
-        chem_text = treatment.get('chemical_control', '')
-        
-        if chem_text and "Not applicable" not in chem_text:
-            st.markdown("These products are already verified and included in your treatment recommendations:")
-            
-            # Extract product names more cleanly
-            import re
-            lines = chem_text.split('\n')
-            products_found = []
-            for line in lines:
-                line = line.strip()
-                # Look for lines with product names (often starting with i), ii), etc. or bullet points)
-                if re.match(r'^[iIivxcl]+[\)\.]', line) or line.startswith('•') or line.startswith('-'):
-                    # Remove the prefix
-                    clean_line = re.sub(r'^[iIivxcl]+[\)\.]\s*', '', line)
-                    clean_line = re.sub(r'^[•\-]\s*', '', clean_line)
-                    if clean_line and len(clean_line) > 5:
-                        products_found.append(clean_line[:100])
-            
-            for p in products_found[:15]:
-                st.markdown(f"- {p}")
-            
-            if len(products_found) > 15:
-                st.caption(f"... and {len(products_found) - 15} more products")
-        else:
-            st.info("No specific chemical products in database for this disease.")
-
-    # ============================================================
-    # SECTION 6: KALRO UPDATES
-    # ============================================================
-    st.markdown("#### 🌾 KALRO AGRICULTURAL UPDATES")
-    st.caption("Latest from Kenya Agricultural and Livestock Research Organization")
-    
-    with st.spinner("🔄 Fetching latest KALRO updates..."):
-        kalro_updates = fetch_live_kalro_updates()
-    
-    for update in kalro_updates:
-        with st.expander(f"📢 {update['title']}"):
-            st.write(update['summary'])
-            st.markdown(f"[Read more on KALRO website]({update['url']})")
-
-    # ============================================================
-    # SECTION 7: LIVE AGRICULTURE NEWS
-    # ============================================================
-    st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
-    st.caption("Live updates from The Standard and Kenya News Agency")
-    
-    with st.spinner("📰 Fetching latest agriculture news... Please wait"):
-        news_articles = fetch_live_agriculture_news()
-    
-    if news_articles:
-        for article in news_articles:
-            # Check if this is a direct link (not a real article)
-            if article['date'] == "Visit website":
-                st.markdown(f"🔗 **{article['source']}** : [{article['title']}]({article['url']})")
-                st.caption(article['summary'])
-            else:
-                with st.expander(f"📰 {article['title']}"):
-                    st.caption(f"Source: {article['source']} | {article['date']}")
-                    st.write(article['summary'])
-                    st.markdown(f"[Read full article]({article['url']})")
-    else:
-        st.info("📭 No recent news found. Please check your internet connection.")
-        st.markdown("""
-        **📌 Direct links to agriculture news:**
-        - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya)
-        - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
-        - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold)
-        """)
-
-    # ============================================================
-    # SECTION 8: RESOURCE DIRECTORY
+    # SECTION 7: RESOURCE DIRECTORY
     # ============================================================
     with st.expander("📚 Agricultural Resources for Kenyan Farmers", expanded=False):
         st.markdown("""
@@ -4198,7 +4060,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         **Farmer Support:**
         - National Agricultural Extension Hotline: **0800 720 123**
         """)
-
+        
 def get_weather_advisory(weather_warnings, disease_name, location):
     """Generate a tailored advisory based on weather warnings and disease"""
     advisories = []
