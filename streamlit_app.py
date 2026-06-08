@@ -4712,7 +4712,7 @@ def process_batch_images(uploaded_files, model, class_names, references, gradcam
             # Get treatment for top prediction
             treatment = get_full_treatment(top_predictions[0]['class'], references)
             
-            # Get local timestamp for this image
+            # Get local timestamp for this image (FIXED - using EAT)
             local_timestamp = datetime.now(eat_timezone).strftime('%Y-%m-%d %H:%M:%S')
             
             results.append({
@@ -4727,11 +4727,12 @@ def process_batch_images(uploaded_files, model, class_names, references, gradcam
                 "status": "success"
             })
         except Exception as e:
+            local_timestamp = datetime.now(eat_timezone).strftime('%Y-%m-%d %H:%M:%S')
             results.append({
                 "filename": uploaded_file.name,
                 "status": "error",
                 "error_message": str(e),
-                "timestamp": datetime.now(eat_timezone).strftime('%Y-%m-%d %H:%M:%S')
+                "timestamp": local_timestamp
             })
     
     return results
@@ -4739,27 +4740,29 @@ def process_batch_images(uploaded_files, model, class_names, references, gradcam
 def display_batch_results(results):
     """Display batch processing results in an organized way with correct timestamps"""
     from datetime import datetime, timedelta, timezone as dt_timezone
+    import csv
+    import os
     
     # Get local timezone (EAT - UTC+3)
     eat_timezone = dt_timezone(timedelta(hours=3))
     
-    st.markdown("### 📊 Batch Processing Results")
+    st.markdown("### \U0001F4CA Batch Processing Results")
     st.markdown(f"**Total images processed:** {len(results)}")
     
     # Summary statistics
     successful = [r for r in results if r['status'] == 'success']
     failed = [r for r in results if r['status'] == 'error']
     
-    st.markdown(f"✅ Successful: {len(successful)}")
-    st.markdown(f"❌ Failed: {len(failed)}")
+    st.markdown(f"\u2705 Successful: {len(successful)}")
+    st.markdown(f"\u274C Failed: {len(failed)}")
     
     # Display timestamp of batch processing
     batch_timestamp = datetime.now(eat_timezone).strftime('%Y-%m-%d %H:%M:%S')
-    st.caption(f"🕐 Batch processed at: {batch_timestamp} (East Africa Time)")
+    st.caption(f"\U0001F550 Batch processed at: {batch_timestamp} (East Africa Time)")
     
     if successful:
         # Create a summary table
-        st.markdown("#### 📋 Summary Table")
+        st.markdown("#### \U0001F4CB Summary Table")
         summary_data = []
         for r in successful:
             summary_data.append({
@@ -4773,8 +4776,7 @@ def display_batch_results(results):
         # Export options
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("📊 Export Results as CSV", use_container_width=True):
-                import csv
+            if st.button("\U0001F4CA Export Results as CSV", use_container_width=True):
                 csv_data = []
                 for r in successful:
                     csv_data.append({
@@ -4788,28 +4790,36 @@ def display_batch_results(results):
                     })
                 
                 csv_filename = f"batch_results_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.csv"
-                with open(csv_filename, 'w', newline='') as f:
+                with open(csv_filename, 'w', newline='', encoding='utf-8') as f:
                     writer = csv.DictWriter(f, fieldnames=["filename", "diagnosis", "confidence", "confidence_percent", "category", "causal_agent", "timestamp"])
                     writer.writeheader()
                     writer.writerows(csv_data)
                 
                 with open(csv_filename, 'rb') as f:
-                    st.download_button("📥 Download CSV", data=f, file_name=csv_filename, mime="text/csv")
+                    st.download_button(
+                        label="\U0001F4E5 Download CSV",
+                        data=f,
+                        file_name=csv_filename,
+                        mime="text/csv"
+                    )
+                
+                # Clean up temp file
+                os.remove(csv_filename)
         
         with col2:
-            if st.button("📑 Generate Full Report", use_container_width=True):
+            if st.button("\U0001F4D1 Generate Full Report", use_container_width=True):
                 generate_batch_report(successful)
         
         # Display individual results in expanders
-        st.markdown("#### 📸 Individual Results")
+        st.markdown("#### \U0001F4F8 Individual Results")
         for r in successful:
-            with st.expander(f"📷 {r['filename']} - {r['primary_diagnosis']} ({r['primary_confidence']*100:.1f}%)"):
-                st.caption(f"🕐 Processed: {r.get('timestamp', batch_timestamp)}")
+            with st.expander(f"\U0001F4F7 {r['filename']} - {r['primary_diagnosis']} ({r['primary_confidence']*100:.1f}%)"):
+                st.caption(f"\U0001F550 Processed: {r.get('timestamp', batch_timestamp)}")
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.image(r['image'], caption="Original Image", width="stretch")
+                    st.image(r['image'], caption="Original Image", use_container_width=True)
                 with col2:
-                    st.image(r['heatmap_overlay'], caption="Grad-CAM Heatmap", width="stretch")
+                    st.image(r['heatmap_overlay'], caption="Grad-CAM Heatmap", use_container_width=True)
                 
                 st.markdown(f"**Top Predictions:**")
                 for i, pred in enumerate(r['top_predictions'], 1):
@@ -4819,9 +4829,12 @@ def display_batch_results(results):
                 st.markdown(f"**Causal Agent:** {r['treatment']['causal_agent']}")
         
         if failed:
-            st.markdown("#### ❌ Failed Images")
+            st.markdown("#### \u274C Failed Images")
             for r in failed:
                 st.warning(f"**{r['filename']}:** {r['error_message']}")
+    
+    # Add a note about timezone
+    st.caption("\u2139\uFE0F All timestamps are in East Africa Time (EAT, UTC+3)")
 
 def generate_batch_report(results):
     """Generate a comprehensive batch report with correct timestamps"""
