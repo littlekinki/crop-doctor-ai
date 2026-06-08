@@ -30,6 +30,7 @@ from huggingface_hub import HfApi
 import io
 import feedparser
 from datetime import datetime, timedelta
+import pytz
 import hashlib
 from bs4 import BeautifulSoup
 
@@ -511,6 +512,11 @@ def check_internet_connection():
 def generate_export_report(disease_data, treatment_data, references, weather_data=None):
     """Generate a downloadable report of the diagnosis and treatment"""
 
+    # Set Kenya timezone
+    kenya_tz = pytz.timezone('Africa/Nairobi')
+    local_now = datetime.now(kenya_tz)
+    local_time_str = local_now.strftime('%Y-%m-%d %H:%M:%S %Z')
+
     # Get the treatment data
     treatment = treatment_data
 
@@ -547,7 +553,7 @@ def generate_export_report(disease_data, treatment_data, references, weather_dat
     report = f"""
 CROP DOCTOR DIAGNOSIS REPORT
 {'='*60}
-Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Date (Local Time): {local_time_str}
 
 DIAGNOSIS SUMMARY:
 {'-'*40}
@@ -4774,3 +4780,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
