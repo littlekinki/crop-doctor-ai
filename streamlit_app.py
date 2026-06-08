@@ -4056,7 +4056,7 @@ https://dosuto-crop-doctor-system.hf.space/
 def display_whatsapp_share_button(diagnosis_name, confidence, location):
     """Display a WhatsApp share button for the diagnosis results"""
     
-    # Create the message content
+    # Create the message content with the CORRECT link
     message = f"""🌾 *CROP DOCTOR DIAGNOSIS*
 
 *Disease:* {diagnosis_name}
@@ -4065,9 +4065,10 @@ def display_whatsapp_share_button(diagnosis_name, confidence, location):
 
 *Next Steps:*
 View full treatment recommendations in the Crop Doctor app.
-https://dosuto-crop-doctor-system.hf.space/
+
 ---
-Sent via Crop Doctor - AI-Powered Crop Disease Diagnosis and Treatment Recommendation System
+Sent via Crop Doctor - AI-Powered Crop Disease Diagnosis
+https://dosuto-crop-doctor-system.hf.space/
 """
     
     # URL encode the message
@@ -4077,9 +4078,9 @@ Sent via Crop Doctor - AI-Powered Crop Disease Diagnosis and Treatment Recommend
     # Create WhatsApp share link
     whatsapp_url = f"https://wa.me/?text={encoded_message}"
     
-    # Display as a button/link
+    # Display as a button/link - NO UNDERLINE
     st.markdown(f"""
-    <a href="{whatsapp_url}" target="_blank">
+    <a href="{whatsapp_url}" target="_blank" style="text-decoration: none;">
         <div style="
             background: #25D366; 
             color: white; 
@@ -4090,9 +4091,8 @@ Sent via Crop Doctor - AI-Powered Crop Disease Diagnosis and Treatment Recommend
             text-align: center;
             cursor: pointer;
             transition: all 0.2s ease;
-            text-decoration: none;
         ">
-            📱 Share Diagnosis via WhatsApp
+            📱 Share via WhatsApp
         </div>
     </a>
     """, unsafe_allow_html=True)
@@ -4107,16 +4107,6 @@ def display_options_menu(top_predictions, references, location, class_names, cur
     exit_option = analyze_another_option + 1
 
     current_mode = st.session_state.mode
-    
-    # Get confidence for the current displayed diagnosis
-    if st.session_state.get('current_showing_alternative') is not None:
-        alt_idx = st.session_state.current_showing_alternative
-        if alt_idx in st.session_state.current_alt_data:
-            current_conf = st.session_state.current_alt_data[alt_idx]['confidence']
-        else:
-            current_conf = top_predictions[0]['confidence']
-    else:
-        current_conf = top_predictions[0]['confidence']
 
     # Build the menu as a single markdown block in a section-card
     menu_html = f"""
@@ -4219,11 +4209,7 @@ def display_options_menu(top_predictions, references, location, class_names, cur
             st.session_state.common_chemicals_data = None
             st.rerun()
 
-    # WhatsApp Share Button
-    st.markdown("---")
-    col_whatsapp1, col_whatsapp2, col_whatsapp3 = st.columns([1, 2, 1])
-    with col_whatsapp2:
-        display_whatsapp_share_button(current_disease_name, current_conf, location)
+    # NOTE: WhatsApp button REMOVED from here - now only appears in results area
 
     # Online features based on current displayed disease
     if current_mode == "online":
