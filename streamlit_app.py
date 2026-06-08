@@ -29,10 +29,16 @@ from uuid import uuid4
 from huggingface_hub import HfApi
 import io
 import feedparser
-from datetime import datetime, timedelta, timezone
 import pytz
 import hashlib
 from bs4 import BeautifulSoup
+from datetime import datetime, timedelta, timezone as dt_timezone
+
+def get_local_timestamp():
+    """Get current timestamp in Kenya/East Africa time for filenames"""
+    eat_timezone = dt_timezone(timedelta(hours=3))
+    local_now = datetime.now(eat_timezone)
+    return local_now.strftime('%Y%m%d_%H%M%S')
 
 # ============================================================
 # USER IMAGE SAVING FOR MODEL RETRAINING
@@ -4723,9 +4729,9 @@ def main():
                         with col1_export:
                             if st.button("📄 Export Report", use_container_width=True, key="export_alt"):
                                 report = generate_export_report(disease_data, disease_data['treatment'], references, None)
-                                # Get local time for filename (same code)
-                                from datetime import datetime, timezone, timedelta
-                                eat_timezone = timezone(timedelta(hours=3))
+                                # Get local time for filename (FIXED - proper import)
+                                from datetime import datetime, timedelta, timezone as dt_timezone
+                                eat_timezone = dt_timezone(timedelta(hours=3))
                                 local_now = datetime.now(eat_timezone)
                                 local_timestamp = local_now.strftime('%Y%m%d_%H%M%S')
                                 
@@ -4769,13 +4775,12 @@ def main():
                     with col1_export:
                         if st.button("📄 Export Report", use_container_width=True, key="export_primary"):
                             report = generate_export_report(primary_data, primary_data['treatment'], references, None)
-                            # Get local time for filename
-                            # East Africa Time (EAT) is UTC+3
-                            eat_timezone = timezone(timedelta(hours=3))
+                            # Get local time for filename (FIXED - proper import)
+                            from datetime import datetime, timedelta, timezone as dt_timezone
+                            eat_timezone = dt_timezone(timedelta(hours=3))
                             local_now = datetime.now(eat_timezone)
                             local_timestamp = local_now.strftime('%Y%m%d_%H%M%S')
                             
-                            # Then in the download button:
                             st.download_button(
                                 label="📥 Download Report",
                                 data=report,
