@@ -3441,7 +3441,7 @@ def display_xai_analysis(disease_data):
     # SECTION 7: VISUAL EVIDENCE (Grad-CAM Heatmap)
     st.markdown(f"""
 <div class="section-card">
-<h3>🔥 VISUAL EVIDENCE (Heatmap)</h3>
+<h3>🔥 VISUAL EVIDENCE: HOW THE CLASSIFIER MADE THE DECISION</h3>
 <p>✓ Generated</p>
 </div>
 """, unsafe_allow_html=True)
@@ -3453,7 +3453,7 @@ def display_xai_analysis(disease_data):
     # SECTION 8: GRAD-CAM LEGEND
     st.markdown("""
 <div class="section-card">
-<h3>📊 HEATMAP LEGEND</h3>
+<h3>📊 LEGEND FOR THE VISUAL EVIDENCE</h3>
 <p>   🔴 <strong>RED (HOT)</strong>     = HIGH influence - These areas strongly indicate the disease</p>
 <p>   🟠 <strong>ORANGE</strong>        = HIGH-MEDIUM influence</p>
 <p>   🟡 <strong>YELLOW</strong>        = MEDIUM influence</p>
