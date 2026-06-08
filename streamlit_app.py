@@ -5013,12 +5013,6 @@ def main():
                     st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
 
                     # ============================================================
-                    # ONLINE MODE FEATURES (weather, news, etc.)
-                    # ============================================================
-                    #if st.session_state.mode == "online":
-                    #    display_online_features(current_disease, current_crop_type, st.session_state.location, current_treatment)
-
-                    # ============================================================
                     # FEEDBACK SECTION (actual questions - at the very end)
                     # ============================================================
                     display_feedback_section(current_disease, current_confidence)
