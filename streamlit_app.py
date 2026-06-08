@@ -4421,8 +4421,56 @@ def display_feedback_section(disease_name, confidence):
             time.sleep(1)
             st.rerun()
     
-    # Question 3: Was this system helpful? (NEW)
-    st.markdown("**3. Was this system helpful?**")
+    # ============================================================
+    # QUESTION 3: Grad-CAM Visual Evidence Validation (NEW)
+    # ============================================================
+    st.markdown("**3. Looking at the coloured overlay on the image, did the system focus on the correct areas?**")
+    st.caption("The overlay shows where the AI looked to make its decision. 🔴 Red areas had the most influence, 🔵 Blue areas had the least.")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("✅ Yes, focused on the problem areas", use_container_width=True, key="gradcam_yes"):
+            save_feedback(disease_name, confidence, "gradcam_accuracy", "yes_correct_focus")
+            st.success("✅ Thank you! This confirms the AI is looking at the right places.")
+            time.sleep(1)
+            st.rerun()
+    
+    with col2:
+        if st.button("🤔 Partially correct", use_container_width=True, key="gradcam_partial"):
+            save_feedback(disease_name, confidence, "gradcam_accuracy", "partial_focus")
+            st.success("✅ Thank you! This helps us improve the AI's attention.")
+            time.sleep(1)
+            st.rerun()
+    
+    with col3:
+        if st.button("❌ No, focused on wrong areas", use_container_width=True, key="gradcam_no"):
+            save_feedback(disease_name, confidence, "gradcam_accuracy", "wrong_focus")
+            st.warning("⚠️ Thank you for letting us know. This helps us retrain the model to focus on the right symptoms.")
+            time.sleep(1)
+            st.rerun()
+    
+    # Optional follow-up for Grad-CAM
+    with st.expander("📝 Tell us more about what the heatmap showed (optional)", expanded=False):
+        st.markdown("**What did you notice about the colored overlay?**")
+        st.caption("For example: 'The red areas were on the healthy parts, not the diseased spots' or 'The heatmap correctly highlighted the brown lesions'")
+        
+        gradcam_feedback = st.text_area("", 
+                                      placeholder="Describe what you saw in the heatmap...",
+                                      key="gradcam_feedback_area")
+        
+        if st.button("📤 Submit Heatmap Feedback", use_container_width=True):
+            if gradcam_feedback:
+                save_feedback(disease_name, confidence, "gradcam_comments", gradcam_feedback, None)
+                st.success("✅ Thank you for the detailed feedback!")
+                st.balloons()
+                time.sleep(2)
+                st.rerun()
+            else:
+                st.warning("Please enter your feedback before submitting.")
+    
+    # Question 4: Was this system helpful?
+    st.markdown("**4. Was this system helpful?**")
     
     col1, col2, col3 = st.columns(3)
     
@@ -4448,8 +4496,8 @@ def display_feedback_section(disease_name, confidence):
             time.sleep(1)
             st.rerun()
     
-    # Question 4: Would you use this app again?
-    st.markdown("**4. Would you use this app again?**")
+    # Question 5: Would you use this app again?
+    st.markdown("**5. Would you use this app again?**")
     
     col1, col2, col3 = st.columns(3)
     
@@ -4474,20 +4522,20 @@ def display_feedback_section(disease_name, confidence):
             time.sleep(1)
             st.rerun()
     
-    # Optional: Additional comments
+    # Optional: General comments
     with st.expander("📝 Share additional comments (optional)", expanded=False):
-        st.markdown("**Do you have any suggestions to make Crop Doctor better?**")
-        st.caption("Examples: Add more crops, include planting advice, add voice support for low-literacy users...")
+        st.markdown("**Do you have any other suggestions to make Crop Doctor better?**")
+        st.caption("Examples: Add more crops, include planting advice, add voice support...")
         
-        feedback_text = st.text_area("", 
+        general_feedback = st.text_area("", 
                                       placeholder="Your suggestions help us improve...",
-                                      key="feedback_text_area")
+                                      key="general_feedback_area")
         
         col1, col2 = st.columns(2)
         with col1:
             if st.button("📤 Submit Comments", use_container_width=True):
-                if feedback_text:
-                    save_feedback(disease_name, confidence, "comments", None, feedback_text)
+                if general_feedback:
+                    save_feedback(disease_name, confidence, "general_comments", general_feedback, None)
                     st.success("✅ Thank you for your suggestions!")
                     st.balloons()
                     time.sleep(2)
@@ -4498,9 +4546,9 @@ def display_feedback_section(disease_name, confidence):
             if st.button("❌ Cancel", use_container_width=True):
                 st.rerun()
     
-    st.caption("💡 Your feedback is anonymous and helps us serve farmers better.")
+    st.caption("💡 Your feedback is anonymous and helps us serve Kenyan farmers better.")
 
-def save_feedback(disease_name, confidence, rating=None, rating_text=None, feedback_text=None, treatment_feedback=None, contact_info=None):
+def save_feedback(disease_name, confidence, question, answer, comment=None):
     """Save feedback to a local file or Hugging Face dataset"""
     import json
     from datetime import datetime
@@ -4512,18 +4560,6 @@ def save_feedback(disease_name, confidence, rating=None, rating_text=None, feedb
     kenya_tz = pytz.timezone('Africa/Nairobi')
     timestamp = datetime.now(kenya_tz).strftime('%Y-%m-%d %H:%M:%S')
     
-    # Create feedback entry
-    feedback_entry = {
-        "timestamp": timestamp,
-        "disease": disease_name,
-        "confidence": confidence,
-        "diagnosis_rating": rating,
-        "diagnosis_rating_text": rating_text,
-        "treatment_feedback": treatment_feedback,
-        "detailed_feedback": feedback_text,
-        "contact_info": contact_info if contact_info else None
-    }
-    
     # Load existing feedback
     existing_feedback = []
     if os.path.exists(feedback_file):
@@ -4533,6 +4569,17 @@ def save_feedback(disease_name, confidence, rating=None, rating_text=None, feedb
         except:
             pass
     
+    # Create feedback entry
+    feedback_entry = {
+        "timestamp": timestamp,
+        "disease": disease_name,
+        "confidence": confidence,
+        "question": question,
+        "answer": answer,
+        "comment": comment,
+        "session_id": str(uuid4())[:8]
+    }
+    
     # Add new feedback
     existing_feedback.append(feedback_entry)
     
@@ -4540,69 +4587,11 @@ def save_feedback(disease_name, confidence, rating=None, rating_text=None, feedb
     with open(feedback_file, 'w') as f:
         json.dump(existing_feedback, f, indent=2)
     
-    # Also optionally upload to Hugging Face dataset
+    # Also upload to Hugging Face dataset
     if HF_TOKEN:
         try:
             from huggingface_hub import HfApi
             api = HfApi()
-            # Save to a feedback folder in your dataset
-            feedback_json = json.dumps(feedback_entry, indent=2)
-            filename = f"feedback_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}.json"
-            api.upload_file(
-                path_or_fileobj=io.BytesIO(feedback_json.encode()),
-                path_in_repo=f"feedback/{filename}",
-                repo_id=DATASET_REPO_ID,
-                repo_type="dataset",
-                token=HF_TOKEN,
-            )
-        except Exception as e:
-            print(f"Failed to upload feedback: {e}")
-    
-    return True
-
-def save_feedback(disease_name, confidence, rating=None, rating_text=None, feedback_text=None):
-    """Save feedback to a local file or Hugging Face dataset"""
-    import json
-    from datetime import datetime
-    import pytz
-    
-    feedback_file = "farmer_feedback.json"
-    
-    # Get current time in Kenya timezone
-    kenya_tz = pytz.timezone('Africa/Nairobi')
-    timestamp = datetime.now(kenya_tz).strftime('%Y-%m-%d %H:%M:%S')
-    
-    # Create feedback entry
-    feedback_entry = {
-        "timestamp": timestamp,
-        "disease": disease_name,
-        "confidence": confidence,
-        "rating": rating,
-        "rating_text": rating_text,
-        "feedback": feedback_text
-    }
-    
-    # Load existing feedback
-    existing_feedback = []
-    if os.path.exists(feedback_file):
-        try:
-            with open(feedback_file, 'r') as f:
-                existing_feedback = json.load(f)
-        except:
-            pass
-    
-    # Add new feedback
-    existing_feedback.append(feedback_entry)
-    
-    # Save to file
-    with open(feedback_file, 'w') as f:
-        json.dump(existing_feedback, f, indent=2)
-    
-    # Also optionally upload to Hugging Face dataset
-    if HF_TOKEN:
-        try:
-            api = HfApi()
-            # Save to a feedback folder in your dataset
             feedback_json = json.dumps(feedback_entry, indent=2)
             filename = f"feedback_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}.json"
             api.upload_file(
@@ -4993,7 +4982,7 @@ def main():
                     display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
 
                     # ============================================================
-                    # INVITATION MESSAGE (after options menu, before online features)
+                    # INVITATION MESSAGE 
                     # ============================================================
                     st.markdown("---")
                     st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
@@ -5001,8 +4990,8 @@ def main():
                     # ============================================================
                     # ONLINE MODE FEATURES (weather, news, etc.)
                     # ============================================================
-                    if st.session_state.mode == "online":
-                        display_online_features(current_disease, current_crop_type, st.session_state.location, current_treatment)
+                    #if st.session_state.mode == "online":
+                    #    display_online_features(current_disease, current_crop_type, st.session_state.location, current_treatment)
 
                     # ============================================================
                     # FEEDBACK SECTION (actual questions - at the very end)
