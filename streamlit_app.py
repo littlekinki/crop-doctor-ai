@@ -4677,7 +4677,7 @@ def display_feedback_summary():
 # ============================================================
 
 def process_batch_images(uploaded_files, model, class_names, references, gradcam):
-    """Process multiple images and return results with local timestamps"""
+    """Process multiple images and return results with local timestamps and treatments"""
     results = []
     from datetime import datetime, timedelta, timezone as dt_timezone
     
@@ -4705,14 +4705,14 @@ def process_batch_images(uploaded_files, model, class_names, references, gradcam
                     'idx': i
                 })
             
-            # Generate Grad-CAM heatmap
+            # Generate Grad-CAM heatmap for top prediction
             heatmap = gradcam.generate_heatmap(img_array, top_predictions[0]['idx'])
             overlay = gradcam.overlay_heatmap(heatmap, image)
             
-            # Get treatment for top prediction
+            # Get FULL treatment for top prediction
             treatment = get_full_treatment(top_predictions[0]['class'], references)
             
-            # Get local timestamp for this image (FIXED - using EAT)
+            # Get local timestamp for this image
             local_timestamp = datetime.now(eat_timezone).strftime('%Y-%m-%d %H:%M:%S')
             
             results.append({
@@ -4722,7 +4722,12 @@ def process_batch_images(uploaded_files, model, class_names, references, gradcam
                 "top_predictions": top_predictions,
                 "primary_diagnosis": top_predictions[0]['class'],
                 "primary_confidence": top_predictions[0]['confidence'],
-                "treatment": treatment,
+                "treatment": treatment,  # Full treatment object
+                "management": treatment.get('management', 'Information not available'),
+                "chemical_control": treatment.get('chemical_control', 'Information not available'),
+                "category": treatment.get('category', 'General'),
+                "causal_agent": treatment.get('causal_agent', 'Information not available'),
+                "is_healthy": treatment.get('is_healthy', False),
                 "timestamp": local_timestamp,
                 "status": "success"
             })
@@ -4738,7 +4743,7 @@ def process_batch_images(uploaded_files, model, class_names, references, gradcam
     return results
 
 def display_batch_results(results):
-    """Display batch processing results in an organized way with correct timestamps"""
+    """Display batch processing results in an organized way with correct timestamps and treatments"""
     from datetime import datetime, timedelta, timezone as dt_timezone
     import csv
     import os
@@ -4776,15 +4781,16 @@ def display_batch_results(results):
                 "Image": r['filename'],
                 "Diagnosis": r['primary_diagnosis'],
                 "Confidence": f"{r['primary_confidence']*100:.1f}%",
-                "Category": clean_category(r['treatment']['category']),
+                "Category": clean_category(r['category']),
+                "Causal Agent": r['causal_agent'][:50] + "..." if len(r['causal_agent']) > 50 else r['causal_agent'],
                 "Timestamp": r.get('timestamp', batch_timestamp)
             })
         st.dataframe(summary_data, use_container_width=True)
         
         # Export options
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("\U0001F4CA Export Results as CSV", use_container_width=True):
+            if st.button("\U0001F4CA Export Summary CSV", use_container_width=True):
                 csv_data = []
                 for r in successful:
                     csv_data.append({
@@ -4792,26 +4798,26 @@ def display_batch_results(results):
                         "diagnosis": r['primary_diagnosis'],
                         "confidence": r['primary_confidence'],
                         "confidence_percent": f"{r['primary_confidence']*100:.1f}%",
-                        "category": clean_category(r['treatment']['category']),
-                        "causal_agent": r['treatment']['causal_agent'],
+                        "category": clean_category(r['category']),
+                        "causal_agent": r['causal_agent'],
+                        "management_summary": r['management'][:200] + "..." if len(r['management']) > 200 else r['management'],
                         "timestamp": r.get('timestamp', batch_timestamp)
                     })
                 
                 csv_filename = f"batch_results_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.csv"
                 with open(csv_filename, 'w', newline='', encoding='utf-8-sig') as f:
-                    writer = csv.DictWriter(f, fieldnames=["filename", "diagnosis", "confidence", "confidence_percent", "category", "causal_agent", "timestamp"])
+                    writer = csv.DictWriter(f, fieldnames=["filename", "diagnosis", "confidence", "confidence_percent", "category", "causal_agent", "management_summary", "timestamp"])
                     writer.writeheader()
                     writer.writerows(csv_data)
                 
                 with open(csv_filename, 'rb') as f:
                     st.download_button(
-                        label="\U0001F4E5 Download CSV",
+                        label="\U0001F4E5 Download Summary CSV",
                         data=f,
                         file_name=csv_filename,
                         mime="text/csv"
                     )
                 
-                # Clean up temp file
                 try:
                     os.remove(csv_filename)
                 except:
@@ -4821,23 +4827,88 @@ def display_batch_results(results):
             if st.button("\U0001F4D1 Generate Full Report", use_container_width=True):
                 generate_batch_report(successful)
         
-        # Display individual results in expanders
-        st.markdown("#### \U0001F4F8 Individual Results")
+        with col3:
+            if st.button("\U0001F4E6 Export All Details", use_container_width=True):
+                export_batch_detailed_report(successful)
+        
+        # Display individual results in expanders with treatment details
+        st.markdown("#### \U0001F4F8 Individual Results with Treatments")
         for r in successful:
-            with st.expander(f"\U0001F4F7 {r['filename']} - {r['primary_diagnosis']} ({r['primary_confidence']*100:.1f}%)"):
+            # Determine urgency color based on health status and confidence
+            if r.get('is_healthy', False):
+                status_color = "🟢"
+                status_text = "HEALTHY CROP"
+            elif r['primary_confidence'] >= 0.9:
+                status_color = "🔴"
+                status_text = "URGENT"
+            elif r['primary_confidence'] >= 0.7:
+                status_color = "🟠"
+                status_text = "HIGH PRIORITY"
+            elif r['primary_confidence'] >= 0.5:
+                status_color = "🟡"
+                status_text = "MEDIUM PRIORITY"
+            else:
+                status_color = "⚪"
+                status_text = "LOW CONFIDENCE"
+            
+            with st.expander(f"\U0001F4F7 {r['filename']} - {r['primary_diagnosis']} ({r['primary_confidence']*100:.1f}%) [{status_color} {status_text}]"):
                 st.caption(f"\U0001F550 Processed: {r.get('timestamp', batch_timestamp)}")
+                
+                # Image display
                 col1, col2 = st.columns(2)
                 with col1:
                     st.image(r['image'], caption="Original Image", use_container_width=True)
                 with col2:
                     st.image(r['heatmap_overlay'], caption="Grad-CAM Heatmap", use_container_width=True)
                 
+                # Diagnosis summary
+                st.markdown(f"**Diagnosis:** {r['primary_diagnosis']}")
+                st.markdown(f"**Confidence:** {r['primary_confidence']*100:.1f}%")
+                st.markdown(f"**Category:** {clean_category(r['category'])}")
+                st.markdown(f"**Causal Agent:** {r['causal_agent']}")
+                
+                # Top predictions
                 st.markdown(f"**Top Predictions:**")
                 for i, pred in enumerate(r['top_predictions'], 1):
                     st.markdown(f"{i}. {pred['class']}: {pred['confidence']*100:.1f}%")
                 
-                st.markdown(f"**Category:** {clean_category(r['treatment']['category'])}")
-                st.markdown(f"**Causal Agent:** {r['treatment']['causal_agent']}")
+                # Treatment recommendations (for diseased crops)
+                if not r.get('is_healthy', False):
+                    st.markdown("---")
+                    st.markdown("#### \U0001F48A Treatment Recommendations")
+                    
+                    # Management
+                    with st.expander("📋 Management Practices", expanded=False):
+                        st.markdown(r['management'])
+                    
+                    # Chemical Control
+                    with st.expander("💊 Chemical Control", expanded=False):
+                        st.markdown(r['chemical_control'])
+                    
+                    # Quick action buttons for this specific image
+                    col_action1, col_action2 = st.columns(2)
+                    with col_action1:
+                        if st.button(f"📄 Export Report for {r['filename'][:20]}", use_container_width=True, key=f"export_{r['filename']}_{hash(r['filename'])}"):
+                            # Create single image report data structure
+                            single_report_data = {
+                                'class': r['primary_diagnosis'],
+                                'confidence': r['primary_confidence']
+                            }
+                            report = generate_export_report(single_report_data, r['treatment'], get_references(), None)
+                            st.download_button(
+                                label="📥 Download Report",
+                                data=report,
+                                file_name=f"crop_doctor_report_{r['filename'].replace('.jpg', '')}_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.txt",
+                                mime="text/plain",
+                                key=f"download_{r['filename']}_{hash(r['filename'])}"
+                            )
+                    
+                    with col_action2:
+                        if st.button(f"📱 Share {r['filename'][:20]} via WhatsApp", use_container_width=True, key=f"whatsapp_{r['filename']}_{hash(r['filename'])}"):
+                            display_whatsapp_share_button(r['primary_diagnosis'], r['primary_confidence'], st.session_state.location)
+                else:
+                    st.markdown("---")
+                    st.success("✅ This is a HEALTHY crop. No treatment needed. Continue good farming practices.")
         
         if failed:
             st.markdown("#### \u274C Failed Images")
@@ -4851,11 +4922,11 @@ def generate_batch_report(results):
     """Generate a comprehensive batch report with correct timestamps"""
     from datetime import datetime, timedelta, timezone as dt_timezone
     import pytz
-    
+
     # Get local timezone (EAT - UTC+3)
     eat_timezone = dt_timezone(timedelta(hours=3))
     timestamp = datetime.now(eat_timezone).strftime('%Y-%m-%d %H:%M:%S')
-    
+
     report = f"""
 CROP DOCTOR BATCH PROCESSING REPORT
 {'='*60}
@@ -4877,19 +4948,62 @@ Image: {r['filename']}
   Processed: {r.get('timestamp', timestamp)}
 {'-'*40}
 """
-    
+
     report += f"""
 {'='*60}
 END OF REPORT
 Report generated by Crop Doctor - AI-Powered Crop Disease Diagnosis
 """
-    
+
     st.download_button(
         label="📥 Download Full Report",
         data=report,
         file_name=f"batch_report_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.txt",
         mime="text/plain"
     )
+
+def export_batch_detailed_report(results):
+    """Export a comprehensive detailed report with all treatment information"""
+    from datetime import datetime, timedelta, timezone as dt_timezone
+    import json
+    
+    eat_timezone = dt_timezone(timedelta(hours=3))
+    timestamp = datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')
+    
+    # Create detailed JSON report
+    detailed_report = []
+    for r in results:
+        if r['status'] == 'success':
+            detailed_report.append({
+                "filename": r['filename'],
+                "diagnosis": r['primary_diagnosis'],
+                "confidence": r['primary_confidence'],
+                "category": r['category'],
+                "causal_agent": r['causal_agent'],
+                "management": r['management'],
+                "chemical_control": r['chemical_control'],
+                "is_healthy": r.get('is_healthy', False),
+                "top_predictions": r['top_predictions'],
+                "timestamp": r.get('timestamp', timestamp)
+            })
+    
+    # Save as JSON
+    json_filename = f"batch_detailed_report_{timestamp}.json"
+    with open(json_filename, 'w', encoding='utf-8') as f:
+        json.dump(detailed_report, f, indent=2, ensure_ascii=False)
+    
+    with open(json_filename, 'rb') as f:
+        st.download_button(
+            label="\U0001F4E5 Download Detailed JSON Report",
+            data=f,
+            file_name=json_filename,
+            mime="application/json"
+        )
+    
+    try:
+        os.remove(json_filename)
+    except:
+        pass
 
 # ============================================================
 # MAIN APP
@@ -5009,7 +5123,7 @@ def main():
         with left_col:
             st.markdown("### 📸 Upload Crop Image")
             st.caption("📸 Take a clear photo of the affected leaves or fruits for best results")
-            
+
             # ============================================================
             # PROCESSING MODE SELECTION (SINGLE vs BATCH)
             # ============================================================
@@ -5019,10 +5133,10 @@ def main():
                 horizontal=True,
                 key="processing_mode"
             )
-            
+
             if processing_mode == "Single Image":
                 st.caption("Upload one image at a time for detailed analysis")
-                
+
                 if st.button("📷 Take Photo", use_container_width=True):
                     st.session_state.camera_active = True
 
@@ -5114,21 +5228,21 @@ def main():
                                 }
 
                             st.rerun()
-            
+
             else:  # Batch Processing Mode
                 st.caption("📁 Upload multiple images for batch analysis (ideal for research)")
                 st.info("💡 **Tip:** Batch processing is great for researchers, extension officers, and large farms. Upload up to 50 images at once.")
-                
+
                 batch_files = st.file_uploader(
                     "Select multiple images",
                     type=['jpg', 'jpeg', 'png'],
                     accept_multiple_files=True,
                     key="batch_uploader"
                 )
-                
+
                 if batch_files:
                     st.markdown(f"**Selected {len(batch_files)} images**")
-                    
+
                     # Preview thumbnails
                     st.markdown("#### 📸 Image Preview")
                     preview_cols = st.columns(min(5, len(batch_files)))
@@ -5137,14 +5251,14 @@ def main():
                             img = Image.open(file)
                             img.thumbnail((100, 100))
                             st.image(img, caption=file.name[:15], width="stretch")
-                    
+
                     if len(batch_files) > 5:
                         st.caption(f"... and {len(batch_files) - 5} more images")
-                    
+
                     # Warning for large batches
                     if len(batch_files) > 30:
                         st.warning("⚠️ Large batch detected. Processing may take several minutes. Please be patient.")
-                    
+
                     if st.button("🔬 PROCESS BATCH", type="primary", use_container_width=True):
                         with st.spinner(f"Processing {len(batch_files)} images... This may take a few minutes."):
                             results = process_batch_images(batch_files, model, class_names, references, gradcam)
@@ -5163,7 +5277,7 @@ def main():
             # ============================================================
             if st.session_state.get('show_batch_results', False) and st.session_state.get('batch_results'):
                 display_batch_results(st.session_state.batch_results)
-                
+
                 col1_clear, col2_clear = st.columns(2)
                 with col1_clear:
                     if st.button("✖ Clear Batch Results", use_container_width=True):
@@ -5177,7 +5291,7 @@ def main():
                         st.session_state.batch_results = None
                         st.session_state.batch_mode = False
                         st.rerun()
-            
+
             # ============================================================
             # SINGLE IMAGE RESULTS DISPLAY
             # ============================================================
@@ -5218,7 +5332,7 @@ def main():
                                 eat_timezone = dt_timezone(timedelta(hours=3))
                                 local_now = datetime.now(eat_timezone)
                                 local_timestamp = local_now.strftime('%Y%m%d_%H%M%S')
-                                
+
                                 st.download_button(
                                     label="📥 Download Report",
                                     data=report,
@@ -5226,7 +5340,7 @@ def main():
                                     mime="text/plain",
                                     key="download_alt"
                                 )
-                        
+
                         with col3_whatsapp:
                             display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
@@ -5236,10 +5350,10 @@ def main():
                         # INVITATION MESSAGE
                         st.markdown("---")
                         st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
-                        
+
                         # FEEDBACK SECTION
                         display_feedback_section(current_disease, current_confidence)
-                        
+
                         # THANK YOU MESSAGE
                         st.markdown("---")
                         st.markdown("""
@@ -5249,7 +5363,7 @@ def main():
                             <p style="font-size: 12px; color: #888; margin-top: 10px;">🌾 Happy Farming! 🌾</p>
                         </div>
                         """, unsafe_allow_html=True)
-                        
+
                     else:
                         st.warning(f"⚠️ Alternative {alt_idx} data not found. Please re-analyze the image.")
                         st.session_state.current_showing_alternative = None
@@ -5285,7 +5399,7 @@ def main():
                             eat_timezone = dt_timezone(timedelta(hours=3))
                             local_now = datetime.now(eat_timezone)
                             local_timestamp = local_now.strftime('%Y%m%d_%H%M%S')
-                            
+
                             st.download_button(
                                 label="📥 Download Report",
                                 data=report,
@@ -5293,7 +5407,7 @@ def main():
                                 mime="text/plain",
                                 key="download_primary"
                             )
-                    
+
                     with col3_whatsapp:
                         display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
@@ -5303,10 +5417,10 @@ def main():
                     # INVITATION MESSAGE
                     st.markdown("---")
                     st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
-                    
+
                     # FEEDBACK SECTION
                     display_feedback_section(current_disease, current_confidence)
-                    
+
                     # THANK YOU MESSAGE
                     st.markdown("---")
                     st.markdown("""
