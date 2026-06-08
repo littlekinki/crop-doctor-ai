@@ -503,6 +503,13 @@ if 'location_method' not in st.session_state:
 #if 'show_gps_ui' not in st.session_state:
 #   st.session_state.show_gps_ui = False
 
+# Batch processing session states
+if 'batch_mode' not in st.session_state:
+    st.session_state.batch_mode = False
+if 'batch_results' not in st.session_state:
+    st.session_state.batch_results = None
+if 'show_batch_results' not in st.session_state:
+    st.session_state.show_batch_results = False
 # ============================================================
 # HELPER FUNCTION: Check Internet Connection (for mode switch suggestion)
 # ============================================================
@@ -4666,6 +4673,170 @@ def display_feedback_summary():
         st.error(f"Error loading feedback: {e}")
 
 # ============================================================
+# BATCH PROCESSING FUNCTIONS
+# ============================================================
+
+def process_batch_images(uploaded_files, model, class_names, references, gradcam):
+    """Process multiple images and return results"""
+    results = []
+    
+    for idx, uploaded_file in enumerate(uploaded_files):
+        try:
+            # Open and process image
+            image = Image.open(uploaded_file)
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+            
+            # Preprocess and predict
+            img_array = preprocess_image(image)
+            predictions = model.predict(img_array, verbose=0)[0]
+            
+            # Get top K predictions
+            indices = np.argsort(predictions)[-st.session_state.current_top_k:][::-1]
+            top_predictions = []
+            for i in indices:
+                top_predictions.append({
+                    'class': class_names[i],
+                    'confidence': float(predictions[i]),
+                    'idx': i
+                })
+            
+            # Generate Grad-CAM heatmap
+            heatmap = gradcam.generate_heatmap(img_array, top_predictions[0]['idx'])
+            overlay = gradcam.overlay_heatmap(heatmap, image)
+            
+            # Get treatment for top prediction
+            treatment = get_full_treatment(top_predictions[0]['class'], references)
+            
+            results.append({
+                "filename": uploaded_file.name,
+                "image": image,
+                "heatmap_overlay": overlay,
+                "top_predictions": top_predictions,
+                "primary_diagnosis": top_predictions[0]['class'],
+                "primary_confidence": top_predictions[0]['confidence'],
+                "treatment": treatment,
+                "status": "success"
+            })
+        except Exception as e:
+            results.append({
+                "filename": uploaded_file.name,
+                "status": "error",
+                "error_message": str(e)
+            })
+    
+    return results
+
+def display_batch_results(results):
+    """Display batch processing results in an organized way"""
+    
+    st.markdown("### 📊 Batch Processing Results")
+    st.markdown(f"**Total images processed:** {len(results)}")
+    
+    # Summary statistics
+    successful = [r for r in results if r['status'] == 'success']
+    failed = [r for r in results if r['status'] == 'error']
+    
+    st.markdown(f"✅ Successful: {len(successful)}")
+    st.markdown(f"❌ Failed: {len(failed)}")
+    
+    if successful:
+        # Create a summary table
+        st.markdown("#### 📋 Summary Table")
+        summary_data = []
+        for r in successful:
+            summary_data.append({
+                "Image": r['filename'],
+                "Diagnosis": r['primary_diagnosis'],
+                "Confidence": f"{r['primary_confidence']*100:.1f}%"
+            })
+        st.dataframe(summary_data, use_container_width=True)
+        
+        # Export options
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("📊 Export Results as CSV", use_container_width=True):
+                import csv
+                from datetime import datetime
+                csv_data = []
+                for r in successful:
+                    csv_data.append({
+                        "filename": r['filename'],
+                        "diagnosis": r['primary_diagnosis'],
+                        "confidence": r['primary_confidence'],
+                        "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    })
+                
+                csv_filename = f"batch_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                with open(csv_filename, 'w', newline='') as f:
+                    writer = csv.DictWriter(f, fieldnames=["filename", "diagnosis", "confidence", "timestamp"])
+                    writer.writeheader()
+                    writer.writerows(csv_data)
+                
+                with open(csv_filename, 'rb') as f:
+                    st.download_button("📥 Download CSV", data=f, file_name=csv_filename, mime="text/csv")
+        
+        with col2:
+            if st.button("📑 Generate Full Report", use_container_width=True):
+                generate_batch_report(successful)
+        
+        # Display individual results in expanders
+        st.markdown("#### 📸 Individual Results")
+        for r in successful:
+            with st.expander(f"📷 {r['filename']} - {r['primary_diagnosis']} ({r['primary_confidence']*100:.1f}%)"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.image(r['image'], caption="Original Image", width="stretch")
+                with col2:
+                    st.image(r['heatmap_overlay'], caption="Grad-CAM Heatmap", width="stretch")
+                
+                st.markdown(f"**Top Predictions:**")
+                for i, pred in enumerate(r['top_predictions'], 1):
+                    st.markdown(f"{i}. {pred['class']}: {pred['confidence']*100:.1f}%")
+                
+                st.markdown(f"**Category:** {r['treatment']['category']}")
+                st.markdown(f"**Causal Agent:** {r['treatment']['causal_agent']}")
+        
+        if failed:
+            st.markdown("#### ❌ Failed Images")
+            for r in failed:
+                st.warning(f"**{r['filename']}:** {r['error_message']}")
+
+def generate_batch_report(results):
+    """Generate a comprehensive batch report"""
+    from datetime import datetime
+    import pytz
+    
+    kenya_tz = pytz.timezone('Africa/Nairobi')
+    timestamp = datetime.now(kenya_tz).strftime('%Y-%m-%d %H:%M:%S')
+    
+    report = f"""
+CROP DOCTOR BATCH PROCESSING REPORT
+{'='*60}
+Date: {timestamp}
+Total Images Processed: {len(results)}
+
+{'='*60}
+SUMMARY
+{'-'*40}
+"""
+    for r in results:
+        report += f"""
+Image: {r['filename']}
+  Diagnosis: {r['primary_diagnosis']}
+  Confidence: {r['primary_confidence']*100:.1f}%
+  Category: {r['treatment']['category']}
+{'-'*40}
+"""
+    
+    st.download_button(
+        label="📥 Download Full Report",
+        data=report,
+        file_name=f"batch_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+        mime="text/plain"
+    )
+
+# ============================================================
 # MAIN APP
 # ============================================================
 
@@ -4685,11 +4856,11 @@ def main():
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             # Help button
-            if st.button("❓ Help / How to use the system", width="stretch" ):
+            if st.button("❓ Help / How to use the system", use_container_width=True):
                 st.session_state.show_help = not st.session_state.show_help
 
             # Classes button
-            if st.button("📋 List of Supported Classes", width="stretch" ):
+            if st.button("📋 List of Supported Classes", use_container_width=True):
                 st.session_state.show_classes = not st.session_state.show_classes
 
             selected_mode = st.radio(
@@ -4783,95 +4954,179 @@ def main():
         with left_col:
             st.markdown("### 📸 Upload Crop Image")
             st.caption("📸 Take a clear photo of the affected leaves or fruits for best results")
-
-            if st.button("📷 Take Photo", width="stretch" ):
-                st.session_state.camera_active = True
-
-            if st.session_state.camera_active:
-                camera_image = st.camera_input("Take a photo", key="camera")
-                if camera_image:
-                    st.session_state.current_image = Image.open(camera_image)
-                    st.session_state.camera_active = False
-                    st.rerun()
-
-            uploaded_file = st.file_uploader(
-                "Or choose from gallery",
-                type=['jpg', 'jpeg', 'png'],
-                key="uploader"
+            
+            # ============================================================
+            # PROCESSING MODE SELECTION (SINGLE vs BATCH)
+            # ============================================================
+            processing_mode = st.radio(
+                "Select Processing Mode:",
+                ["Single Image", "Batch Processing (Multiple Images)"],
+                horizontal=True,
+                key="processing_mode"
             )
-            if uploaded_file:
-                st.session_state.current_image = Image.open(uploaded_file)
+            
+            if processing_mode == "Single Image":
+                st.caption("Upload one image at a time for detailed analysis")
+                
+                if st.button("📷 Take Photo", use_container_width=True):
+                    st.session_state.camera_active = True
 
-            if st.session_state.current_image is not None:
-                st.image(st.session_state.current_image, caption="Selected Image", width="stretch")
-
-                if st.button("🔬 DIAGNOSE & RECOMMEND", type="primary", width="stretch" ):
-                    with st.spinner("Analysing crop disease..."):
-                        image = st.session_state.current_image
-                        if image.mode != 'RGB':
-                            image = image.convert('RGB')
-
-                        st.session_state.current_original_img = image
-
-                        img_array = preprocess_image(image)
-                        predictions = model.predict(img_array, verbose=0)[0]
-
-                        indices = np.argsort(predictions)[-st.session_state.current_top_k:][::-1]
-                        top_predictions = []
-                        for i in indices:
-                            top_predictions.append({
-                                'class': class_names[i],
-                                'confidence': float(predictions[i]),
-                                'idx': i
-                            })
-
-                        st.session_state.current_predictions = predictions
-                        st.session_state.current_top_predictions = top_predictions
-                        st.session_state.show_results = True
-                        st.session_state.current_showing_alternative = None
-                        st.session_state.showing_common_chemicals = False
-                        st.session_state.common_chemicals_data = None
-
-                        st.session_state.current_alt_data = {}
-
-                        # Save image only ONCE for the top prediction
-                        save_user_image_for_training(image, top_predictions[0]['class'], top_predictions[0]['confidence'], top_predictions)
-
-                        for alt_idx, pred in enumerate(top_predictions):
-                            heatmap = gradcam.generate_heatmap(img_array, pred['idx'])
-                            overlay = gradcam.overlay_heatmap(heatmap, st.session_state.current_original_img)
-                            treatment = get_full_treatment(pred['class'], references)
-
-                            # Determine crop type for manufacturer search
-                            if 'maize' in pred['class'].lower():
-                                crop_type = "Maize"
-                            elif 'beans' in pred['class'].lower():
-                                crop_type = "Beans"
-                            else:
-                                crop_type = "Tomato"
-
-                            # Save heatmap overlay to a file in the current directory
-                            save_filename = f"gradcam_{pred['class'].replace(' ', '_').replace('/', '_')}_alt{alt_idx}.png"
-                            save_path = os.path.join(os.getcwd(), save_filename)
-                            cv2.imwrite(save_path, cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
-
-                            st.session_state.current_alt_data[alt_idx] = {
-                                'class': pred['class'],
-                                'confidence': pred['confidence'],
-                                'idx': pred['idx'],
-                                'treatment': treatment,
-                                'heatmap_overlay': overlay,
-                                'references': references,
-                                'original_img': st.session_state.current_original_img,
-                                'crop_type': crop_type,
-                                'save_path': save_path,
-                                'save_filename': save_filename
-                            }
-
+                if st.session_state.camera_active:
+                    camera_image = st.camera_input("Take a photo", key="camera")
+                    if camera_image:
+                        st.session_state.current_image = Image.open(camera_image)
+                        st.session_state.camera_active = False
+                        st.session_state.batch_mode = False
                         st.rerun()
 
+                uploaded_file = st.file_uploader(
+                    "Or choose from gallery",
+                    type=['jpg', 'jpeg', 'png'],
+                    key="uploader"
+                )
+                if uploaded_file:
+                    st.session_state.current_image = Image.open(uploaded_file)
+                    st.session_state.batch_mode = False
+                    st.session_state.batch_results = None
+                    st.session_state.show_batch_results = False
+
+                if st.session_state.current_image is not None:
+                    st.image(st.session_state.current_image, caption="Selected Image", width="stretch")
+
+                    if st.button("🔬 DIAGNOSE & RECOMMEND", type="primary", use_container_width=True):
+                        with st.spinner("Analysing crop disease..."):
+                            image = st.session_state.current_image
+                            if image.mode != 'RGB':
+                                image = image.convert('RGB')
+
+                            st.session_state.current_original_img = image
+
+                            img_array = preprocess_image(image)
+                            predictions = model.predict(img_array, verbose=0)[0]
+
+                            indices = np.argsort(predictions)[-st.session_state.current_top_k:][::-1]
+                            top_predictions = []
+                            for i in indices:
+                                top_predictions.append({
+                                    'class': class_names[i],
+                                    'confidence': float(predictions[i]),
+                                    'idx': i
+                                })
+
+                            st.session_state.current_predictions = predictions
+                            st.session_state.current_top_predictions = top_predictions
+                            st.session_state.show_results = True
+                            st.session_state.current_showing_alternative = None
+                            st.session_state.showing_common_chemicals = False
+                            st.session_state.common_chemicals_data = None
+                            st.session_state.batch_mode = False
+                            st.session_state.show_batch_results = False
+
+                            st.session_state.current_alt_data = {}
+
+                            # Save image only ONCE for the top prediction
+                            save_user_image_for_training(image, top_predictions[0]['class'], top_predictions[0]['confidence'], top_predictions)
+
+                            for alt_idx, pred in enumerate(top_predictions):
+                                heatmap = gradcam.generate_heatmap(img_array, pred['idx'])
+                                overlay = gradcam.overlay_heatmap(heatmap, st.session_state.current_original_img)
+                                treatment = get_full_treatment(pred['class'], references)
+
+                                # Determine crop type for manufacturer search
+                                if 'maize' in pred['class'].lower():
+                                    crop_type = "Maize"
+                                elif 'beans' in pred['class'].lower():
+                                    crop_type = "Beans"
+                                else:
+                                    crop_type = "Tomato"
+
+                                # Save heatmap overlay to a file in the current directory
+                                save_filename = f"gradcam_{pred['class'].replace(' ', '_').replace('/', '_')}_alt{alt_idx}.png"
+                                save_path = os.path.join(os.getcwd(), save_filename)
+                                cv2.imwrite(save_path, cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
+
+                                st.session_state.current_alt_data[alt_idx] = {
+                                    'class': pred['class'],
+                                    'confidence': pred['confidence'],
+                                    'idx': pred['idx'],
+                                    'treatment': treatment,
+                                    'heatmap_overlay': overlay,
+                                    'references': references,
+                                    'original_img': st.session_state.current_original_img,
+                                    'crop_type': crop_type,
+                                    'save_path': save_path,
+                                    'save_filename': save_filename
+                                }
+
+                            st.rerun()
+            
+            else:  # Batch Processing Mode
+                st.caption("📁 Upload multiple images for batch analysis (ideal for research)")
+                st.info("💡 **Tip:** Batch processing is great for researchers, extension officers, and large farms. Upload up to 50 images at once.")
+                
+                batch_files = st.file_uploader(
+                    "Select multiple images",
+                    type=['jpg', 'jpeg', 'png'],
+                    accept_multiple_files=True,
+                    key="batch_uploader"
+                )
+                
+                if batch_files:
+                    st.markdown(f"**Selected {len(batch_files)} images**")
+                    
+                    # Preview thumbnails
+                    st.markdown("#### 📸 Image Preview")
+                    preview_cols = st.columns(min(5, len(batch_files)))
+                    for idx, file in enumerate(batch_files[:5]):
+                        with preview_cols[idx]:
+                            img = Image.open(file)
+                            img.thumbnail((100, 100))
+                            st.image(img, caption=file.name[:15], width="stretch")
+                    
+                    if len(batch_files) > 5:
+                        st.caption(f"... and {len(batch_files) - 5} more images")
+                    
+                    # Warning for large batches
+                    if len(batch_files) > 30:
+                        st.warning("⚠️ Large batch detected. Processing may take several minutes. Please be patient.")
+                    
+                    if st.button("🔬 PROCESS BATCH", type="primary", use_container_width=True):
+                        with st.spinner(f"Processing {len(batch_files)} images... This may take a few minutes."):
+                            results = process_batch_images(batch_files, model, class_names, references, gradcam)
+                            st.session_state.batch_results = results
+                            st.session_state.show_batch_results = True
+                            st.session_state.batch_mode = True
+                            st.session_state.current_image = None
+                            st.session_state.show_results = False
+                            st.rerun()
+                else:
+                    st.info("👈 Select one or more images to begin batch processing")
+
         with right_col:
-            if st.session_state.show_results and st.session_state.current_top_predictions:
+            # ============================================================
+            # BATCH RESULTS DISPLAY
+            # ============================================================
+            if st.session_state.get('show_batch_results', False) and st.session_state.get('batch_results'):
+                display_batch_results(st.session_state.batch_results)
+                
+                col1_clear, col2_clear = st.columns(2)
+                with col1_clear:
+                    if st.button("✖ Clear Batch Results", use_container_width=True):
+                        st.session_state.show_batch_results = False
+                        st.session_state.batch_results = None
+                        st.session_state.batch_mode = False
+                        st.rerun()
+                with col2_clear:
+                    if st.button("🔄 New Batch", use_container_width=True):
+                        st.session_state.show_batch_results = False
+                        st.session_state.batch_results = None
+                        st.session_state.batch_mode = False
+                        st.rerun()
+            
+            # ============================================================
+            # SINGLE IMAGE RESULTS DISPLAY
+            # ============================================================
+            elif st.session_state.show_results and st.session_state.current_top_predictions:
                 top_predictions = st.session_state.current_top_predictions
 
                 # SAFETY CHECK FOR EMPTY ALT DATA
@@ -4902,13 +5157,13 @@ def main():
                         # Export Report Button and WhatsApp Share
                         col1_export, col2_export, col3_whatsapp = st.columns(3)
                         with col1_export:
-                            if st.button("📄 Export Report", width="stretch" , key="export_alt"):
+                            if st.button("📄 Export Report", use_container_width=True, key="export_alt"):
                                 report = generate_export_report(disease_data, disease_data['treatment'], references, None)
                                 from datetime import datetime, timedelta, timezone as dt_timezone
                                 eat_timezone = dt_timezone(timedelta(hours=3))
                                 local_now = datetime.now(eat_timezone)
                                 local_timestamp = local_now.strftime('%Y%m%d_%H%M%S')
-
+                                
                                 st.download_button(
                                     label="📥 Download Report",
                                     data=report,
@@ -4916,35 +5171,21 @@ def main():
                                     mime="text/plain",
                                     key="download_alt"
                                 )
-
+                        
                         with col3_whatsapp:
                             display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
-                        # ============================================================
                         # OPTIONS MENU
-                        # ============================================================
                         display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
 
-                        # ============================================================
-                        # INVITATION MESSAGE (after options menu, before online features)
-                        # ============================================================
+                        # INVITATION MESSAGE
                         st.markdown("---")
-                        st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all farmers.")
-
-                        # ============================================================
-                        # ONLINE MODE FEATURES (weather, news, etc.)
-                        # ============================================================
-                        if st.session_state.mode == "online":
-                            display_online_features(current_disease, current_crop_type, st.session_state.location, current_treatment)
-
-                        # ============================================================
-                        # FEEDBACK SECTION (actual questions - at the very end)
-                        # ============================================================
+                        st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
+                        
+                        # FEEDBACK SECTION
                         display_feedback_section(current_disease, current_confidence)
-
-                        # ============================================================
+                        
                         # THANK YOU MESSAGE
-                        # ============================================================
                         st.markdown("---")
                         st.markdown("""
                         <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
@@ -4953,7 +5194,7 @@ def main():
                             <p style="font-size: 12px; color: #888; margin-top: 10px;">🌾 Happy Farming! 🌾</p>
                         </div>
                         """, unsafe_allow_html=True)
-
+                        
                     else:
                         st.warning(f"⚠️ Alternative {alt_idx} data not found. Please re-analyze the image.")
                         st.session_state.current_showing_alternative = None
@@ -4983,13 +5224,13 @@ def main():
                     # Export Report Button and WhatsApp Share
                     col1_export, col2_export, col3_whatsapp = st.columns(3)
                     with col1_export:
-                        if st.button("📄 Export Report", width="stretch" , key="export_primary"):
+                        if st.button("📄 Export Report", use_container_width=True, key="export_primary"):
                             report = generate_export_report(primary_data, primary_data['treatment'], references, None)
                             from datetime import datetime, timedelta, timezone as dt_timezone
                             eat_timezone = dt_timezone(timedelta(hours=3))
                             local_now = datetime.now(eat_timezone)
                             local_timestamp = local_now.strftime('%Y%m%d_%H%M%S')
-
+                            
                             st.download_button(
                                 label="📥 Download Report",
                                 data=report,
@@ -4997,29 +5238,21 @@ def main():
                                 mime="text/plain",
                                 key="download_primary"
                             )
-
+                    
                     with col3_whatsapp:
                         display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
-                    # ============================================================
                     # OPTIONS MENU
-                    # ============================================================
                     display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
 
-                    # ============================================================
                     # INVITATION MESSAGE
-                    # ============================================================
                     st.markdown("---")
                     st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
-
-                    # ============================================================
-                    # FEEDBACK SECTION (actual questions - at the very end)
-                    # ============================================================
+                    
+                    # FEEDBACK SECTION
                     display_feedback_section(current_disease, current_confidence)
-
-                    # ============================================================
+                    
                     # THANK YOU MESSAGE
-                    # ============================================================
                     st.markdown("---")
                     st.markdown("""
                     <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
@@ -5030,9 +5263,8 @@ def main():
                     """, unsafe_allow_html=True)
 
             else:
-                st.info("👈 Please take a photo or upload an image, then click 'DIAGNOSE & RECOMMEND'")
+                if not st.session_state.get('batch_mode', False):
+                    st.info("👈 Upload an image and click 'DIAGNOSE & RECOMMEND', or use Batch Processing for multiple images")
 
 if __name__ == "__main__":
     main()
-
-
