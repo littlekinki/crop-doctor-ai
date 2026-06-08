@@ -4765,10 +4765,14 @@ def display_batch_results(results):
         st.markdown("#### \U0001F4CB Summary Table")
         summary_data = []
         for r in successful:
+            # Clean category text (remove emojis for display)
+            clean_category = r['treatment']['category'].replace('🍄', 'Fungal').replace('🦠', 'Viral').replace('🐛', 'Pest').replace('🌿', 'Healthy').replace('🌱', 'Physiological').strip()
+            
             summary_data.append({
                 "Image": r['filename'],
                 "Diagnosis": r['primary_diagnosis'],
                 "Confidence": f"{r['primary_confidence']*100:.1f}%",
+                "Category": clean_category,
                 "Timestamp": r.get('timestamp', batch_timestamp)
             })
         st.dataframe(summary_data, use_container_width=True)
@@ -4779,18 +4783,21 @@ def display_batch_results(results):
             if st.button("\U0001F4CA Export Results as CSV", use_container_width=True):
                 csv_data = []
                 for r in successful:
+                    # Clean category text (remove emojis for CSV)
+                    clean_category = r['treatment']['category'].replace('🍄', 'Fungal').replace('🦠', 'Viral').replace('🐛', 'Pest').replace('🌿', 'Healthy').replace('🌱', 'Physiological').strip()
+                    
                     csv_data.append({
                         "filename": r['filename'],
                         "diagnosis": r['primary_diagnosis'],
                         "confidence": r['primary_confidence'],
                         "confidence_percent": f"{r['primary_confidence']*100:.1f}%",
-                        "category": r['treatment']['category'],
+                        "category": clean_category,
                         "causal_agent": r['treatment']['causal_agent'],
                         "timestamp": r.get('timestamp', batch_timestamp)
                     })
                 
                 csv_filename = f"batch_results_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.csv"
-                with open(csv_filename, 'w', newline='', encoding='utf-8') as f:
+                with open(csv_filename, 'w', newline='', encoding='utf-8-sig') as f:
                     writer = csv.DictWriter(f, fieldnames=["filename", "diagnosis", "confidence", "confidence_percent", "category", "causal_agent", "timestamp"])
                     writer.writeheader()
                     writer.writerows(csv_data)
@@ -4804,7 +4811,10 @@ def display_batch_results(results):
                     )
                 
                 # Clean up temp file
-                os.remove(csv_filename)
+                try:
+                    os.remove(csv_filename)
+                except:
+                    pass
         
         with col2:
             if st.button("\U0001F4D1 Generate Full Report", use_container_width=True):
@@ -4813,6 +4823,9 @@ def display_batch_results(results):
         # Display individual results in expanders
         st.markdown("#### \U0001F4F8 Individual Results")
         for r in successful:
+            # Clean category for display
+            clean_category = r['treatment']['category'].replace('🍄', 'Fungal').replace('🦠', 'Viral').replace('🐛', 'Pest').replace('🌿', 'Healthy').replace('🌱', 'Physiological').strip()
+            
             with st.expander(f"\U0001F4F7 {r['filename']} - {r['primary_diagnosis']} ({r['primary_confidence']*100:.1f}%)"):
                 st.caption(f"\U0001F550 Processed: {r.get('timestamp', batch_timestamp)}")
                 col1, col2 = st.columns(2)
@@ -4825,7 +4838,7 @@ def display_batch_results(results):
                 for i, pred in enumerate(r['top_predictions'], 1):
                     st.markdown(f"{i}. {pred['class']}: {pred['confidence']*100:.1f}%")
                 
-                st.markdown(f"**Category:** {r['treatment']['category']}")
+                st.markdown(f"**Category:** {clean_category}")
                 st.markdown(f"**Causal Agent:** {r['treatment']['causal_agent']}")
         
         if failed:
