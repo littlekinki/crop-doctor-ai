@@ -2586,19 +2586,19 @@ def display_help():
         <h4>📚 How to use Crop Doctor</h4>
 
         **📸 STEP 1: Take or Upload a Photo**
-
+        
         • Take a clear photo of the affected crop part (leaf, stem, or fruit)
         • Ensure good lighting and focus on the symptoms
         • Or upload an existing image from your gallery
 
         **🔬 STEP 2: Diagnose Your Crop**
-
+        
         • Click the "DIAGNOSE & RECOMMEND" button
         • The AI model will analyse the image and identify the disease
         • Top predictions are shown with confidence scores
 
         **📊 STEP 3: Understand the Results**
-
+        
         • Confidence Score (0-100%) - How reliable the prediction is
         • HEALTH CONFIDENCE KEY - For healthy crops (different scale)
         • URGENCY KEY - For diseased crops (what action to take)
@@ -2606,21 +2606,46 @@ def display_help():
         • 🔴 Red areas = High influence  |  🔵 Blue areas = Low influence
 
         **💊 STEP 4: Get Treatment Recommendations**
-
+        
         • Verified treatments from Agrochemical manufacturers
         • Includes cultural management and chemical control options
         • Complete with product examples and reference citations
 
         **🌐 STEP 5: Online Mode (Optional)**
-
+        
         • Get local weather forecast and disease risk assessment
         • Receive disease-specific recommendations based on weather
         • Check manufacturer websites for new products
 
         ---
 
-        **💡 Tips for Best Results**
+        **📱 How to Add Crop Doctor to Your Phone Home Screen**
 
+        This creates an icon on your phone that opens the app directly - no need to type the web address each time!
+
+        **For Android (Chrome Browser):**
+        • Open Crop Doctor in Chrome
+        • Tap the three dots ⋮ in the top right corner
+        • Tap "Add to Home Screen"
+        • Name it "CropDoc" and tap "Add"
+        • The 🌾 icon will appear on your home screen
+
+        **For iPhone/iPad (Safari Browser):**
+        • Open Crop Doctor in Safari
+        • Tap the Share button (square with arrow pointing up)
+        • Scroll down and tap "Add to Home Screen"
+        • Name it "Crop Doctor" and tap "Add"
+        • The 🌾 icon will appear on your home screen
+
+        **For Desktop (Chrome/Edge Browser):**
+        • Click the install icon (monitor with down arrow) in the address bar
+        • Or click the three dots ⋮ → "Install Crop Doctor"
+        • The app will open in its own window
+
+        ---
+
+        **💡 Tips for Best Results**
+        
         • Take photos of affected leaves showing clear symptoms
         • Include a healthy leaf for comparison if possible
         • Avoid blurry or poorly lit images
@@ -2656,7 +2681,7 @@ def display_help():
         ---
 
         **⚠️ Important Notes**
-
+        
         • This is an AI-assisted diagnostic tool, not a substitute for expert advice
         • Always read product labels before applying any chemicals
         • Follow local regulations and safety guidelines
