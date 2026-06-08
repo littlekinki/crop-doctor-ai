@@ -2586,19 +2586,19 @@ def display_help():
         <h4>📚 How to use Crop Doctor</h4>
 
         **📸 STEP 1: Take or Upload a Photo**
-        
+
         • Take a clear photo of the affected crop part (leaf, stem, or fruit)
         • Ensure good lighting and focus on the symptoms
         • Or upload an existing image from your gallery
 
         **🔬 STEP 2: Diagnose Your Crop**
-        
+
         • Click the "DIAGNOSE & RECOMMEND" button
         • The AI model will analyse the image and identify the disease
         • Top predictions are shown with confidence scores
 
         **📊 STEP 3: Understand the Results**
-        
+
         • Confidence Score (0-100%) - How reliable the prediction is
         • HEALTH CONFIDENCE KEY - For healthy crops (different scale)
         • URGENCY KEY - For diseased crops (what action to take)
@@ -2606,13 +2606,13 @@ def display_help():
         • 🔴 Red areas = High influence  |  🔵 Blue areas = Low influence
 
         **💊 STEP 4: Get Treatment Recommendations**
-        
+
         • Verified treatments from Agrochemical manufacturers
         • Includes cultural management and chemical control options
         • Complete with product examples and reference citations
 
         **🌐 STEP 5: Online Mode (Optional)**
-        
+
         • Get local weather forecast and disease risk assessment
         • Receive disease-specific recommendations based on weather
         • Check manufacturer websites for new products
@@ -2645,7 +2645,7 @@ def display_help():
         ---
 
         **💡 Tips for Best Results**
-        
+
         • Take photos of affected leaves showing clear symptoms
         • Include a healthy leaf for comparison if possible
         • Avoid blurry or poorly lit images
@@ -2681,7 +2681,7 @@ def display_help():
         ---
 
         **⚠️ Important Notes**
-        
+
         • This is an AI-assisted diagnostic tool, not a substitute for expert advice
         • Always read product labels before applying any chemicals
         • Follow local regulations and safety guidelines
@@ -3144,7 +3144,7 @@ def display_heatmap_with_colorbar(original_img, heatmap_overlay, predicted_class
         st.image(original_img, caption="Original Image", width="stretch")
 
     with col2:
-        st.image(heatmap_overlay, caption=f"Visual overlay showing areas that led the model to pick on:\n{predicted_class}", width="stretch")
+        st.image(heatmap_overlay, caption=f"Visual overlay image showing areas that led the model to pick on:\n{predicted_class}", width="stretch")
 
         # Create larger, more readable color bar
         fig, ax = plt.subplots(figsize=(10, 1))
@@ -4056,7 +4056,7 @@ def get_weather_advisory(weather_warnings, disease_name, location):
 # Integrate Whatsapp
 def generate_whatsapp_share_link(diagnosis, confidence, location):
     """Generate a WhatsApp share link with pre-filled message"""
-    
+
     # Create the message content
     message = f"""🌾 *CROP DOCTOR DIAGNOSIS*
 
@@ -4064,26 +4064,26 @@ def generate_whatsapp_share_link(diagnosis, confidence, location):
 *Confidence:* {confidence:.1%}
 *Location:* {location}
 
-*Treatment Recommendations:* 
+*Treatment Recommendations:*
 See full report for management and chemical control options.
 
 ---
 Sent via Crop Doctor - AI-Powered Crop Disease Diagnosis and Treatment Recommendation System
 https://dosuto-crop-doctor-system.hf.space/
 """
-    
+
     # URL encode the message
     import urllib.parse
     encoded_message = urllib.parse.quote(message)
-    
+
     # Create WhatsApp share link
     whatsapp_url = f"https://wa.me/?text={encoded_message}"
-    
+
     return whatsapp_url
 
 def display_whatsapp_share_button(diagnosis_name, confidence, location):
     """Display a WhatsApp share button for the diagnosis results"""
-    
+
     # Create the message content with the CORRECT link
     message = f"""🌾 *CROP DOCTOR DIAGNOSIS*
 
@@ -4098,24 +4098,24 @@ View full treatment recommendations in the Crop Doctor app.
 Sent via Crop Doctor - AI-Powered Crop Disease Diagnosis and Treatment Recommendation System
 https://dosuto-crop-doctor-system.hf.space/
 """
-    
+
     # URL encode the message
     import urllib.parse
     encoded_message = urllib.parse.quote(message)
-    
+
     # Create WhatsApp share link
     whatsapp_url = f"https://wa.me/?text={encoded_message}"
-    
+
     # Display as a button/link - NO UNDERLINE
     st.markdown(f"""
     <a href="{whatsapp_url}" target="_blank" style="text-decoration: none;">
         <div style="
-            background: #25D366; 
-            color: white; 
-            padding: 8px 12px; 
-            border-radius: 25px; 
-            font-weight: 600; 
-            font-size: 13px; 
+            background: #25D366;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 13px;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -4389,101 +4389,101 @@ def display_top_manual_entry_dialog():
 # Get feedback
 def display_feedback_section(disease_name, confidence):
     """Display a feedback section with questions farmers can actually answer"""
-    
+
     st.markdown("---")
     st.markdown("#### 📝 Help Improve Crop Doctor")
     st.caption("Your answers help us serve Kenyan farmers better")
-    
+
     # Question 1: Have you seen this disease before?
     st.markdown("**1. Have you seen this disease on your farm before?**")
-    
+
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         if st.button("❌ Never seen it", width="stretch" , key="seen_never"):
             save_feedback(disease_name, confidence, "seen_before", "never")
             st.success("✅ Thank you! This helps us track new disease outbreaks.")
             time.sleep(1)
             st.rerun()
-    
+
     with col2:
         if st.button("⚠️ Seen it a few times", width="stretch" , key="seen_few"):
             save_feedback(disease_name, confidence, "seen_before", "few_times")
             st.success("✅ Thank you for the information!")
             time.sleep(1)
             st.rerun()
-    
+
     with col3:
         if st.button("🔄 Seen it many times", width="stretch" , key="seen_many"):
             save_feedback(disease_name, confidence, "seen_before", "many_times")
             st.success("✅ Thank you for the information!")
             time.sleep(1)
             st.rerun()
-    
+
     # Question 2: Are the recommended products available in your area?
     st.markdown("**2. Are the recommended products available in your area?**")
-    
+
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         if st.button("✅ Easily available", width="stretch" , key="available_yes"):
             save_feedback(disease_name, confidence, "products_available", "easily")
             st.success("✅ Good to know! Thank you.")
             time.sleep(1)
             st.rerun()
-    
+
     with col2:
         if st.button("⚠️ Some are available", width="stretch" , key="available_some"):
             save_feedback(disease_name, confidence, "products_available", "some")
             st.success("✅ Thank you! We'll note this for your region.")
             time.sleep(1)
             st.rerun()
-    
+
     with col3:
         if st.button("❌ None available", width="stretch" , key="available_no"):
             save_feedback(disease_name, confidence, "products_available", "none")
             st.warning("⚠️ Thank you for letting us know. We'll work on alternative recommendations for your area.")
             time.sleep(1)
             st.rerun()
-    
+
     # ============================================================
     # QUESTION 3: Grad-CAM Visual Evidence Validation (NEW)
     # ============================================================
     st.markdown("**3. Looking at the coloured overlay on the image, did the system focus on the correct areas?**")
     st.caption("The overlay shows where the AI looked to make its decision. 🔴 Red areas had the most influence, 🔵 Blue areas had the least.")
-    
+
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         if st.button("✅ Yes, focused on the problem areas", width="stretch" , key="gradcam_yes"):
             save_feedback(disease_name, confidence, "gradcam_accuracy", "yes_correct_focus")
             st.success("✅ Thank you! This confirms the AI is looking at the right places.")
             time.sleep(1)
             st.rerun()
-    
+
     with col2:
         if st.button("🤔 Partially correct", width="stretch" , key="gradcam_partial"):
             save_feedback(disease_name, confidence, "gradcam_accuracy", "partial_focus")
             st.success("✅ Thank you! This helps us improve the AI's attention.")
             time.sleep(1)
             st.rerun()
-    
+
     with col3:
         if st.button("❌ No, focused on wrong areas", width="stretch" , key="gradcam_no"):
             save_feedback(disease_name, confidence, "gradcam_accuracy", "wrong_focus")
             st.warning("⚠️ Thank you for letting us know. This helps us retrain the model to focus on the right symptoms.")
             time.sleep(1)
             st.rerun()
-    
+
     # Optional follow-up for Grad-CAM
     with st.expander("📝 Tell us more about what the overlay image showed (optional)", expanded=False):
         st.markdown("**What did you notice about the coloured overlay image?**")
         st.caption("For example: 'The red areas were on the healthy parts, not the diseased spots' or 'The coloured overlay image correctly highlighted the brown lesions'")
-        
-        gradcam_feedback = st.text_area("", 
+
+        gradcam_feedback = st.text_area("",
                                       placeholder="Describe what you saw in the coloured overlay image...",
                                       key="gradcam_feedback_area")
-        
+
         if st.button("📤 Submit coloured overlay image Feedback", width="stretch" ):
             if gradcam_feedback:
                 save_feedback(disease_name, confidence, "gradcam_comments", gradcam_feedback, None)
@@ -4493,12 +4493,12 @@ def display_feedback_section(disease_name, confidence):
                 st.rerun()
             else:
                 st.warning("Please enter your feedback before submitting.")
-    
+
     # Question 4: Was this system helpful?
     st.markdown("**4. Was this system helpful?**")
-    
+
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         if st.button("✅ Very helpful", width="stretch" , key="helpful_very"):
             save_feedback(disease_name, confidence, "system_helpful", "very_helpful")
@@ -4506,56 +4506,56 @@ def display_feedback_section(disease_name, confidence):
             st.balloons()
             time.sleep(1)
             st.rerun()
-    
+
     with col2:
         if st.button("🤔 Somewhat helpful", width="stretch" , key="helpful_somewhat"):
             save_feedback(disease_name, confidence, "system_helpful", "somewhat_helpful")
             st.success("✅ Thank you! Please share what could be improved in the comments.")
             time.sleep(1)
             st.rerun()
-    
+
     with col3:
         if st.button("❌ Not helpful", width="stretch" , key="helpful_not"):
             save_feedback(disease_name, confidence, "system_helpful", "not_helpful")
             st.warning("⚠️ We're sorry to hear that. Your feedback helps us improve.")
             time.sleep(1)
             st.rerun()
-    
+
     # Question 5: Would you use this app again?
     st.markdown("**5. Would you use this app again?**")
-    
+
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         if st.button("✅ Yes, definitely", width="stretch" , key="use_again_yes"):
             save_feedback(disease_name, confidence, "use_again", "yes")
             st.success("✅ Thank you! We're honored to serve you.")
             time.sleep(1)
             st.rerun()
-    
+
     with col2:
         if st.button("🤔 Maybe", width="stretch" , key="use_again_maybe"):
             save_feedback(disease_name, confidence, "use_again", "maybe")
             st.success("✅ Thank you! Is there something we could improve?")
             time.sleep(1)
             st.rerun()
-    
+
     with col3:
         if st.button("❌ Probably not", width="stretch" , key="use_again_no"):
             save_feedback(disease_name, confidence, "use_again", "no")
             st.warning("⚠️ We're sorry to hear that. Your feedback helps us improve.")
             time.sleep(1)
             st.rerun()
-    
+
     # Optional: General comments
     with st.expander("📝 Share additional comments (optional)", expanded=False):
         st.markdown("**Do you have any other suggestions to make Crop Doctor better?**")
         st.caption("Examples: Add more crops, include planting advice, add voice support...")
-        
-        general_feedback = st.text_area("", 
+
+        general_feedback = st.text_area("",
                                       placeholder="Your suggestions help us improve...",
                                       key="general_feedback_area")
-        
+
         col1, col2 = st.columns(2)
         with col1:
             if st.button("📤 Submit Comments", width="stretch" ):
@@ -4570,7 +4570,7 @@ def display_feedback_section(disease_name, confidence):
         with col2:
             if st.button("❌ Cancel", width="stretch" ):
                 st.rerun()
-    
+
     st.caption("💡 Your feedback is anonymous and helps us serve Kenyan farmers better.")
 
 def save_feedback(disease_name, confidence, question, answer, comment=None):
@@ -4578,13 +4578,13 @@ def save_feedback(disease_name, confidence, question, answer, comment=None):
     import json
     from datetime import datetime
     import pytz
-    
+
     feedback_file = "farmer_feedback.json"
-    
+
     # Get current time in Kenya timezone
     kenya_tz = pytz.timezone('Africa/Nairobi')
     timestamp = datetime.now(kenya_tz).strftime('%Y-%m-%d %H:%M:%S')
-    
+
     # Load existing feedback
     existing_feedback = []
     if os.path.exists(feedback_file):
@@ -4593,7 +4593,7 @@ def save_feedback(disease_name, confidence, question, answer, comment=None):
                 existing_feedback = json.load(f)
         except:
             pass
-    
+
     # Create feedback entry
     feedback_entry = {
         "timestamp": timestamp,
@@ -4604,14 +4604,14 @@ def save_feedback(disease_name, confidence, question, answer, comment=None):
         "comment": comment,
         "session_id": str(uuid4())[:8]
     }
-    
+
     # Add new feedback
     existing_feedback.append(feedback_entry)
-    
+
     # Save to file
     with open(feedback_file, 'w') as f:
         json.dump(existing_feedback, f, indent=2)
-    
+
     # Also upload to Hugging Face dataset
     if HF_TOKEN:
         try:
@@ -4628,31 +4628,31 @@ def save_feedback(disease_name, confidence, question, answer, comment=None):
             )
         except Exception as e:
             print(f"Failed to upload feedback: {e}")
-    
+
     return True
 
 def display_feedback_summary():
     """Display a summary of feedback (for admin/developer view)"""
     feedback_file = "farmer_feedback.json"
-    
+
     if not os.path.exists(feedback_file):
         st.info("No feedback collected yet.")
         return
-    
+
     try:
         import json
         with open(feedback_file, 'r') as f:
             feedback = json.load(f)
-        
+
         st.markdown("### 📊 Feedback Summary")
         st.write(f"Total responses: {len(feedback)}")
-        
+
         # Calculate average rating
         ratings = [f['rating'] for f in feedback if f.get('rating')]
         if ratings:
             avg_rating = sum(ratings) / len(ratings)
             st.write(f"Average rating: {avg_rating:.1f}/5.0")
-        
+
         # Show recent feedback
         with st.expander("📋 Recent Feedback", expanded=False):
             for entry in feedback[-10:]:
@@ -4908,7 +4908,7 @@ def main():
                                 eat_timezone = dt_timezone(timedelta(hours=3))
                                 local_now = datetime.now(eat_timezone)
                                 local_timestamp = local_now.strftime('%Y%m%d_%H%M%S')
-                                
+
                                 st.download_button(
                                     label="📥 Download Report",
                                     data=report,
@@ -4916,7 +4916,7 @@ def main():
                                     mime="text/plain",
                                     key="download_alt"
                                 )
-                        
+
                         with col3_whatsapp:
                             display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
@@ -4930,7 +4930,7 @@ def main():
                         # ============================================================
                         st.markdown("---")
                         st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all farmers.")
-                        
+
                         # ============================================================
                         # ONLINE MODE FEATURES (weather, news, etc.)
                         # ============================================================
@@ -4941,7 +4941,7 @@ def main():
                         # FEEDBACK SECTION (actual questions - at the very end)
                         # ============================================================
                         display_feedback_section(current_disease, current_confidence)
-                        
+
                         # ============================================================
                         # THANK YOU MESSAGE
                         # ============================================================
@@ -4953,7 +4953,7 @@ def main():
                             <p style="font-size: 12px; color: #888; margin-top: 10px;">🌾 Happy Farming! 🌾</p>
                         </div>
                         """, unsafe_allow_html=True)
-                        
+
                     else:
                         st.warning(f"⚠️ Alternative {alt_idx} data not found. Please re-analyze the image.")
                         st.session_state.current_showing_alternative = None
@@ -4989,7 +4989,7 @@ def main():
                             eat_timezone = dt_timezone(timedelta(hours=3))
                             local_now = datetime.now(eat_timezone)
                             local_timestamp = local_now.strftime('%Y%m%d_%H%M%S')
-                            
+
                             st.download_button(
                                 label="📥 Download Report",
                                 data=report,
@@ -4997,7 +4997,7 @@ def main():
                                 mime="text/plain",
                                 key="download_primary"
                             )
-                    
+
                     with col3_whatsapp:
                         display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
@@ -5011,7 +5011,7 @@ def main():
                     # ============================================================
                     st.markdown("---")
                     st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
-                    
+
                     # ============================================================
                     # ONLINE MODE FEATURES (weather, news, etc.)
                     # ============================================================
@@ -5022,7 +5022,7 @@ def main():
                     # FEEDBACK SECTION (actual questions - at the very end)
                     # ============================================================
                     display_feedback_section(current_disease, current_confidence)
-                    
+
                     # ============================================================
                     # THANK YOU MESSAGE
                     # ============================================================
