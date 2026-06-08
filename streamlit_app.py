@@ -4906,9 +4906,7 @@ def main():
                         with col3_whatsapp:
                             display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
-                        # ============================================================
-                        # FEEDBACK SECTION (ADD THIS)
-                        # ============================================================
+                        # Feedback Section
                         display_feedback_section(current_disease, current_confidence)
 
                         # Pass the treatment data for weather risk assessment
@@ -4960,77 +4958,14 @@ def main():
                     with col3_whatsapp:
                         display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
+                    # Feedback Section
+                    display_feedback_section(current_disease, current_confidence)
+
                     # Pass the treatment data for weather risk assessment
                     display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
 
             else:
                 st.info("👈 Please take a photo or upload an image, then click 'DIAGNOSE & RECOMMEND'")
-
-        # ============================================================
-        # ADMIN VIEW
-        # ============================================================
-        
-        # Check for admin access via URL parameter
-        query_params = st.query_params
-        if query_params.get('admin') == 'true':
-            st.markdown("---")
-            st.markdown("## 🔒 Admin Panel")
-            st.warning("⚠️ This section is for system administrators only")
-            
-            admin_password = ADMIN_PASSWORD
-            
-            if admin_password == ADMIN_PASSWORD:
-                st.success("✅ Access granted")
-                
-                # Display feedback summary
-                display_feedback_summary()
-                
-                # Display dataset statistics
-                st.markdown("### 📊 System Statistics")
-                
-                # Count saved images
-                if os.path.exists("user_upload_queue"):
-                    images = [f for f in os.listdir("user_upload_queue") if f.endswith('.jpg')]
-                    st.write(f"📸 Images queued for upload: {len(images)}")
-                
-                # Display Hugging Face dataset info
-                if HF_TOKEN:
-                    try:
-                        api = HfApi()
-                        dataset_files = api.list_repo_files(repo_id=DATASET_REPO_ID, repo_type="dataset", token=HF_TOKEN)
-                        images_in_dataset = [f for f in dataset_files if f.endswith('.jpg')]
-                        st.write(f"☁️ Images in Hugging Face dataset: {len(images_in_dataset)}")
-                    except:
-                        st.write("☁️ Could not fetch dataset stats")
-                
-                # Option to download feedback as CSV
-                if st.button("📥 Download Feedback as CSV"):
-                    import csv
-                    feedback_file = "farmer_feedback.json"
-                    if os.path.exists(feedback_file):
-                        import json
-                        with open(feedback_file, 'r') as f:
-                            feedback_data = json.load(f)
-                        
-                        csv_filename = f"feedback_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-                        with open(csv_filename, 'w', newline='') as csvfile:
-                            if feedback_data:
-                                writer = csv.DictWriter(csvfile, fieldnames=feedback_data[0].keys())
-                                writer.writeheader()
-                                writer.writerows(feedback_data)
-                        
-                        with open(csv_filename, 'rb') as f:
-                            st.download_button(
-                                label="📥 Download CSV",
-                                data=f,
-                                file_name=csv_filename,
-                                mime="text/csv"
-                            )
-                    else:
-                        st.warning("No feedback data available")
-                
-            elif admin_password:
-                st.error("❌ Incorrect password")
 
 if __name__ == "__main__":
     main()
