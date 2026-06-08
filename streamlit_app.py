@@ -40,6 +40,9 @@ def get_local_timestamp():
     local_now = datetime.now(eat_timezone)
     return local_now.strftime('%Y%m%d_%H%M%S')
 
+# Get admin password from environment variable (set in Hugging Face Secrets)
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
+
 # ============================================================
 # USER IMAGE SAVING FOR MODEL RETRAINING
 # ============================================================
@@ -4358,6 +4361,295 @@ def display_top_manual_entry_dialog():
 
     st.markdown("---")
 
+# Get feedback
+def display_feedback_section(disease_name, confidence):
+    """Display a feedback section with questions farmers can actually answer"""
+    
+    st.markdown("---")
+    st.markdown("#### 📝 Help Improve Crop Doctor")
+    st.caption("Your answers help us serve Kenyan farmers better")
+    
+    # Question 1: Have you seen this disease before?
+    st.markdown("**1. Have you seen this disease on your farm before?**")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("❌ Never seen it", use_container_width=True, key="seen_never"):
+            save_feedback(disease_name, confidence, "seen_before", "never")
+            st.success("✅ Thank you! This helps us track new disease outbreaks.")
+            time.sleep(1)
+            st.rerun()
+    
+    with col2:
+        if st.button("⚠️ Seen it a few times", use_container_width=True, key="seen_few"):
+            save_feedback(disease_name, confidence, "seen_before", "few_times")
+            st.success("✅ Thank you for the information!")
+            time.sleep(1)
+            st.rerun()
+    
+    with col3:
+        if st.button("🔄 Seen it many times", use_container_width=True, key="seen_many"):
+            save_feedback(disease_name, confidence, "seen_before", "many_times")
+            st.success("✅ Thank you for the information!")
+            time.sleep(1)
+            st.rerun()
+    
+    # Question 2: Are the recommended products available in your area?
+    st.markdown("**2. Are the recommended products available in your area?**")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("✅ Easily available", use_container_width=True, key="available_yes"):
+            save_feedback(disease_name, confidence, "products_available", "easily")
+            st.success("✅ Good to know! Thank you.")
+            time.sleep(1)
+            st.rerun()
+    
+    with col2:
+        if st.button("⚠️ Some are available", use_container_width=True, key="available_some"):
+            save_feedback(disease_name, confidence, "products_available", "some")
+            st.success("✅ Thank you! We'll note this for your region.")
+            time.sleep(1)
+            st.rerun()
+    
+    with col3:
+        if st.button("❌ None available", use_container_width=True, key="available_no"):
+            save_feedback(disease_name, confidence, "products_available", "none")
+            st.warning("⚠️ Thank you for letting us know. We'll work on alternative recommendations for your area.")
+            time.sleep(1)
+            st.rerun()
+    
+    # Question 3: Was this system helpful? (NEW)
+    st.markdown("**3. Was this system helpful?**")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("✅ Very helpful", use_container_width=True, key="helpful_very"):
+            save_feedback(disease_name, confidence, "system_helpful", "very_helpful")
+            st.success("✅ Thank you! We're glad Crop Doctor could help you.")
+            st.balloons()
+            time.sleep(1)
+            st.rerun()
+    
+    with col2:
+        if st.button("🤔 Somewhat helpful", use_container_width=True, key="helpful_somewhat"):
+            save_feedback(disease_name, confidence, "system_helpful", "somewhat_helpful")
+            st.success("✅ Thank you! Please share what could be improved in the comments.")
+            time.sleep(1)
+            st.rerun()
+    
+    with col3:
+        if st.button("❌ Not helpful", use_container_width=True, key="helpful_not"):
+            save_feedback(disease_name, confidence, "system_helpful", "not_helpful")
+            st.warning("⚠️ We're sorry to hear that. Your feedback helps us improve.")
+            time.sleep(1)
+            st.rerun()
+    
+    # Question 4: Would you use this app again?
+    st.markdown("**4. Would you use this app again?**")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("✅ Yes, definitely", use_container_width=True, key="use_again_yes"):
+            save_feedback(disease_name, confidence, "use_again", "yes")
+            st.success("✅ Thank you! We're honored to serve you.")
+            time.sleep(1)
+            st.rerun()
+    
+    with col2:
+        if st.button("🤔 Maybe", use_container_width=True, key="use_again_maybe"):
+            save_feedback(disease_name, confidence, "use_again", "maybe")
+            st.success("✅ Thank you! Is there something we could improve?")
+            time.sleep(1)
+            st.rerun()
+    
+    with col3:
+        if st.button("❌ Probably not", use_container_width=True, key="use_again_no"):
+            save_feedback(disease_name, confidence, "use_again", "no")
+            st.warning("⚠️ We're sorry to hear that. Your feedback helps us improve.")
+            time.sleep(1)
+            st.rerun()
+    
+    # Optional: Additional comments
+    with st.expander("📝 Share additional comments (optional)", expanded=False):
+        st.markdown("**Do you have any suggestions to make Crop Doctor better?**")
+        st.caption("Examples: Add more crops, include planting advice, add voice support for low-literacy users...")
+        
+        feedback_text = st.text_area("", 
+                                      placeholder="Your suggestions help us improve...",
+                                      key="feedback_text_area")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("📤 Submit Comments", use_container_width=True):
+                if feedback_text:
+                    save_feedback(disease_name, confidence, "comments", None, feedback_text)
+                    st.success("✅ Thank you for your suggestions!")
+                    st.balloons()
+                    time.sleep(2)
+                    st.rerun()
+                else:
+                    st.warning("Please enter your comments before submitting.")
+        with col2:
+            if st.button("❌ Cancel", use_container_width=True):
+                st.rerun()
+    
+    st.caption("💡 Your feedback is anonymous and helps us serve farmers better.")
+
+def save_feedback(disease_name, confidence, rating=None, rating_text=None, feedback_text=None, treatment_feedback=None, contact_info=None):
+    """Save feedback to a local file or Hugging Face dataset"""
+    import json
+    from datetime import datetime
+    import pytz
+    
+    feedback_file = "farmer_feedback.json"
+    
+    # Get current time in Kenya timezone
+    kenya_tz = pytz.timezone('Africa/Nairobi')
+    timestamp = datetime.now(kenya_tz).strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Create feedback entry
+    feedback_entry = {
+        "timestamp": timestamp,
+        "disease": disease_name,
+        "confidence": confidence,
+        "diagnosis_rating": rating,
+        "diagnosis_rating_text": rating_text,
+        "treatment_feedback": treatment_feedback,
+        "detailed_feedback": feedback_text,
+        "contact_info": contact_info if contact_info else None
+    }
+    
+    # Load existing feedback
+    existing_feedback = []
+    if os.path.exists(feedback_file):
+        try:
+            with open(feedback_file, 'r') as f:
+                existing_feedback = json.load(f)
+        except:
+            pass
+    
+    # Add new feedback
+    existing_feedback.append(feedback_entry)
+    
+    # Save to file
+    with open(feedback_file, 'w') as f:
+        json.dump(existing_feedback, f, indent=2)
+    
+    # Also optionally upload to Hugging Face dataset
+    if HF_TOKEN:
+        try:
+            from huggingface_hub import HfApi
+            api = HfApi()
+            # Save to a feedback folder in your dataset
+            feedback_json = json.dumps(feedback_entry, indent=2)
+            filename = f"feedback_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}.json"
+            api.upload_file(
+                path_or_fileobj=io.BytesIO(feedback_json.encode()),
+                path_in_repo=f"feedback/{filename}",
+                repo_id=DATASET_REPO_ID,
+                repo_type="dataset",
+                token=HF_TOKEN,
+            )
+        except Exception as e:
+            print(f"Failed to upload feedback: {e}")
+    
+    return True
+
+def save_feedback(disease_name, confidence, rating=None, rating_text=None, feedback_text=None):
+    """Save feedback to a local file or Hugging Face dataset"""
+    import json
+    from datetime import datetime
+    import pytz
+    
+    feedback_file = "farmer_feedback.json"
+    
+    # Get current time in Kenya timezone
+    kenya_tz = pytz.timezone('Africa/Nairobi')
+    timestamp = datetime.now(kenya_tz).strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Create feedback entry
+    feedback_entry = {
+        "timestamp": timestamp,
+        "disease": disease_name,
+        "confidence": confidence,
+        "rating": rating,
+        "rating_text": rating_text,
+        "feedback": feedback_text
+    }
+    
+    # Load existing feedback
+    existing_feedback = []
+    if os.path.exists(feedback_file):
+        try:
+            with open(feedback_file, 'r') as f:
+                existing_feedback = json.load(f)
+        except:
+            pass
+    
+    # Add new feedback
+    existing_feedback.append(feedback_entry)
+    
+    # Save to file
+    with open(feedback_file, 'w') as f:
+        json.dump(existing_feedback, f, indent=2)
+    
+    # Also optionally upload to Hugging Face dataset
+    if HF_TOKEN:
+        try:
+            api = HfApi()
+            # Save to a feedback folder in your dataset
+            feedback_json = json.dumps(feedback_entry, indent=2)
+            filename = f"feedback_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}.json"
+            api.upload_file(
+                path_or_fileobj=io.BytesIO(feedback_json.encode()),
+                path_in_repo=f"feedback/{filename}",
+                repo_id=DATASET_REPO_ID,
+                repo_type="dataset",
+                token=HF_TOKEN,
+            )
+        except Exception as e:
+            print(f"Failed to upload feedback: {e}")
+    
+    return True
+
+def display_feedback_summary():
+    """Display a summary of feedback (for admin/developer view)"""
+    feedback_file = "farmer_feedback.json"
+    
+    if not os.path.exists(feedback_file):
+        st.info("No feedback collected yet.")
+        return
+    
+    try:
+        import json
+        with open(feedback_file, 'r') as f:
+            feedback = json.load(f)
+        
+        st.markdown("### 📊 Feedback Summary")
+        st.write(f"Total responses: {len(feedback)}")
+        
+        # Calculate average rating
+        ratings = [f['rating'] for f in feedback if f.get('rating')]
+        if ratings:
+            avg_rating = sum(ratings) / len(ratings)
+            st.write(f"Average rating: {avg_rating:.1f}/5.0")
+        
+        # Show recent feedback
+        with st.expander("📋 Recent Feedback", expanded=False):
+            for entry in feedback[-10:]:
+                st.markdown(f"**{entry['timestamp']}** - {entry['disease']} ({entry['confidence']:.1%})")
+                if entry.get('rating_text'):
+                    st.write(f"Rating: {entry['rating_text']}")
+                if entry.get('feedback'):
+                    st.write(f"Feedback: {entry['feedback']}")
+                st.markdown("---")
+    except Exception as e:
+        st.error(f"Error loading feedback: {e}")
 
 # ============================================================
 # MAIN APP
@@ -4614,6 +4906,11 @@ def main():
                         with col3_whatsapp:
                             display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
+                        # ============================================================
+                        # FEEDBACK SECTION (ADD THIS)
+                        # ============================================================
+                        display_feedback_section(current_disease, current_confidence)
+
                         # Pass the treatment data for weather risk assessment
                         display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
                     else:
@@ -4668,6 +4965,72 @@ def main():
 
             else:
                 st.info("👈 Please take a photo or upload an image, then click 'DIAGNOSE & RECOMMEND'")
+
+        # ============================================================
+        # ADMIN VIEW
+        # ============================================================
+        
+        # Check for admin access via URL parameter
+        query_params = st.query_params
+        if query_params.get('admin') == 'true':
+            st.markdown("---")
+            st.markdown("## 🔒 Admin Panel")
+            st.warning("⚠️ This section is for system administrators only")
+            
+            admin_password = ADMIN_PASSWORD
+            
+            if admin_password == ADMIN_PASSWORD:
+                st.success("✅ Access granted")
+                
+                # Display feedback summary
+                display_feedback_summary()
+                
+                # Display dataset statistics
+                st.markdown("### 📊 System Statistics")
+                
+                # Count saved images
+                if os.path.exists("user_upload_queue"):
+                    images = [f for f in os.listdir("user_upload_queue") if f.endswith('.jpg')]
+                    st.write(f"📸 Images queued for upload: {len(images)}")
+                
+                # Display Hugging Face dataset info
+                if HF_TOKEN:
+                    try:
+                        api = HfApi()
+                        dataset_files = api.list_repo_files(repo_id=DATASET_REPO_ID, repo_type="dataset", token=HF_TOKEN)
+                        images_in_dataset = [f for f in dataset_files if f.endswith('.jpg')]
+                        st.write(f"☁️ Images in Hugging Face dataset: {len(images_in_dataset)}")
+                    except:
+                        st.write("☁️ Could not fetch dataset stats")
+                
+                # Option to download feedback as CSV
+                if st.button("📥 Download Feedback as CSV"):
+                    import csv
+                    feedback_file = "farmer_feedback.json"
+                    if os.path.exists(feedback_file):
+                        import json
+                        with open(feedback_file, 'r') as f:
+                            feedback_data = json.load(f)
+                        
+                        csv_filename = f"feedback_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                        with open(csv_filename, 'w', newline='') as csvfile:
+                            if feedback_data:
+                                writer = csv.DictWriter(csvfile, fieldnames=feedback_data[0].keys())
+                                writer.writeheader()
+                                writer.writerows(feedback_data)
+                        
+                        with open(csv_filename, 'rb') as f:
+                            st.download_button(
+                                label="📥 Download CSV",
+                                data=f,
+                                file_name=csv_filename,
+                                mime="text/csv"
+                            )
+                    else:
+                        st.warning("No feedback data available")
+                
+            elif admin_password:
+                st.error("❌ Incorrect password")
 
 if __name__ == "__main__":
     main()
