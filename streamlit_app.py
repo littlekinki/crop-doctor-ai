@@ -4906,11 +4906,40 @@ def main():
                         with col3_whatsapp:
                             display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
-                        # Feedback Section
-                        display_feedback_section(current_disease, current_confidence)
-
-                        # Pass the treatment data for weather risk assessment
+                        # ============================================================
+                        # OPTIONS MENU
+                        # ============================================================
                         display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
+
+                        # ============================================================
+                        # INVITATION MESSAGE (after options menu, before online features)
+                        # ============================================================
+                        st.markdown("---")
+                        st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
+                        
+                        # ============================================================
+                        # ONLINE MODE FEATURES (weather, news, etc.)
+                        # ============================================================
+                        if st.session_state.mode == "online":
+                            display_online_features(current_disease, current_crop_type, st.session_state.location, current_treatment)
+
+                        # ============================================================
+                        # FEEDBACK SECTION (actual questions - at the very end)
+                        # ============================================================
+                        display_feedback_section(current_disease, current_confidence)
+                        
+                        # ============================================================
+                        # THANK YOU MESSAGE
+                        # ============================================================
+                        st.markdown("---")
+                        st.markdown("""
+                        <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
+                            <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana! (Thank You Very Much!)</strong></p>
+                            <p style="font-size: 13px; color: #555;">Your feedback helps us serve Kenyan farmers better.</p>
+                            <p style="font-size: 12px; color: #888; margin-top: 10px;">🌾 Happy Farming! 🌾</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
                     else:
                         st.warning(f"⚠️ Alternative {alt_idx} data not found. Please re-analyze the image.")
                         st.session_state.current_showing_alternative = None
@@ -4958,14 +4987,44 @@ def main():
                     with col3_whatsapp:
                         display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
-                    # Feedback Section
-                    display_feedback_section(current_disease, current_confidence)
-
-                    # Pass the treatment data for weather risk assessment
+                    # ============================================================
+                    # OPTIONS MENU
+                    # ============================================================
                     display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
+
+                    # ============================================================
+                    # INVITATION MESSAGE (after options menu, before online features)
+                    # ============================================================
+                    st.markdown("---")
+                    st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
+                    
+                    # ============================================================
+                    # ONLINE MODE FEATURES (weather, news, etc.)
+                    # ============================================================
+                    if st.session_state.mode == "online":
+                        display_online_features(current_disease, current_crop_type, st.session_state.location, current_treatment)
+
+                    # ============================================================
+                    # FEEDBACK SECTION (actual questions - at the very end)
+                    # ============================================================
+                    display_feedback_section(current_disease, current_confidence)
+                    
+                    # ============================================================
+                    # THANK YOU MESSAGE
+                    # ============================================================
+                    st.markdown("---")
+                    st.markdown("""
+                    <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
+                        <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana! (Thank You Very Much!)</strong></p>
+                        <p style="font-size: 13px; color: #555;">Your feedback helps us serve Kenyan farmers better.</p>
+                        <p style="font-size: 12px; color: #888; margin-top: 10px;">🌾 Happy Farming! 🌾</p>
+                    </div>
+                    """, unsafe_allow_html=True)
 
             else:
                 st.info("👈 Please take a photo or upload an image, then click 'DIAGNOSE & RECOMMEND'")
 
 if __name__ == "__main__":
     main()
+
+
