@@ -976,11 +976,11 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
             # ============================================================
             # GENERATE WEATHER-BASED RISK ASSESSMENT
             # ============================================================
-            
+
             # First, try to get disease-specific risk from treatment data
             risk_msg = None
             risk_class = "risk-low"
-            
+
             if treatment_data:
                 causes_text = treatment_data.get('causes_characteristics', '')
                 management_text = treatment_data.get('management', '')
@@ -1055,16 +1055,16 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                         else:
                             risk_msg = f"✅ Low disease spread risk - Dry conditions reduce spread."
                             risk_class = "risk-low"
-            
+
             # ============================================================
             # If no disease-specific risk message was generated, use GENERAL WEATHER ADVICE
             # ============================================================
-            
+
             if not risk_msg:
                 # Build general weather-based advice
                 advice_parts = []
                 risk_level = "low"
-                
+
                 # Temperature advice
                 if temp != 'N/A' and temp is not None:
                     try:
@@ -1078,7 +1078,7 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                             advice_parts.append(f"🌡️ Moderate temperature ({temp_val:.0f}°C) - favorable for crop growth.")
                     except (ValueError, TypeError):
                         pass
-                
+
                 # Humidity advice
                 if humidity != 'N/A' and humidity is not None:
                     try:
@@ -1100,7 +1100,7 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                             advice_parts.append(f"💧 Moderate humidity ({hum_val:.0f}%) - good for crop health.")
                     except (ValueError, TypeError):
                         pass
-                
+
                 # Rain advice
                 try:
                     rain_val = float(rain_sum) if rain_sum else 0
@@ -1116,7 +1116,7 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                         advice_parts.append(f"☔ High rain chance ({rain_prob:.0f}%): Consider delaying application.")
                 except (ValueError, TypeError):
                     pass
-                
+
                 # Add disease-specific note if available
                 if treatment_data:
                     category = treatment_data.get('category', '')
@@ -1128,12 +1128,12 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                         advice_parts.append("🦠 **Viral disease**: Control insect vectors. Remove infected plants immediately.")
                     elif 'bacterial' in category.lower():
                         advice_parts.append("🦠 **Bacterial disease**: Copper-based products can help prevent spread.")
-                
+
                 if advice_parts:
                     risk_msg = " | ".join(advice_parts)
                 else:
                     risk_msg = "Monitor your crop regularly for any signs of disease development. Good farming practices are your best defense."
-                
+
                 # Set risk class based on highest risk level found
                 if risk_level == "high":
                     risk_class = "risk-high"
@@ -3517,19 +3517,19 @@ def fetch_kalro_updates(limit=10):
             pass
     except Exception as e:
         print(f"Error fetching KALRO updates: {e}")
-    
+
     # Fallback to static sample if scraping fails
     return []
 
 def fetch_kenya_meteo_warnings():
     """Fetch real-time weather warnings from Kenya Meteorological Department"""
     import feedparser
-    
+
     try:
         # Kenya Met Department CAP RSS feed
         feed = feedparser.parse("https://meteo.go.ke/api/cap/rss.xml")
         warnings = []
-        
+
         for entry in feed.entries[:5]:
             warnings.append({
                 "type": entry.title,
@@ -3547,7 +3547,7 @@ def fetch_kenya_agriculture_news(query=None, limit=10):
     """Fetch real-time agriculture news from Kenyan news sources"""
     import feedparser
     articles = []
-    
+
     # Source 1: The Standard - Agriculture RSS Feed (REAL)
     try:
         standard_feed = feedparser.parse("https://www.standardmedia.co.ke/rss/agriculture.php")
@@ -3562,7 +3562,7 @@ def fetch_kenya_agriculture_news(query=None, limit=10):
             })
     except Exception as e:
         print(f"Error fetching The Standard feed: {e}")
-    
+
     # Source 2: Nation Africa - Agriculture (REAL - if RSS available)
     try:
         # Nation Africa agriculture RSS (verify this URL)
@@ -3578,7 +3578,7 @@ def fetch_kenya_agriculture_news(query=None, limit=10):
             })
     except Exception as e:
         print(f"Error fetching Nation Africa feed: {e}")
-    
+
     # Source 3: Kenya News Agency (KNA) - Agriculture (REAL)
     try:
         # KNA is a government news agency with good agriculture coverage
@@ -3594,7 +3594,7 @@ def fetch_kenya_agriculture_news(query=None, limit=10):
             })
     except Exception as e:
         print(f"Error fetching KNA feed: {e}")
-    
+
     return articles
 
 # ============================================================
@@ -3605,20 +3605,20 @@ def fetch_live_kenya_met_warnings():
     """Fetch live weather warnings from Kenya Meteorological Department RSS feed"""
     import feedparser
     import time
-    
+
     try:
         # Cache warnings for 1 hour
         cache_key = 'met_warnings_cache'
         cache_time_key = 'met_warnings_time'
-        
+
         current_time = time.time()
         if cache_key in st.session_state and cache_time_key in st.session_state:
             if current_time - st.session_state[cache_time_key] < 3600:  # 1 hour
                 return st.session_state[cache_key]
-        
+
         feed = feedparser.parse("https://meteo.go.ke/api/cap/rss.xml")
         warnings = []
-        
+
         for entry in feed.entries[:5]:
             warnings.append({
                 "title": entry.get("title", "Weather Alert"),
@@ -3626,10 +3626,10 @@ def fetch_live_kenya_met_warnings():
                 "published": entry.get("published", ""),
                 "link": entry.get("link", "")
             })
-        
+
         st.session_state[cache_key] = warnings
         st.session_state[cache_time_key] = current_time
-        
+
         return warnings
     except Exception as e:
         print(f"Error fetching Kenya Met warnings: {e}")
@@ -3641,14 +3641,14 @@ def fetch_live_agriculture_news():
         # Cache news for 15 minutes
         cache_key = 'news_cache'
         cache_time_key = 'news_time'
-        
+
         current_time = time.time()
         if cache_key in st.session_state and cache_time_key in st.session_state:
             if current_time - st.session_state[cache_time_key] < 900:
                 return st.session_state[cache_key]
-        
+
         articles = []
-        
+
         # ============================================================
         # SOURCE 1: The Standard - Agriculture (WORKING)
         # ============================================================
@@ -3669,7 +3669,7 @@ def fetch_live_agriculture_news():
             print(f"✅ The Standard: {count} articles")
         except Exception as e:
             print(f"❌ Standard error: {e}")
-        
+
         # ============================================================
         # SOURCE 2: Kenya News Agency (WORKING)
         # ============================================================
@@ -3690,7 +3690,7 @@ def fetch_live_agriculture_news():
             print(f"✅ KNA: {count} articles")
         except Exception as e:
             print(f"❌ KNA error: {e}")
-        
+
         # ============================================================
         # SOURCE 3: Nation Africa - Seeds of Gold (Direct Link Only)
         # Note: No RSS feed available, so we add a direct link
@@ -3702,7 +3702,7 @@ def fetch_live_agriculture_news():
             "source": "🌱 Nation Africa",
             "date": "Visit website"
         })
-        
+
         # ============================================================
         # SOURCE 4: The EastAfrican (RSS with agriculture filter)
         # ============================================================
@@ -3725,11 +3725,11 @@ def fetch_live_agriculture_news():
             print(f"✅ EastAfrican: {count} articles")
         except Exception as e:
             print(f"❌ EastAfrican error: {e}")
-        
+
         # Cache the results
         st.session_state[cache_key] = articles
         st.session_state[cache_time_key] = current_time
-        
+
         print(f"📊 TOTAL articles: {len(articles)}")
         return articles
     except Exception as e:
@@ -3741,38 +3741,38 @@ def fetch_live_kalro_updates():
     try:
         cache_key = 'kalro_cache'
         cache_time_key = 'kalro_time'
-        
+
         current_time = time.time()
         if cache_key in st.session_state and cache_time_key in st.session_state:
             if current_time - st.session_state[cache_time_key] < 3600:  # 1 hour
                 return st.session_state[cache_key]
-        
+
         response = requests.get("https://kalro.org", timeout=15)
         updates = []
-        
+
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
             articles = soup.find_all('article', limit=3)
-            
+
             for article in articles:
                 title_elem = article.find('h2') or article.find('h3') or article.find('a')
                 title = title_elem.get_text(strip=True) if title_elem else "KALRO Update"
-                
+
                 summary_elem = article.find('p')
                 summary = summary_elem.get_text(strip=True)[:200] if summary_elem else "Click to read more"
-                
+
                 link_elem = article.find('a')
                 link = link_elem.get('href') if link_elem else "https://kalro.org"
                 if link and not link.startswith('http'):
                     link = "https://kalro.org" + link
-                
+
                 updates.append({
                     "title": title,
                     "summary": summary,
                     "url": link,
                     "source": "KALRO"
                 })
-        
+
         if not updates:
             updates = [{
                 "title": "Visit KALRO Website for Latest Updates",
@@ -3780,10 +3780,10 @@ def fetch_live_kalro_updates():
                 "url": "https://kalro.org",
                 "source": "KALRO"
             }]
-        
+
         st.session_state[cache_key] = updates
         st.session_state[cache_time_key] = current_time
-        
+
         return updates
     except Exception as e:
         print(f"Error fetching KALRO updates: {e}")
@@ -3800,17 +3800,17 @@ def fetch_live_weather_forecast(location, disease_name, treatment_data=None):
 
 def display_online_features(disease_name, crop_type, location, treatment_data=None):
     """Display online features including weather, news, and agricultural updates"""
-    
+
     st.markdown("---")
     st.markdown("### 📡 ONLINE MODE - LIVE UPDATES")
     st.caption(f"🕐 Data last refreshed: {datetime.now().strftime('%H:%M:%S')}")
-    
+
     # ============================================================
     # SECTION 1: WEATHER & DISEASE RISK
     # ============================================================
     st.markdown("#### 🌤️ CURRENT WEATHER & DISEASE RISK")
     st.caption("ℹ️ **Tip:** Hover over the ❔ icons for detailed explanations of each weather parameter.")
-    
+
     weather = get_weather_with_risk_assessment(location, disease_name, treatment_data)
 
     if weather:
@@ -3821,30 +3821,30 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         <div class="weather-card">
             <h4>🌤️ WEATHER FOR {weather['location']}</h4>
         """
-        
+
         if weather['temperature'] != 'N/A':
             weather_text += f'<p>🌡️ <strong>Temperature:</strong> {weather["temperature"]}°C <span style="cursor: help; color: #666;" title="Current air temperature. Ideal for most crops is 20-30°C. High temperatures (>30°C) can cause heat stress, low temperatures (<15°C) can slow growth.">❔</span></p>'
         else:
             weather_text += '<p>🌡️ <strong>Temperature:</strong> --</p>'
-        
+
         if weather['humidity'] != 'N/A':
             weather_text += f'<p>💧 <strong>Humidity:</strong> {weather["humidity"]}% <span style="cursor: help; color: #666;" title="Relative humidity. High humidity (>80%) favors fungal diseases. Low humidity (<40%) favors pests like spider mites. Ideal range is 40-70%.">❔</span></p>'
         else:
             weather_text += '<p>💧 <strong>Humidity:</strong> --</p>'
-        
+
         weather_text += f'<p>☔ <strong>Current Rainfall:</strong> {weather["rain"]} mm <span style="cursor: help; color: #666;" title="Rainfall in the last hour. Less than 2mm is safe for spraying. More than 10mm can wash off chemicals.">❔</span></p>'
-        
+
         if weather['wind'] != 'N/A':
             weather_text += f'<p>🌬️ <strong>Wind Speed:</strong> {weather["wind"]} km/h <span style="cursor: help; color: #666;" title="Best for spraying: 5-15 km/h. High winds (>25 km/h) cause spray drift. Calm conditions (<5 km/h) may cause poor spray distribution.">❔</span></p>'
         else:
             weather_text += '<p>🌬️ <strong>Wind Speed:</strong> --</p>'
-        
+
         if weather['temp_max'] and weather['temp_min']:
             weather_text += f'<p>📅 <strong>Today\'s Forecast:</strong> High {weather["temp_max"]}°C / Low {weather["temp_min"]}°C <span style="cursor: help; color: #666;" title="Expected temperature range for today (from midnight to midnight). Use this to plan activities like transplanting or harvesting. High temperatures above 30°C can stress plants.">❔</span></p>'
-        
+
         if weather['rain_prob']:
             weather_text += f'<p>🌧️ <strong>Rain Probability:</strong> {weather["rain_prob"]}% (Expected: {weather["rain_sum"]} mm) <span style="cursor: help; color: #666;" title="Chance of rain during the remaining hours today. {weather["rain_prob"]}% means it may rain. Expected rainfall: {weather["rain_sum"]}mm. Safe for spraying if under 2mm. Postpone spraying if expected rain exceeds 10mm.">❔</span></p>'
-        
+
         weather_text += f"""
             <hr>
             <p><strong>🎯 DISEASE RISK ASSESSMENT FOR {disease_name}:</strong><br>
@@ -3861,10 +3861,10 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # ============================================================
     st.markdown("#### 🚨 KENYA MET WEATHER WARNINGS")
     st.caption("Real-time alerts from Kenya Meteorological Department")
-    
+
     with st.spinner("🔄 Checking for active weather warnings..."):
         met_warnings = fetch_live_kenya_met_warnings()
-    
+
     if met_warnings:
         for warning in met_warnings:
             with st.expander(f"⚠️ {warning['title']}"):
@@ -3883,14 +3883,14 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
 
     st.info("""
     **Follow the Kenya Meteorological Department on X (Twitter) for live updates**
-    
+
     The Kenya Meteorological Department (`@MeteoKenya`) uses X to issue **immediate** weather warnings, daily forecasts, and heavy rainfall advisories.
-    
+
     ✅ **Why follow?**
     - Get severe weather alerts instantly (heavy rain, floods, strong winds)
     - Receive daily and 5-day weather forecasts
     - Stay informed about conditions affecting your farm
-    
+
     👉 **[Follow @MeteoKenya on X](https://twitter.com/MeteoKenya)** (No account needed. Just click to view)
     """)
 
@@ -3899,10 +3899,10 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # ============================================================
     st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
     st.caption("Live updates from The Standard and Kenya News Agency")
-    
+
     with st.spinner("📰 Fetching latest agriculture news... Please wait"):
         news_articles = fetch_live_agriculture_news()
-    
+
     if news_articles:
         for article in news_articles:
             # Check if this is a direct link (not a real article)
@@ -3928,18 +3928,18 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # ============================================================
     st.markdown("---")
     st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
-    
+
     if weather:
         rain_sum = weather.get('rain_sum', 0)
         rain_prob = weather.get('rain_prob', 0)
         temp = weather.get('temperature', 0)
-        
+
         if isinstance(temp, str):
             try:
                 temp = float(temp)
             except:
                 temp = 0
-        
+
         if rain_sum and rain_sum > 10:
             st.warning("🌧️ **Heavy rain expected!** Postpone spraying. Protect young seedlings from waterlogging.")
         elif rain_prob and rain_prob > 70:
@@ -3958,10 +3958,10 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # ============================================================
     st.markdown("#### 🌾 KALRO AGRICULTURAL UPDATES")
     st.caption("Latest from Kenya Agricultural and Livestock Research Organization")
-    
+
     with st.spinner("🔄 Fetching latest KALRO updates..."):
         kalro_updates = fetch_live_kalro_updates()
-    
+
     for update in kalro_updates:
         with st.expander(f"📢 {update['title']}"):
             st.write(update['summary'])
@@ -3970,7 +3970,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # ============================================================
     # SECTION 7: RESOURCE DIRECTORY
     # ============================================================
-    st.markdown("RESOURCE DIRECTORY")
+    st.markdown("#### 🌾 RESOURCE DIRECTORY")
     with st.expander("📚 Agricultural Resources for Kenyan Farmers", expanded=False):
         st.markdown("""
         **Live News & Weather:**
@@ -3978,18 +3978,18 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya) - Agriculture news
         - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/) - Government news
         - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold) - Weekly farming pullout
-        
+
         **Research & Advisory:**
         - [KALRO](https://kalro.org) - Agricultural research
         - [KEPHIS](https://www.kephis.org) - Seed certification
         - [Ministry of Agriculture](https://kilimo.go.ke) - Government policies
-        
+
         **Follow on X (Twitter) for Instant Updates:**
         - [@MeteoKenya](https://twitter.com/MeteoKenya) - Weather warnings
         - [@KALROKenya](https://twitter.com/KALROKenya) - Research updates
         - [@FarmKenya](https://twitter.com/FarmKenya) - Agriculture news
         - [@SeedsOfGold](https://twitter.com/SeedsOfGold) - Farming features
-        
+
         **Farmer Support:**
         - National Agricultural Extension Hotline: **0800 720 123**
         """)
@@ -3997,12 +3997,12 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
 def get_weather_advisory(weather_warnings, disease_name, location):
     """Generate a tailored advisory based on weather warnings and disease"""
     advisories = []
-    
+
     for warning in weather_warnings:
         # Check if user's location is in affected areas
         location_parts = location.lower().split(',')
         is_affected = any(area.lower() in location.lower() for area in warning.get('areas', []))
-        
+
         if is_affected or len(weather_warnings) > 0:
             if warning['type'] == "Heavy Rainfall":
                 advisories.append({
@@ -4022,7 +4022,7 @@ def get_weather_advisory(weather_warnings, disease_name, location):
                     "message": f"🌵 **Dry conditions forecast**. Ensure adequate irrigation and consider mulch to retain moisture.",
                     "related_disease_advice": "Monitor for pest outbreaks (aphids, spider mites thrive in dry conditions)."
                 })
-    
+
     return advisories
 
 
@@ -4529,7 +4529,7 @@ def main():
                                 eat_timezone = dt_timezone(timedelta(hours=3))
                                 local_now = datetime.now(eat_timezone)
                                 local_timestamp = local_now.strftime('%Y%m%d_%H%M%S')
-                                
+
                                 st.download_button(
                                     label="📥 Download Report",
                                     data=report,
@@ -4575,7 +4575,7 @@ def main():
                             eat_timezone = dt_timezone(timedelta(hours=3))
                             local_now = datetime.now(eat_timezone)
                             local_timestamp = local_now.strftime('%Y%m%d_%H%M%S')
-                            
+
                             st.download_button(
                                 label="📥 Download Report",
                                 data=report,
