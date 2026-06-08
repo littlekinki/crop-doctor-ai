@@ -953,7 +953,7 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                     'temp_min': temp_min,
                     'rain_prob': rain_prob,
                     'rain_sum': rain_sum,
-                    'risk_msg': "NONE - Healthy crop (no disease risk assessment applicable)",
+                    'risk_msg': "🌿 HEALTHY CROP - Continue good farming practices. Regular monitoring recommended.",
                     'risk_class': "risk-low",
                     'location': location,
                     'location_source': location_source,
@@ -961,10 +961,14 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                     'lon': lon
                 }
 
-            # Disease-specific risk assessment
-            risk_msg = "NONE - No specific weather-disease relationship established"
+            # ============================================================
+            # GENERATE WEATHER-BASED RISK ASSESSMENT
+            # ============================================================
+            
+            # First, try to get disease-specific risk from treatment data
+            risk_msg = None
             risk_class = "risk-low"
-
+            
             if treatment_data:
                 causes_text = treatment_data.get('causes_characteristics', '')
                 management_text = treatment_data.get('management', '')
@@ -985,69 +989,146 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
 
                 # Detect disease type
                 category = treatment_data.get('category', '').lower()
-                is_fungal = 'fungal' in category or any(word in full_text for word in ['fungus', 'fungal', 'spores', 'mycelium'])
-                is_viral = 'viral' in category or any(word in full_text for word in ['virus', 'vector', 'whitefly', 'aphid'])
-                is_pest = 'pest' in category or any(word in full_text for word in ['pest', 'larvae', 'insect', 'caterpillar'])
+                is_fungal = 'fungal' in category or any(word in full_text for word in ['fungus', 'fungal', 'spores', 'mycelium', 'blight', 'rust', 'mildew'])
+                is_viral = 'viral' in category or any(word in full_text for word in ['virus', 'vector', 'whitefly', 'aphid', 'curl', 'mosaic'])
+                is_pest = 'pest' in category or any(word in full_text for word in ['pest', 'larvae', 'insect', 'caterpillar', 'worm', 'borer', 'mite', 'aphid'])
+                is_bacterial = 'bacterial' in category or any(word in full_text for word in ['bacteria', 'bacterial', 'speck', 'spot', 'wilt'])
 
-                # Generate risk assessment based on disease characteristics
+                # Generate disease-specific risk assessment if weather links exist
                 if has_humidity_link or has_temp_link or has_rain_link or has_dry_link:
-
                     # FUNGAL DISEASE RISK
                     if is_fungal and has_humidity_link and humidity != 'N/A':
                         if humidity > 80:
-                            risk_msg = f"⚠️ HIGH FUNGAL DISEASE RISK - High humidity ({humidity}%) favours fungal growth. The disease description indicates that {disease_name} spreads under humid conditions."
+                            risk_msg = f"⚠️ HIGH FUNGAL DISEASE RISK - High humidity ({humidity}%) favours fungal growth."
                             risk_class = "risk-high"
                         elif humidity > 65:
-                            risk_msg = f"🟡 MODERATE FUNGAL DISEASE RISK - Current humidity ({humidity}%) may favour {disease_name} development according to disease characteristics."
+                            risk_msg = f"🟡 MODERATE FUNGAL DISEASE RISK - Current humidity ({humidity}%) may favour disease development."
                             risk_class = "risk-moderate"
                         else:
-                            risk_msg = f"✅ Low fungal disease risk - Current humidity ({humidity}%) is not favourable for {disease_name} based on its disease characteristics."
+                            risk_msg = f"✅ Low fungal disease risk - Current humidity ({humidity}%) is not favourable for disease spread."
                             risk_class = "risk-low"
 
                     # VIRAL DISEASE RISK (vector activity)
                     elif is_viral and (has_temp_link or 'vector' in full_text) and temp != 'N/A':
                         if temp > 25 and humidity > 60:
-                            risk_msg = f"⚠️ HIGH VIRAL DISEASE RISK - Warm, humid conditions ({temp}°C, {humidity}%) favour vector activity. The disease is transmitted by vectors as described."
+                            risk_msg = f"⚠️ HIGH VIRAL DISEASE RISK - Warm, humid conditions ({temp}°C, {humidity}%) favour vector activity."
                             risk_class = "risk-high"
                         elif temp > 22:
-                            risk_msg = f"🟡 MODERATE VIRAL DISEASE RISK - Current conditions ({temp}°C) may support vector activity for {disease_name}."
+                            risk_msg = f"🟡 MODERATE VIRAL DISEASE RISK - Current conditions ({temp}°C) may support vector activity."
                             risk_class = "risk-moderate"
                         else:
-                            risk_msg = f"✅ Low viral disease risk - Current conditions ({temp}°C) are less favourable for vectors of {disease_name}."
+                            risk_msg = f"✅ Low viral disease risk - Current conditions ({temp}°C) are less favourable for vectors."
                             risk_class = "risk-low"
 
                     # PEST INFESTATION RISK
                     elif is_pest and has_dry_link and temp != 'N/A':
                         if temp > 25 and rain_sum < 5:
-                            risk_msg = f"⚠️ HIGH PEST RISK - Warm, dry conditions ({temp}°C) favour {disease_name} according to its pest characteristics."
+                            risk_msg = f"⚠️ HIGH PEST RISK - Warm, dry conditions ({temp}°C) favour pest activity."
                             risk_class = "risk-high"
                         elif temp > 20:
-                            risk_msg = f"🟡 MODERATE PEST RISK - Current temperature ({temp}°C) may favour {disease_name} activity."
+                            risk_msg = f"🟡 MODERATE PEST RISK - Current temperature ({temp}°C) may favour pest activity."
                             risk_class = "risk-moderate"
                         else:
-                            risk_msg = f"✅ Low pest risk - Current temperature ({temp}°C) is less favourable for {disease_name}."
+                            risk_msg = f"✅ Low pest risk - Current temperature ({temp}°C) is less favourable for pests."
                             risk_class = "risk-low"
 
                     # RAIN-SPREAD DISEASES
                     elif has_rain_link:
                         if rain_sum > 10 or rain > 1:
-                            risk_msg = f"⚠️ HIGH DISEASE SPREAD RISK - Rainfall ({rain_sum}mm) can spread {disease_name} as described in disease characteristics."
+                            risk_msg = f"⚠️ HIGH DISEASE SPREAD RISK - Rainfall ({rain_sum}mm) can spread disease."
                             risk_class = "risk-high"
                         elif rain_prob > 50:
-                            risk_msg = f"🟡 MODERATE DISEASE SPREAD RISK - Expected rainfall may facilitate spread of {disease_name}."
+                            risk_msg = f"🟡 MODERATE DISEASE SPREAD RISK - Expected rainfall may facilitate spread."
                             risk_class = "risk-moderate"
                         else:
-                            risk_msg = f"✅ Low disease spread risk - Dry conditions reduce spread of {disease_name}."
+                            risk_msg = f"✅ Low disease spread risk - Dry conditions reduce spread."
                             risk_class = "risk-low"
-                    else:
-                        risk_msg = "NONE - No specific weather-disease relationship established for this disease in the database."
-                        risk_class = "risk-low"
+            
+            # ============================================================
+            # If no disease-specific risk message was generated, use GENERAL WEATHER ADVICE
+            # ============================================================
+            
+            if not risk_msg:
+                # Build general weather-based advice
+                advice_parts = []
+                risk_level = "low"
+                
+                # Temperature advice
+                if temp != 'N/A' and temp is not None:
+                    try:
+                        temp_val = float(temp)
+                        if temp_val > 30:
+                            advice_parts.append(f"🌡️ Hot ({temp_val:.0f}°C): Heat stress possible. Ensure adequate irrigation.")
+                            risk_level = "moderate"
+                        elif temp_val < 15:
+                            advice_parts.append(f"🌡️ Cool ({temp_val:.0f}°C): Slow crop growth. Delay sensitive operations.")
+                        else:
+                            advice_parts.append(f"🌡️ Moderate temperature ({temp_val:.0f}°C) - favorable for crop growth.")
+                    except (ValueError, TypeError):
+                        pass
+                
+                # Humidity advice
+                if humidity != 'N/A' and humidity is not None:
+                    try:
+                        hum_val = float(humidity)
+                        if hum_val > 80:
+                            if treatment_data and 'fungal' in treatment_data.get('category', '').lower():
+                                advice_parts.append(f"💧 High humidity ({hum_val:.0f}%): Fungal disease risk increases. Consider preventive spraying.")
+                                risk_level = "high" if risk_level != "high" else risk_level
+                            else:
+                                advice_parts.append(f"💧 High humidity ({hum_val:.0f}%): Monitor for disease development.")
+                                risk_level = "moderate" if risk_level != "high" else risk_level
+                        elif hum_val < 40:
+                            if treatment_data and 'pest' in treatment_data.get('category', '').lower():
+                                advice_parts.append(f"💧 Low humidity ({hum_val:.0f}%): Pest risk increases. Check for aphids, mites.")
+                                risk_level = "moderate"
+                            else:
+                                advice_parts.append(f"💧 Low humidity ({hum_val:.0f}%): May increase plant water stress.")
+                        else:
+                            advice_parts.append(f"💧 Moderate humidity ({hum_val:.0f}%) - good for crop health.")
+                    except (ValueError, TypeError):
+                        pass
+                
+                # Rain advice
+                try:
+                    rain_val = float(rain_sum) if rain_sum else 0
+                    if rain_val > 10:
+                        advice_parts.append(f"☔ Heavy rain expected ({rain_val:.1f}mm): Postpone spraying. Protect young plants.")
+                        risk_level = "high"
+                    elif rain_val > 5:
+                        advice_parts.append(f"☔ Moderate rain ({rain_val:.1f}mm): Use rain-fast products if spraying urgent.")
+                        risk_level = "moderate" if risk_level != "high" else risk_level
+                    elif rain_val > 0:
+                        advice_parts.append(f"☔ Light rain ({rain_val:.1f}mm): Safe for most field operations.")
+                    elif rain_prob and float(rain_prob) > 70:
+                        advice_parts.append(f"☔ High rain chance ({rain_prob:.0f}%): Consider delaying application.")
+                except (ValueError, TypeError):
+                    pass
+                
+                # Add disease-specific note if available
+                if treatment_data:
+                    category = treatment_data.get('category', '')
+                    if 'fungal' in category.lower():
+                        advice_parts.append("🍄 **Fungal disease**: Preventive fungicides work best before infection.")
+                    elif 'pest' in category.lower():
+                        advice_parts.append("🐛 **Pest infestation**: Scout regularly. Early detection allows smaller pesticide amounts.")
+                    elif 'viral' in category.lower():
+                        advice_parts.append("🦠 **Viral disease**: Control insect vectors. Remove infected plants immediately.")
+                    elif 'bacterial' in category.lower():
+                        advice_parts.append("🦠 **Bacterial disease**: Copper-based products can help prevent spread.")
+                
+                if advice_parts:
+                    risk_msg = " | ".join(advice_parts)
                 else:
-                    risk_msg = "NONE - This disease's characteristics do not establish a specific relationship with weather conditions."
+                    risk_msg = "Monitor your crop regularly for any signs of disease development. Good farming practices are your best defense."
+                
+                # Set risk class based on highest risk level found
+                if risk_level == "high":
+                    risk_class = "risk-high"
+                elif risk_level == "moderate":
+                    risk_class = "risk-moderate"
+                else:
                     risk_class = "risk-low"
-            else:
-                risk_msg = "NONE - No treatment data available to determine weather-disease relationship."
-                risk_class = "risk-low"
 
             return {
                 'temperature': temp,
