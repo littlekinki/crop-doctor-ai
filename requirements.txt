@@ -11,3 +11,4 @@ streamlit-geolocation
 feedparser
 python-dateutil
 beautifulsoup4
+pytz
