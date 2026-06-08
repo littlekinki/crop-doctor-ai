@@ -4677,8 +4677,12 @@ def display_feedback_summary():
 # ============================================================
 
 def process_batch_images(uploaded_files, model, class_names, references, gradcam):
-    """Process multiple images and return results"""
+    """Process multiple images and return results with local timestamps"""
     results = []
+    from datetime import datetime, timedelta, timezone as dt_timezone
+    
+    # Get local timezone (EAT - UTC+3)
+    eat_timezone = dt_timezone(timedelta(hours=3))
     
     for idx, uploaded_file in enumerate(uploaded_files):
         try:
@@ -4708,6 +4712,9 @@ def process_batch_images(uploaded_files, model, class_names, references, gradcam
             # Get treatment for top prediction
             treatment = get_full_treatment(top_predictions[0]['class'], references)
             
+            # Get local timestamp for this image
+            local_timestamp = datetime.now(eat_timezone).strftime('%Y-%m-%d %H:%M:%S')
+            
             results.append({
                 "filename": uploaded_file.name,
                 "image": image,
@@ -4716,19 +4723,25 @@ def process_batch_images(uploaded_files, model, class_names, references, gradcam
                 "primary_diagnosis": top_predictions[0]['class'],
                 "primary_confidence": top_predictions[0]['confidence'],
                 "treatment": treatment,
+                "timestamp": local_timestamp,
                 "status": "success"
             })
         except Exception as e:
             results.append({
                 "filename": uploaded_file.name,
                 "status": "error",
-                "error_message": str(e)
+                "error_message": str(e),
+                "timestamp": datetime.now(eat_timezone).strftime('%Y-%m-%d %H:%M:%S')
             })
     
     return results
 
 def display_batch_results(results):
-    """Display batch processing results in an organized way"""
+    """Display batch processing results in an organized way with correct timestamps"""
+    from datetime import datetime, timedelta, timezone as dt_timezone
+    
+    # Get local timezone (EAT - UTC+3)
+    eat_timezone = dt_timezone(timedelta(hours=3))
     
     st.markdown("### 📊 Batch Processing Results")
     st.markdown(f"**Total images processed:** {len(results)}")
@@ -4740,6 +4753,10 @@ def display_batch_results(results):
     st.markdown(f"✅ Successful: {len(successful)}")
     st.markdown(f"❌ Failed: {len(failed)}")
     
+    # Display timestamp of batch processing
+    batch_timestamp = datetime.now(eat_timezone).strftime('%Y-%m-%d %H:%M:%S')
+    st.caption(f"🕐 Batch processed at: {batch_timestamp} (East Africa Time)")
+    
     if successful:
         # Create a summary table
         st.markdown("#### 📋 Summary Table")
@@ -4748,7 +4765,8 @@ def display_batch_results(results):
             summary_data.append({
                 "Image": r['filename'],
                 "Diagnosis": r['primary_diagnosis'],
-                "Confidence": f"{r['primary_confidence']*100:.1f}%"
+                "Confidence": f"{r['primary_confidence']*100:.1f}%",
+                "Timestamp": r.get('timestamp', batch_timestamp)
             })
         st.dataframe(summary_data, use_container_width=True)
         
@@ -4757,19 +4775,21 @@ def display_batch_results(results):
         with col1:
             if st.button("📊 Export Results as CSV", use_container_width=True):
                 import csv
-                from datetime import datetime
                 csv_data = []
                 for r in successful:
                     csv_data.append({
                         "filename": r['filename'],
                         "diagnosis": r['primary_diagnosis'],
                         "confidence": r['primary_confidence'],
-                        "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        "confidence_percent": f"{r['primary_confidence']*100:.1f}%",
+                        "category": r['treatment']['category'],
+                        "causal_agent": r['treatment']['causal_agent'],
+                        "timestamp": r.get('timestamp', batch_timestamp)
                     })
                 
-                csv_filename = f"batch_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                csv_filename = f"batch_results_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.csv"
                 with open(csv_filename, 'w', newline='') as f:
-                    writer = csv.DictWriter(f, fieldnames=["filename", "diagnosis", "confidence", "timestamp"])
+                    writer = csv.DictWriter(f, fieldnames=["filename", "diagnosis", "confidence", "confidence_percent", "category", "causal_agent", "timestamp"])
                     writer.writeheader()
                     writer.writerows(csv_data)
                 
@@ -4784,6 +4804,7 @@ def display_batch_results(results):
         st.markdown("#### 📸 Individual Results")
         for r in successful:
             with st.expander(f"📷 {r['filename']} - {r['primary_diagnosis']} ({r['primary_confidence']*100:.1f}%)"):
+                st.caption(f"🕐 Processed: {r.get('timestamp', batch_timestamp)}")
                 col1, col2 = st.columns(2)
                 with col1:
                     st.image(r['image'], caption="Original Image", width="stretch")
@@ -4803,18 +4824,20 @@ def display_batch_results(results):
                 st.warning(f"**{r['filename']}:** {r['error_message']}")
 
 def generate_batch_report(results):
-    """Generate a comprehensive batch report"""
-    from datetime import datetime
+    """Generate a comprehensive batch report with correct timestamps"""
+    from datetime import datetime, timedelta, timezone as dt_timezone
     import pytz
     
-    kenya_tz = pytz.timezone('Africa/Nairobi')
-    timestamp = datetime.now(kenya_tz).strftime('%Y-%m-%d %H:%M:%S')
+    # Get local timezone (EAT - UTC+3)
+    eat_timezone = dt_timezone(timedelta(hours=3))
+    timestamp = datetime.now(eat_timezone).strftime('%Y-%m-%d %H:%M:%S')
     
     report = f"""
 CROP DOCTOR BATCH PROCESSING REPORT
 {'='*60}
-Date: {timestamp}
+Date (Local Time): {timestamp}
 Total Images Processed: {len(results)}
+Time Zone: East Africa Time (EAT - UTC+3)
 
 {'='*60}
 SUMMARY
@@ -4826,13 +4849,21 @@ Image: {r['filename']}
   Diagnosis: {r['primary_diagnosis']}
   Confidence: {r['primary_confidence']*100:.1f}%
   Category: {r['treatment']['category']}
+  Causal Agent: {r['treatment']['causal_agent']}
+  Processed: {r.get('timestamp', timestamp)}
 {'-'*40}
+"""
+    
+    report += f"""
+{'='*60}
+END OF REPORT
+Report generated by Crop Doctor - AI-Powered Crop Disease Diagnosis
 """
     
     st.download_button(
         label="📥 Download Full Report",
         data=report,
-        file_name=f"batch_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+        file_name=f"batch_report_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.txt",
         mime="text/plain"
     )
 
