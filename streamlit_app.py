@@ -4025,6 +4025,78 @@ def get_weather_advisory(weather_warnings, disease_name, location):
 
     return advisories
 
+# Integrate Whatsapp
+def generate_whatsapp_share_link(diagnosis, confidence, location):
+    """Generate a WhatsApp share link with pre-filled message"""
+    
+    # Create the message content
+    message = f"""🌾 *CROP DOCTOR DIAGNOSIS*
+
+*Disease:* {diagnosis}
+*Confidence:* {confidence:.1%}
+*Location:* {location}
+
+*Treatment Recommendations:* 
+See full report for management and chemical control options.
+
+---
+Sent via Crop Doctor - AI-Powered Crop Disease Diagnosis
+https://huggingface.co/spaces/dosuto/crop-doctor
+"""
+    
+    # URL encode the message
+    import urllib.parse
+    encoded_message = urllib.parse.quote(message)
+    
+    # Create WhatsApp share link
+    whatsapp_url = f"https://wa.me/?text={encoded_message}"
+    
+    return whatsapp_url
+
+def display_whatsapp_share_button(diagnosis_name, confidence, location):
+    """Display a WhatsApp share button for the diagnosis results"""
+    
+    # Create the message content
+    message = f"""🌾 *CROP DOCTOR DIAGNOSIS*
+
+*Disease:* {diagnosis_name}
+*Confidence:* {confidence:.1%}
+*Location:* {location}
+
+*Next Steps:*
+View full treatment recommendations in the Crop Doctor app.
+
+---
+Sent via Crop Doctor - AI-Powered Crop Disease Diagnosis
+https://huggingface.co/spaces/dosuto/crop-doctor
+"""
+    
+    # URL encode the message
+    import urllib.parse
+    encoded_message = urllib.parse.quote(message)
+    
+    # Create WhatsApp share link
+    whatsapp_url = f"https://wa.me/?text={encoded_message}"
+    
+    # Display as a button/link
+    st.markdown(f"""
+    <a href="{whatsapp_url}" target="_blank">
+        <div style="
+            background: #25D366; 
+            color: white; 
+            padding: 8px 12px; 
+            border-radius: 25px; 
+            font-weight: 600; 
+            font-size: 13px; 
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        ">
+            📱 Share Diagnosis via WhatsApp
+        </div>
+    </a>
+    """, unsafe_allow_html=True)
 
 def display_options_menu(top_predictions, references, location, class_names, current_disease_name, current_crop_type, current_treatment_data=None):
     """Display dynamic options menu - menu header in its own curved box with all functionality"""
@@ -4036,6 +4108,16 @@ def display_options_menu(top_predictions, references, location, class_names, cur
     exit_option = analyze_another_option + 1
 
     current_mode = st.session_state.mode
+    
+    # Get confidence for the current displayed diagnosis
+    if st.session_state.get('current_showing_alternative') is not None:
+        alt_idx = st.session_state.current_showing_alternative
+        if alt_idx in st.session_state.current_alt_data:
+            current_conf = st.session_state.current_alt_data[alt_idx]['confidence']
+        else:
+            current_conf = top_predictions[0]['confidence']
+    else:
+        current_conf = top_predictions[0]['confidence']
 
     # Build the menu as a single markdown block in a section-card
     menu_html = f"""
@@ -4137,6 +4219,12 @@ def display_options_menu(top_predictions, references, location, class_names, cur
             st.session_state.showing_common_chemicals = False
             st.session_state.common_chemicals_data = None
             st.rerun()
+
+    # WhatsApp Share Button
+    st.markdown("---")
+    col_whatsapp1, col_whatsapp2, col_whatsapp3 = st.columns([1, 2, 1])
+    with col_whatsapp2:
+        display_whatsapp_share_button(current_disease_name, current_conf, location)
 
     # Online features based on current displayed disease
     if current_mode == "online":
@@ -4511,6 +4599,7 @@ def main():
                         current_disease = disease_data['class']
                         current_crop_type = disease_data['crop_type']
                         current_treatment = disease_data['treatment']
+                        current_confidence = disease_data['confidence']
 
                         display_top_predictions(top_predictions)
                         display_xai_analysis(disease_data)
@@ -4519,17 +4608,16 @@ def main():
                         if not disease_data['treatment'].get('is_healthy', False):
                             display_treatment_recommendation(disease_data['treatment'], references, disease_data['confidence'])
 
-                        # Export Report Button
-                        col1_export, col2_export = st.columns(2)
+                        # Export Report Button and WhatsApp Share
+                        col1_export, col2_export, col3_whatsapp = st.columns(3)
                         with col1_export:
                             if st.button("📄 Export Report", use_container_width=True, key="export_alt"):
                                 report = generate_export_report(disease_data, disease_data['treatment'], references, None)
-                                # Get local time for filename (FIXED - proper import)
                                 from datetime import datetime, timedelta, timezone as dt_timezone
                                 eat_timezone = dt_timezone(timedelta(hours=3))
                                 local_now = datetime.now(eat_timezone)
                                 local_timestamp = local_now.strftime('%Y%m%d_%H%M%S')
-
+                                
                                 st.download_button(
                                     label="📥 Download Report",
                                     data=report,
@@ -4537,6 +4625,9 @@ def main():
                                     mime="text/plain",
                                     key="download_alt"
                                 )
+                        
+                        with col3_whatsapp:
+                            display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
                         # Pass the treatment data for weather risk assessment
                         display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
@@ -4557,6 +4648,7 @@ def main():
                     current_disease = primary_data['class']
                     current_crop_type = primary_data['crop_type']
                     current_treatment = primary_data['treatment']
+                    current_confidence = primary_data['confidence']
 
                     display_top_predictions(top_predictions)
                     display_xai_analysis(primary_data)
@@ -4565,17 +4657,16 @@ def main():
                     if not primary_data['treatment'].get('is_healthy', False):
                         display_treatment_recommendation(primary_data['treatment'], references, primary_data['confidence'])
 
-                    # Export Report Button
-                    col1_export, col2_export = st.columns(2)
+                    # Export Report Button and WhatsApp Share
+                    col1_export, col2_export, col3_whatsapp = st.columns(3)
                     with col1_export:
                         if st.button("📄 Export Report", use_container_width=True, key="export_primary"):
                             report = generate_export_report(primary_data, primary_data['treatment'], references, None)
-                            # Get local time for filename (FIXED - proper import)
                             from datetime import datetime, timedelta, timezone as dt_timezone
                             eat_timezone = dt_timezone(timedelta(hours=3))
                             local_now = datetime.now(eat_timezone)
                             local_timestamp = local_now.strftime('%Y%m%d_%H%M%S')
-
+                            
                             st.download_button(
                                 label="📥 Download Report",
                                 data=report,
@@ -4583,6 +4674,9 @@ def main():
                                 mime="text/plain",
                                 key="download_primary"
                             )
+                    
+                    with col3_whatsapp:
+                        display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
                     # Pass the treatment data for weather risk assessment
                     display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
