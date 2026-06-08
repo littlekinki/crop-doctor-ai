@@ -29,7 +29,7 @@ from uuid import uuid4
 from huggingface_hub import HfApi
 import io
 import feedparser
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pytz
 import hashlib
 from bs4 import BeautifulSoup
@@ -4425,7 +4425,6 @@ def display_top_location_dialog():
 
     st.markdown("---")
 
-# Add this to handle GPS form submission (add this function before main())
 def handle_gps_submission():
     """Handle GPS form submission from JavaScript"""
     import streamlit as st
@@ -4764,10 +4763,17 @@ def main():
                     with col1_export:
                         if st.button("📄 Export Report", use_container_width=True, key="export_primary"):
                             report = generate_export_report(primary_data, primary_data['treatment'], references, None)
+                            # Get local time for filename
+                            # East Africa Time (EAT) is UTC+3
+                            eat_timezone = timezone(timedelta(hours=3))
+                            local_now = datetime.now(eat_timezone)
+                            local_timestamp = local_now.strftime('%Y%m%d_%H%M%S')
+                            
+                            # Then in the download button:
                             st.download_button(
                                 label="📥 Download Report",
                                 data=report,
-                                file_name=f"crop_doctor_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                                file_name=f"crop_doctor_report_{local_timestamp}.txt",
                                 mime="text/plain",
                                 key="download_primary"
                             )
@@ -4780,5 +4786,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
