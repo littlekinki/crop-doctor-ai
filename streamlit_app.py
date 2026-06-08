@@ -4723,10 +4723,16 @@ def main():
                         with col1_export:
                             if st.button("📄 Export Report", use_container_width=True, key="export_alt"):
                                 report = generate_export_report(disease_data, disease_data['treatment'], references, None)
+                                # Get local time for filename (same code)
+                                from datetime import datetime, timezone, timedelta
+                                eat_timezone = timezone(timedelta(hours=3))
+                                local_now = datetime.now(eat_timezone)
+                                local_timestamp = local_now.strftime('%Y%m%d_%H%M%S')
+                                
                                 st.download_button(
                                     label="📥 Download Report",
                                     data=report,
-                                    file_name=f"crop_doctor_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                                    file_name=f"crop_doctor_report_{local_timestamp}.txt",
                                     mime="text/plain",
                                     key="download_alt"
                                 )
