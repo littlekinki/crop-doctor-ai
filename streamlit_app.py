@@ -4040,8 +4040,8 @@ def generate_whatsapp_share_link(diagnosis, confidence, location):
 See full report for management and chemical control options.
 
 ---
-Sent via Crop Doctor - AI-Powered Crop Disease Diagnosis
-https://huggingface.co/spaces/dosuto/crop-doctor
+Sent via Crop Doctor - AI-Powered Crop Disease Diagnosis and Treatment Recommendation System
+https://dosuto-crop-doctor-system.hf.space/
 """
     
     # URL encode the message
@@ -4065,10 +4065,9 @@ def display_whatsapp_share_button(diagnosis_name, confidence, location):
 
 *Next Steps:*
 View full treatment recommendations in the Crop Doctor app.
-
+https://dosuto-crop-doctor-system.hf.space/
 ---
-Sent via Crop Doctor - AI-Powered Crop Disease Diagnosis
-https://huggingface.co/spaces/dosuto/crop-doctor
+Sent via Crop Doctor - AI-Powered Crop Disease Diagnosis and Treatment Recommendation System
 """
     
     # URL encode the message
