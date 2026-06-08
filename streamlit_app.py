@@ -3442,7 +3442,6 @@ def display_xai_analysis(disease_data):
     st.markdown(f"""
 <div class="section-card">
 <h3>🔥 VISUAL EVIDENCE: HOW THE CLASSIFIER MADE THE DECISION</h3>
-<p>✓ Generated</p>
 </div>
 """, unsafe_allow_html=True)
 
