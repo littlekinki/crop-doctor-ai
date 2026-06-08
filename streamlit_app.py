@@ -3005,8 +3005,7 @@ def display_healthy_crop_assessment(predicted_class, confidence, treatment, refe
     # SECTION 7: VISUAL EVIDENCE (Grad-CAM Heatmap)
     st.markdown(f"""
 <div class="section-card">
-<h3>🔥 VISUAL EVIDENCE (Heatmap)</h3>
-<p>✓ Generated</p>
+<h3>🔥 VISUAL EVIDENCE: HOW THE CLASSIFIER MADE THE DECISION </h3>
 </div>
 """, unsafe_allow_html=True)
 
@@ -3017,7 +3016,7 @@ def display_healthy_crop_assessment(predicted_class, confidence, treatment, refe
     # SECTION 8: GRAD-CAM LEGEND
     st.markdown("""
 <div class="section-card">
-<h3>📊 HEATMAP LEGEND</h3>
+<h3>📊 LEGEND FOR THE VISUAL EVIDENCE:</h3>
 <p>   🔴 <strong>RED (HOT)</strong>     = HIGH influence - These areas strongly indicate the condition</p>
 <p>   🟠 <strong>ORANGE</strong>        = HIGH-MEDIUM influence</p>
 <p>   🟡 <strong>YELLOW</strong>        = MEDIUM influence</p>
@@ -3117,7 +3116,7 @@ def display_heatmap_with_colorbar(original_img, heatmap_overlay, predicted_class
         st.image(original_img, caption="Original Image", width="stretch")
 
     with col2:
-        st.image(heatmap_overlay, caption=f"Heatmap Showing areas that led the model to pick on:\n{predicted_class}", width="stretch")
+        st.image(heatmap_overlay, caption=f"Visual overlay showing areas that led the model to pick on:\n{predicted_class}", width="stretch")
 
         # Create larger, more readable color bar
         fig, ax = plt.subplots(figsize=(10, 1))
@@ -3502,14 +3501,6 @@ def display_xai_analysis(disease_data):
 </div>
 """, unsafe_allow_html=True)
 
-    # SECTION 12: XAI SOURCES (Grad-CAM)
-    st.markdown(f"""
-<div class="section-card">
-<h3>📚 XAI SOURCES (Grad-CAM)</h3>
-<div class="reference-text">[{len(xai_refs)+1}] R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra, 'Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization,' in Proceedings of the IEEE International Conference on Computer Vision (ICCV), 2017, pp. 618-626.</div>
-</div>
-""", unsafe_allow_html=True)
-
 # ============================================================
 # NEWS AND WEATHER HELPERS FOR ONLINE MODE
 # ============================================================
@@ -3808,64 +3799,6 @@ def fetch_live_weather_forecast(location, disease_name, treatment_data=None):
     """Fetch live weather forecast from Open-Meteo API (already working)"""
     return get_weather_with_risk_assessment(location, disease_name, treatment_data)
 
-def search_manufacturer_websites(disease_name, crop_type, existing_chemicals):
-    """
-    Search manufacturer websites for NEW products NOT already in the database.
-    existing_chemicals: List of chemical names already in your treatment database
-    """
-    # Simulate search delay (remove this in production with real searches)
-    time.sleep(2)  # Simulate network delay
-    
-    # In a real implementation, you would:
-    # 1. Search each manufacturer's website
-    # 2. Extract product names
-    # 3. Compare with existing_chemicals
-    # 4. Return only products NOT in existing_chemicals
-    
-    # For now, return empty results (no new products)
-    # This is honest - no fake results
-    results = {
-        "new_products": [],  # Only products NOT in database
-        "manufacturers_checked": [
-            "Greenlife Crop Protection Africa",
-            "Bayer East Africa",
-            "Syngenta East Africa",
-            "Corteva Agriscience",
-            "BASF East Africa",
-            "Twiga Chemical Industries",
-            "Osho Chemical Industries"
-        ],
-        "search_time": time.strftime("%Y-%m-%d %H:%M:%S")
-    }
-    
-    # REAL IMPLEMENTATION EXAMPLE (when you add actual web search):
-    """
-    new_products = []
-    
-    for manufacturer in manufacturers:
-        # Search manufacturer's website
-        search_results = search_manufacturer(manufacturer, disease_name)
-        
-        for product in search_results:
-            # Check if product is already in your database
-            if product['name'] not in existing_chemicals:
-                new_products.append({
-                    "name": product['name'],
-                    "manufacturer": manufacturer,
-                    "url": product['url'],
-                    "relevance": product['relevance']
-                })
-    
-    results['new_products'] = new_products
-    """
-    
-    return results
-# For a more advanced implementation, you could use:
-# - Google Custom Search API (paid, but reliable)
-# - Bing Search API (paid)
-# - SerpAPI (paid)
-# - Or scrape specific manufacturer product pages (free, but may break)
-
 def display_online_features(disease_name, crop_type, location, treatment_data=None):
     """Display online features including weather, news, and agricultural updates"""
     
@@ -3992,21 +3925,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         """)
 
     # ============================================================
-    # SECTION 5: KALRO AGRICULTURAL UPDATES
-    # ============================================================
-    st.markdown("#### 🌾 KALRO AGRICULTURAL UPDATES")
-    st.caption("Latest from Kenya Agricultural and Livestock Research Organization")
-    
-    with st.spinner("🔄 Fetching latest KALRO updates..."):
-        kalro_updates = fetch_live_kalro_updates()
-    
-    for update in kalro_updates:
-        with st.expander(f"📢 {update['title']}"):
-            st.write(update['summary'])
-            st.markdown(f"[Read more on KALRO website]({update['url']})")
-    
-    # ============================================================
-    # SECTION 6: WEATHER-BASED FARMING TIP
+    # SECTION 5: WEATHER-BASED FARMING TIP
     # ============================================================
     st.markdown("---")
     st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
@@ -4034,10 +3953,25 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
             st.success("🌱 **Optimal conditions.** Good time for spraying, fertilizing, and field scouting.")
     else:
         st.info("🌱 Check local weather for optimal farming activities.")
+
+    # ============================================================
+    # SECTION 6: KALRO AGRICULTURAL UPDATES
+    # ============================================================
+    st.markdown("#### 🌾 KALRO AGRICULTURAL UPDATES")
+    st.caption("Latest from Kenya Agricultural and Livestock Research Organization")
     
+    with st.spinner("🔄 Fetching latest KALRO updates..."):
+        kalro_updates = fetch_live_kalro_updates()
+    
+    for update in kalro_updates:
+        with st.expander(f"📢 {update['title']}"):
+            st.write(update['summary'])
+            st.markdown(f"[Read more on KALRO website]({update['url']})")
+
     # ============================================================
     # SECTION 7: RESOURCE DIRECTORY
     # ============================================================
+    st.markdown("RESOURCE DIRECTORY")
     with st.expander("📚 Agricultural Resources for Kenyan Farmers", expanded=False):
         st.markdown("""
         **Live News & Weather:**
@@ -4060,7 +3994,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         **Farmer Support:**
         - National Agricultural Extension Hotline: **0800 720 123**
         """)
-        
+
 def get_weather_advisory(weather_warnings, disease_name, location):
     """Generate a tailored advisory based on weather warnings and disease"""
     advisories = []
