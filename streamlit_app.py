@@ -3952,7 +3952,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         elif temp and temp < 15:
             st.info("❄️ **Cool temperatures.** Delay transplanting sensitive crops.")
         else:
-            st.success("🌱 **Optimal conditions.** Good time for spraying, fertilizing, and field scouting.")
+            st.success("🌱 **Optimal conditions.** Good time for spraying, fertilising, and field scouting.")
     else:
         st.info("🌱 Check local weather for optimal farming activities.")
 
@@ -4248,11 +4248,11 @@ def display_top_location_buttons():
     """Display Change Location and Refresh buttons"""
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("📍 Change Location", use_container_width=True):
+        if st.button("📍 Change Location", width="stretch" ):
             st.session_state.show_top_location_dialog = True
             st.rerun()
     with col2:
-        if st.button("🔄 Refresh Weather", use_container_width=True):
+        if st.button("🔄 Refresh Weather", width="stretch" ):
             st.session_state.weather_info = None
             st.success("✅ Weather data refreshed!")
             time.sleep(0.5)
@@ -4285,7 +4285,7 @@ def display_top_location_dialog():
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("💾 Save Location", use_container_width=True):
+        if st.button("💾 Save Location", width="stretch" ):
             if new_city:
                 location = f"{new_city}, {new_country}" if not new_region else f"{new_city}, {new_region}, {new_country}"
                 st.session_state.location = location
@@ -4296,7 +4296,7 @@ def display_top_location_dialog():
             else:
                 st.error("Please enter at least a city/town.")
     with col2:
-        if st.button("❌ Cancel", use_container_width=True):
+        if st.button("❌ Cancel", width="stretch" ):
             st.session_state.show_top_location_dialog = False
             st.rerun()
 
@@ -4339,7 +4339,7 @@ def display_top_manual_entry_dialog():
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("💾 Save Location", use_container_width=True, key="top_save_btn"):
+        if st.button("💾 Save Location", width="stretch" , key="top_save_btn"):
             if new_city:
                 if new_region:
                     st.session_state.location = f"{new_city}, {new_region}, {new_country}"
@@ -4355,7 +4355,7 @@ def display_top_manual_entry_dialog():
             else:
                 st.error("Please enter at least a city/town.")
     with col2:
-        if st.button("❌ Cancel", use_container_width=True, key="top_cancel_manual_btn"):
+        if st.button("❌ Cancel", width="stretch" , key="top_cancel_manual_btn"):
             st.session_state.show_top_manual_entry = False
             st.rerun()
 
@@ -4375,21 +4375,21 @@ def display_feedback_section(disease_name, confidence):
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("❌ Never seen it", use_container_width=True, key="seen_never"):
+        if st.button("❌ Never seen it", width="stretch" , key="seen_never"):
             save_feedback(disease_name, confidence, "seen_before", "never")
             st.success("✅ Thank you! This helps us track new disease outbreaks.")
             time.sleep(1)
             st.rerun()
     
     with col2:
-        if st.button("⚠️ Seen it a few times", use_container_width=True, key="seen_few"):
+        if st.button("⚠️ Seen it a few times", width="stretch" , key="seen_few"):
             save_feedback(disease_name, confidence, "seen_before", "few_times")
             st.success("✅ Thank you for the information!")
             time.sleep(1)
             st.rerun()
     
     with col3:
-        if st.button("🔄 Seen it many times", use_container_width=True, key="seen_many"):
+        if st.button("🔄 Seen it many times", width="stretch" , key="seen_many"):
             save_feedback(disease_name, confidence, "seen_before", "many_times")
             st.success("✅ Thank you for the information!")
             time.sleep(1)
@@ -4401,21 +4401,21 @@ def display_feedback_section(disease_name, confidence):
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("✅ Easily available", use_container_width=True, key="available_yes"):
+        if st.button("✅ Easily available", width="stretch" , key="available_yes"):
             save_feedback(disease_name, confidence, "products_available", "easily")
             st.success("✅ Good to know! Thank you.")
             time.sleep(1)
             st.rerun()
     
     with col2:
-        if st.button("⚠️ Some are available", use_container_width=True, key="available_some"):
+        if st.button("⚠️ Some are available", width="stretch" , key="available_some"):
             save_feedback(disease_name, confidence, "products_available", "some")
             st.success("✅ Thank you! We'll note this for your region.")
             time.sleep(1)
             st.rerun()
     
     with col3:
-        if st.button("❌ None available", use_container_width=True, key="available_no"):
+        if st.button("❌ None available", width="stretch" , key="available_no"):
             save_feedback(disease_name, confidence, "products_available", "none")
             st.warning("⚠️ Thank you for letting us know. We'll work on alternative recommendations for your area.")
             time.sleep(1)
@@ -4430,36 +4430,36 @@ def display_feedback_section(disease_name, confidence):
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("✅ Yes, focused on the problem areas", use_container_width=True, key="gradcam_yes"):
+        if st.button("✅ Yes, focused on the problem areas", width="stretch" , key="gradcam_yes"):
             save_feedback(disease_name, confidence, "gradcam_accuracy", "yes_correct_focus")
             st.success("✅ Thank you! This confirms the AI is looking at the right places.")
             time.sleep(1)
             st.rerun()
     
     with col2:
-        if st.button("🤔 Partially correct", use_container_width=True, key="gradcam_partial"):
+        if st.button("🤔 Partially correct", width="stretch" , key="gradcam_partial"):
             save_feedback(disease_name, confidence, "gradcam_accuracy", "partial_focus")
             st.success("✅ Thank you! This helps us improve the AI's attention.")
             time.sleep(1)
             st.rerun()
     
     with col3:
-        if st.button("❌ No, focused on wrong areas", use_container_width=True, key="gradcam_no"):
+        if st.button("❌ No, focused on wrong areas", width="stretch" , key="gradcam_no"):
             save_feedback(disease_name, confidence, "gradcam_accuracy", "wrong_focus")
             st.warning("⚠️ Thank you for letting us know. This helps us retrain the model to focus on the right symptoms.")
             time.sleep(1)
             st.rerun()
     
     # Optional follow-up for Grad-CAM
-    with st.expander("📝 Tell us more about what the heatmap showed (optional)", expanded=False):
-        st.markdown("**What did you notice about the colored overlay?**")
-        st.caption("For example: 'The red areas were on the healthy parts, not the diseased spots' or 'The heatmap correctly highlighted the brown lesions'")
+    with st.expander("📝 Tell us more about what the overlay image showed (optional)", expanded=False):
+        st.markdown("**What did you notice about the coloured overlay image?**")
+        st.caption("For example: 'The red areas were on the healthy parts, not the diseased spots' or 'The coloured overlay image correctly highlighted the brown lesions'")
         
         gradcam_feedback = st.text_area("", 
-                                      placeholder="Describe what you saw in the heatmap...",
+                                      placeholder="Describe what you saw in the coloured overlay image...",
                                       key="gradcam_feedback_area")
         
-        if st.button("📤 Submit Heatmap Feedback", use_container_width=True):
+        if st.button("📤 Submit coloured overlay image Feedback", width="stretch" ):
             if gradcam_feedback:
                 save_feedback(disease_name, confidence, "gradcam_comments", gradcam_feedback, None)
                 st.success("✅ Thank you for the detailed feedback!")
@@ -4475,7 +4475,7 @@ def display_feedback_section(disease_name, confidence):
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("✅ Very helpful", use_container_width=True, key="helpful_very"):
+        if st.button("✅ Very helpful", width="stretch" , key="helpful_very"):
             save_feedback(disease_name, confidence, "system_helpful", "very_helpful")
             st.success("✅ Thank you! We're glad Crop Doctor could help you.")
             st.balloons()
@@ -4483,14 +4483,14 @@ def display_feedback_section(disease_name, confidence):
             st.rerun()
     
     with col2:
-        if st.button("🤔 Somewhat helpful", use_container_width=True, key="helpful_somewhat"):
+        if st.button("🤔 Somewhat helpful", width="stretch" , key="helpful_somewhat"):
             save_feedback(disease_name, confidence, "system_helpful", "somewhat_helpful")
             st.success("✅ Thank you! Please share what could be improved in the comments.")
             time.sleep(1)
             st.rerun()
     
     with col3:
-        if st.button("❌ Not helpful", use_container_width=True, key="helpful_not"):
+        if st.button("❌ Not helpful", width="stretch" , key="helpful_not"):
             save_feedback(disease_name, confidence, "system_helpful", "not_helpful")
             st.warning("⚠️ We're sorry to hear that. Your feedback helps us improve.")
             time.sleep(1)
@@ -4502,21 +4502,21 @@ def display_feedback_section(disease_name, confidence):
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("✅ Yes, definitely", use_container_width=True, key="use_again_yes"):
+        if st.button("✅ Yes, definitely", width="stretch" , key="use_again_yes"):
             save_feedback(disease_name, confidence, "use_again", "yes")
             st.success("✅ Thank you! We're honored to serve you.")
             time.sleep(1)
             st.rerun()
     
     with col2:
-        if st.button("🤔 Maybe", use_container_width=True, key="use_again_maybe"):
+        if st.button("🤔 Maybe", width="stretch" , key="use_again_maybe"):
             save_feedback(disease_name, confidence, "use_again", "maybe")
             st.success("✅ Thank you! Is there something we could improve?")
             time.sleep(1)
             st.rerun()
     
     with col3:
-        if st.button("❌ Probably not", use_container_width=True, key="use_again_no"):
+        if st.button("❌ Probably not", width="stretch" , key="use_again_no"):
             save_feedback(disease_name, confidence, "use_again", "no")
             st.warning("⚠️ We're sorry to hear that. Your feedback helps us improve.")
             time.sleep(1)
@@ -4533,7 +4533,7 @@ def display_feedback_section(disease_name, confidence):
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("📤 Submit Comments", use_container_width=True):
+            if st.button("📤 Submit Comments", width="stretch" ):
                 if general_feedback:
                     save_feedback(disease_name, confidence, "general_comments", general_feedback, None)
                     st.success("✅ Thank you for your suggestions!")
@@ -4543,7 +4543,7 @@ def display_feedback_section(disease_name, confidence):
                 else:
                     st.warning("Please enter your comments before submitting.")
         with col2:
-            if st.button("❌ Cancel", use_container_width=True):
+            if st.button("❌ Cancel", width="stretch" ):
                 st.rerun()
     
     st.caption("💡 Your feedback is anonymous and helps us serve Kenyan farmers better.")
@@ -4660,11 +4660,11 @@ def main():
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             # Help button
-            if st.button("❓ Help / How to use the system", use_container_width=True):
+            if st.button("❓ Help / How to use the system", width="stretch" ):
                 st.session_state.show_help = not st.session_state.show_help
 
             # Classes button
-            if st.button("📋 List of Supported Classes", use_container_width=True):
+            if st.button("📋 List of Supported Classes", width="stretch" ):
                 st.session_state.show_classes = not st.session_state.show_classes
 
             selected_mode = st.radio(
@@ -4759,7 +4759,7 @@ def main():
             st.markdown("### 📸 Upload Crop Image")
             st.caption("📸 Take a clear photo of the affected leaves or fruits for best results")
 
-            if st.button("📷 Take Photo", use_container_width=True):
+            if st.button("📷 Take Photo", width="stretch" ):
                 st.session_state.camera_active = True
 
             if st.session_state.camera_active:
@@ -4780,7 +4780,7 @@ def main():
             if st.session_state.current_image is not None:
                 st.image(st.session_state.current_image, caption="Selected Image", width="stretch")
 
-                if st.button("🔬 DIAGNOSE & RECOMMEND", type="primary", use_container_width=True):
+                if st.button("🔬 DIAGNOSE & RECOMMEND", type="primary", width="stretch" ):
                     with st.spinner("Analysing crop disease..."):
                         image = st.session_state.current_image
                         if image.mode != 'RGB':
@@ -4877,7 +4877,7 @@ def main():
                         # Export Report Button and WhatsApp Share
                         col1_export, col2_export, col3_whatsapp = st.columns(3)
                         with col1_export:
-                            if st.button("📄 Export Report", use_container_width=True, key="export_alt"):
+                            if st.button("📄 Export Report", width="stretch" , key="export_alt"):
                                 report = generate_export_report(disease_data, disease_data['treatment'], references, None)
                                 from datetime import datetime, timedelta, timezone as dt_timezone
                                 eat_timezone = dt_timezone(timedelta(hours=3))
@@ -4904,7 +4904,7 @@ def main():
                         # INVITATION MESSAGE (after options menu, before online features)
                         # ============================================================
                         st.markdown("---")
-                        st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
+                        st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all farmers.")
                         
                         # ============================================================
                         # ONLINE MODE FEATURES (weather, news, etc.)
@@ -4958,7 +4958,7 @@ def main():
                     # Export Report Button and WhatsApp Share
                     col1_export, col2_export, col3_whatsapp = st.columns(3)
                     with col1_export:
-                        if st.button("📄 Export Report", use_container_width=True, key="export_primary"):
+                        if st.button("📄 Export Report", width="stretch" , key="export_primary"):
                             report = generate_export_report(primary_data, primary_data['treatment'], references, None)
                             from datetime import datetime, timedelta, timezone as dt_timezone
                             eat_timezone = dt_timezone(timedelta(hours=3))
@@ -4982,7 +4982,7 @@ def main():
                     display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
 
                     # ============================================================
-                    # INVITATION MESSAGE 
+                    # INVITATION MESSAGE
                     # ============================================================
                     st.markdown("---")
                     st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
