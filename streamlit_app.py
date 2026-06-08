@@ -554,7 +554,7 @@ def generate_export_report(disease_data, treatment_data, references, weather_dat
 
     # Add Grad-CAM reference
     grad_cam_ref_num = len(xai_refs) + 1
-    xai_refs_text += f"  [{grad_cam_ref_num}] R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra, 'Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization,' in Proceedings of the IEEE International Conference on Computer Vision (ICCV), 2017, pp. 618-626.\n"
+    #xai_refs_text += f"  [{grad_cam_ref_num}] R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra, 'Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization,' in Proceedings of the IEEE International Conference on Computer Vision (ICCV), 2017, pp. 618-626.\n"
 
     report = f"""
 CROP DOCTOR DIAGNOSIS REPORT
@@ -4067,7 +4067,7 @@ def display_whatsapp_share_button(diagnosis_name, confidence, location):
 View full treatment recommendations in the Crop Doctor app.
 
 ---
-Sent via Crop Doctor - AI-Powered Crop Disease Diagnosis
+Sent via Crop Doctor - AI-Powered Crop Disease Diagnosis and Treatment Recommendation System
 https://dosuto-crop-doctor-system.hf.space/
 """
     
