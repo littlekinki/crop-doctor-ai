@@ -4786,6 +4786,160 @@ def export_all_images_analysis(results):
         mime="text/plain"
     )
 
+def generate_comprehensive_batch_report(results, batch_timestamp):
+    """Generate a single comprehensive report for all images in the batch"""
+    from datetime import datetime, timedelta, timezone as dt_timezone
+    
+    eat_timezone = dt_timezone(timedelta(hours=3))
+    timestamp = datetime.now(eat_timezone).strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Helper function to clean category
+    def clean_category(category_text):
+        category_text = category_text.replace('🍄', '').replace('🦠', '').replace('🐛', '').replace('🌿', '').replace('🌱', '').strip()
+        return category_text.capitalize()
+    
+    # Separate healthy and diseased crops
+    healthy_crops = [r for r in results if r.get('is_healthy', False)]
+    diseased_crops = [r for r in results if not r.get('is_healthy', False)]
+    
+    report_lines = []
+    
+    # Header
+    report_lines.append("=" * 80)
+    report_lines.append("CROP DOCTOR - COMPREHENSIVE BATCH ANALYSIS REPORT")
+    report_lines.append("=" * 80)
+    report_lines.append(f"Report Generated: {timestamp}")
+    report_lines.append(f"Batch Processed: {batch_timestamp}")
+    report_lines.append(f"Time Zone: East Africa Time (EAT, UTC+3)")
+    report_lines.append("")
+    report_lines.append(f"Total Images Processed: {len(results)}")
+    report_lines.append(f"  - Diseased Crops: {len(diseased_crops)}")
+    report_lines.append(f"  - Healthy Crops: {len(healthy_crops)}")
+    report_lines.append("")
+    
+    # Disease Prevalence Summary
+    if diseased_crops:
+        report_lines.append("-" * 80)
+        report_lines.append("DISEASE PREVALENCE SUMMARY")
+        report_lines.append("-" * 80)
+        report_lines.append("")
+        
+        disease_counts = {}
+        for r in diseased_crops:
+            disease_name = r['primary_diagnosis']
+            disease_counts[disease_name] = disease_counts.get(disease_name, 0) + 1
+        
+        for disease, count in sorted(disease_counts.items(), key=lambda x: -x[1]):
+            percentage = (count / len(results)) * 100
+            report_lines.append(f"  {disease}: {count} image(s) ({percentage:.1f}%)")
+        report_lines.append("")
+    
+    # Category Breakdown
+    categories = {}
+    for r in results:
+        cat = clean_category(r['category'])
+        categories[cat] = categories.get(cat, 0) + 1
+    
+    report_lines.append("-" * 80)
+    report_lines.append("CATEGORY BREAKDOWN")
+    report_lines.append("-" * 80)
+    report_lines.append("")
+    for cat, count in sorted(categories.items(), key=lambda x: -x[1]):
+        report_lines.append(f"  {cat}: {count}")
+    report_lines.append("")
+    
+    # Confidence Statistics
+    if diseased_crops:
+        confidences = []
+        for r in diseased_crops:
+            conf_val = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
+            confidences.append(conf_val)
+        
+        if confidences:
+            report_lines.append("-" * 80)
+            report_lines.append("CONFIDENCE STATISTICS (Diseased Crops Only)")
+            report_lines.append("-" * 80)
+            report_lines.append("")
+            report_lines.append(f"  Average Confidence: {sum(confidences)/len(confidences)*100:.1f}%")
+            report_lines.append(f"  Highest Confidence: {max(confidences)*100:.1f}%")
+            report_lines.append(f"  Lowest Confidence: {min(confidences)*100:.1f}%")
+            report_lines.append("")
+    
+    # Detailed Results for Each Image
+    report_lines.append("=" * 80)
+    report_lines.append("DETAILED RESULTS BY IMAGE")
+    report_lines.append("=" * 80)
+    report_lines.append("")
+    
+    for idx, r in enumerate(results, 1):
+        conf_val = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
+        
+        report_lines.append(f"{'=' * 80}")
+        report_lines.append(f"IMAGE #{idx}: {r['filename']}")
+        report_lines.append(f"{'=' * 80}")
+        report_lines.append("")
+        report_lines.append("DIAGNOSIS SUMMARY")
+        report_lines.append("-" * 40)
+        report_lines.append(f"  Primary Diagnosis: {r['primary_diagnosis']}")
+        report_lines.append(f"  Confidence: {conf_val*100:.1f}%")
+        report_lines.append(f"  Category: {clean_category(r['category'])}")
+        report_lines.append(f"  Causal Agent: {r['causal_agent']}")
+        report_lines.append(f"  Is Healthy: {'Yes' if r.get('is_healthy', False) else 'No'}")
+        report_lines.append(f"  Processed: {r.get('timestamp', batch_timestamp)}")
+        report_lines.append("")
+        
+        # Top predictions
+        report_lines.append("TOP PREDICTIONS")
+        report_lines.append("-" * 40)
+        for i, pred in enumerate(r['top_predictions'], 1):
+            pred_conf = float(pred['confidence']) if hasattr(pred['confidence'], 'item') else pred['confidence']
+            report_lines.append(f"  {i}. {pred['class']}: {pred_conf*100:.1f}%")
+        report_lines.append("")
+        
+        # Treatment recommendations
+        if not r.get('is_healthy', False):
+            report_lines.append("TREATMENT RECOMMENDATIONS")
+            report_lines.append("-" * 40)
+            report_lines.append("")
+            report_lines.append("MANAGEMENT PRACTICES:")
+            report_lines.append("")
+            for line in r['management'].split('\n'):
+                if line.strip():
+                    report_lines.append(f"  {line}")
+            report_lines.append("")
+            report_lines.append("CHEMICAL CONTROL:")
+            report_lines.append("")
+            for line in r['chemical_control'].split('\n'):
+                if line.strip():
+                    report_lines.append(f"  {line}")
+            report_lines.append("")
+        else:
+            report_lines.append("STATUS: HEALTHY CROP")
+            report_lines.append("-" * 40)
+            report_lines.append("  No treatment needed. Continue good farming practices.")
+            report_lines.append("")
+        
+        report_lines.append("")
+    
+    # Footer
+    report_lines.append("=" * 80)
+    report_lines.append("END OF REPORT")
+    report_lines.append("=" * 80)
+    report_lines.append("")
+    report_lines.append("Report generated by Crop Doctor - AI-Powered Crop Disease Diagnosis")
+    report_lines.append("For questions or support, contact your local agricultural extension officer")
+    
+    # Combine and create download
+    report_text = "\n".join(report_lines)
+    
+    st.download_button(
+        label="📥 Download Comprehensive Report",
+        data=report_text,
+        file_name=f"crop_doctor_batch_report_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.txt",
+        mime="text/plain",
+        key="download_comprehensive_report"
+    )
+
 def display_batch_results(results):
     """Display batch processing results in an organised way with selectable image for detailed analysis"""
     from datetime import datetime, timedelta, timezone as dt_timezone
