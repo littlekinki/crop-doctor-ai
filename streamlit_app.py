@@ -510,6 +510,12 @@ if 'batch_results' not in st.session_state:
     st.session_state.batch_results = None
 if 'show_batch_results' not in st.session_state:
     st.session_state.show_batch_results = False
+# Batch options menu states
+if 'show_common_chemicals_batch' not in st.session_state:
+    st.session_state.show_common_chemicals_batch = False
+if 'show_alternative_batch' not in st.session_state:
+    st.session_state.show_alternative_batch = None
+
 # ============================================================
 # HELPER FUNCTION: Check Internet Connection (for mode switch suggestion)
 # ============================================================
@@ -5483,110 +5489,209 @@ def display_batch_results(results):
 """, unsafe_allow_html=True)
     
     # ============================================================
-    # 21. OPTIONS MENU (WITH K VALUE CHANGE)
+    # 21. OPTIONS MENU (MATCHING SINGLE IMAGE STYLE)
     # ============================================================
     st.markdown("---")
     st.markdown("## 💡 OPTIONS MENU")
-    st.caption("Explore alternative diagnoses for this image")
+    st.caption("Explore alternative diagnoses and settings for this image")
     
     num_predictions = len(selected_result['top_predictions'])
+    common_chemicals_option = num_predictions + 1
+    change_topk_option = common_chemicals_option + 1
+    analyze_another_option = change_topk_option + 1
+    exit_option = analyze_another_option + 1
     
-    # Display menu items
-    for i, pred in enumerate(selected_result['top_predictions'], 1):
-        pred_conf = float(pred['confidence']) if hasattr(pred['confidence'], 'item') else pred['confidence']
-        if i == 1:
-            st.markdown(f"**1.** Get treatment for PRIMARY DIAGNOSIS ({pred['class']}) - {pred_conf*100:.1f}%")
-        else:
-            st.markdown(f"**{i}.** Get treatment for ALTERNATIVE {i-1} ({pred['class']}) - {pred_conf*100:.1f}%")
+    # Build the menu as a single markdown block
+    menu_html = f"""
+<div class="section-card">
+<h3>💡 OPTIONS MENU</h3>
+<p><strong>1.</strong> Get treatment for PRIMARY DIAGNOSIS ({selected_result['top_predictions'][0]['class']}) - {float(selected_result['top_predictions'][0]['confidence'])*100:.1f}%</p>
+"""
     
-    st.markdown(f"**{num_predictions + 1}.** Show common chemicals for ALL TOP {num_predictions} diseases")
-    st.markdown(f"**{num_predictions + 2}.** Change number of top predictions (current: {st.session_state.current_top_k})")
-    st.markdown(f"**{num_predictions + 3}.** Analyse another image")
-    st.markdown(f"**{num_predictions + 4}.** Exit batch view")
+    for i in range(1, num_predictions):
+        pred_conf = float(selected_result['top_predictions'][i]['confidence']) if hasattr(selected_result['top_predictions'][i]['confidence'], 'item') else selected_result['top_predictions'][i]['confidence']
+        menu_html += f'<p><strong>{i+1}.</strong> Get treatment for ALTERNATIVE {i} ({selected_result["top_predictions"][i]["class"]}) - {pred_conf*100:.1f}%</p>\n'
     
-    # Create dynamic number of buttons based on total options
-    total_options = num_predictions + 4
+    menu_html += f"""
+<p><strong>{common_chemicals_option}.</strong> Show common chemicals for ALL TOP {num_predictions} diseases</p>
+<p><strong>{change_topk_option}.</strong> Change number of top predictions (current: {st.session_state.current_top_k})</p>
+<p><strong>{analyze_another_option}.</strong> Analyse another image from batch</p>
+<p><strong>{exit_option}.</strong> Exit batch view</p>
+</div>
+"""
+    st.markdown(menu_html, unsafe_allow_html=True)
+
+    # Create button row for menu options
+    total_options = exit_option
     cols = st.columns(min(total_options, 10))
+    
+    # Track which option was clicked
+    option_clicked = None
     
     for i in range(1, min(total_options + 1, 11)):
         with cols[i-1]:
-            if st.button(f"{i}", key=f"batch_opt_{i}", use_container_width=True):
-                if i == num_predictions + 4:  # Exit batch view
+            if st.button(f"{i}", key=f"batch_menu_btn_{i}", use_container_width=True):
+                option_clicked = i
+                if i == exit_option:
                     st.session_state.show_batch_results = False
                     st.session_state.batch_results = None
                     st.session_state.batch_mode = False
                     st.rerun()
-                elif i == num_predictions + 3:  # Analyse another image
+                elif i == analyze_another_option:
                     st.info("📌 Please use the dropdown at the top to select a different image.")
-                elif i == num_predictions + 2:  # Change K value
+                elif i == change_topk_option:
                     st.session_state.show_k_dialog = True
                     st.rerun()
-                elif i == num_predictions + 1:  # Show common chemicals
-                    st.markdown("---")
-                    st.markdown("#### 🌿 Common Chemicals for All Top Predictions")
-                    
-                    all_top_preds = []
-                    for pred in selected_result['top_predictions']:
-                        pred_conf = float(pred['confidence']) if hasattr(pred['confidence'], 'item') else pred['confidence']
-                        all_top_preds.append({'class': pred['class'], 'confidence': pred_conf})
-                    
-                    show_common_chemicals_for_top_k(all_top_preds, get_references())
-                elif 1 <= i <= num_predictions:  # Show alternative treatment
+                elif i == common_chemicals_option:
+                    # Show common chemicals below the buttons
+                    st.session_state.show_common_chemicals_batch = True
+                    st.rerun()
+                elif 1 <= i <= num_predictions:
                     if i == 1:
-                        # Already showing primary, just refresh
+                        st.session_state.show_alternative_batch = None
                         st.rerun()
                     else:
-                        alt_idx = i - 1
-                        alt_pred = selected_result['top_predictions'][alt_idx]
-                        alt_treatment = get_full_treatment(alt_pred['class'], get_references())
-                        alt_conf = float(alt_pred['confidence']) if hasattr(alt_pred['confidence'], 'item') else alt_pred['confidence']
-                        
-                        # Display alternative diagnosis in a full-width expander
-                        with st.expander(f"🔬 ALTERNATIVE {alt_idx} ANALYSIS: {alt_pred['class']} ({alt_conf*100:.1f}%)", expanded=True):
-                            st.markdown(f"""
+                        st.session_state.show_alternative_batch = i - 1
+                        st.rerun()
+    
+    # ============================================================
+    # DISPLAY CONTENT BASED ON BUTTON CLICK (BELOW BUTTONS)
+    # ============================================================
+    
+    # Show common chemicals if requested
+    if st.session_state.get('show_common_chemicals_batch', False):
+        st.markdown("---")
+        st.markdown("#### 🌿 Common Chemicals for All Top Predictions")
+        
+        all_top_preds = []
+        for pred in selected_result['top_predictions']:
+            pred_conf = float(pred['confidence']) if hasattr(pred['confidence'], 'item') else pred['confidence']
+            all_top_preds.append({'class': pred['class'], 'confidence': pred_conf})
+        
+        show_common_chemicals_for_top_k(all_top_preds, get_references())
+        
+        if st.button("✖ Close", use_container_width=True, key="close_common_chemicals_batch"):
+            st.session_state.show_common_chemicals_batch = False
+            st.rerun()
+    
+    # Show alternative diagnosis if requested
+    if st.session_state.get('show_alternative_batch') is not None:
+        alt_idx = st.session_state.show_alternative_batch
+        if alt_idx is not None and alt_idx < len(selected_result['top_predictions']):
+            alt_pred = selected_result['top_predictions'][alt_idx]
+            alt_treatment = get_full_treatment(alt_pred['class'], get_references())
+            alt_conf = float(alt_pred['confidence']) if hasattr(alt_pred['confidence'], 'item') else alt_pred['confidence']
+            
+            st.markdown("---")
+            
+            # Display alternative diagnosis in full width (matching single image style)
+            st.markdown(f"""
 <div class="section-card">
-    <p><strong>📊 CONFIDENCE:</strong> {alt_conf*100:.1f}%</p>
-    <p><strong>🏷️ TYPE:</strong> {alt_treatment['category']}</p>
-    <p><strong>🦠 CAUSAL AGENT:</strong> {alt_treatment['causal_agent']}</p>
+<h3>🔬 ALTERNATIVE {alt_idx} ANALYSIS: {alt_pred['class']}</h3>
+<p><strong>📊 CLASSIFIER CONFIDENCE SCORE:</strong> {alt_conf*100:.1f}%</p>
+<p><strong>🏷️ DISEASE TYPE:</strong> {alt_treatment['category']}</p>
+<p><strong>🦠 CAUSAL AGENT:</strong> {alt_treatment['causal_agent']}</p>
 </div>
 """, unsafe_allow_html=True)
-                            
-                            if not alt_treatment.get('is_healthy', False):
-                                # Management
-                                st.markdown(f"""
+            
+            if not alt_treatment.get('is_healthy', False):
+                # Management
+                st.markdown(f"""
 <div class="section-card">
-    <h3>🔧 RECOMMENDED MANAGEMENT</h3>
-    <p style="white-space: pre-line;">{alt_treatment['management'][:800]}</p>
+<h3>🔧 RECOMMENDED MANAGEMENT</h3>
+<p style="white-space: pre-line;">{alt_treatment['management']}</p>
 </div>
 """, unsafe_allow_html=True)
-                                
-                                # Chemical Control
-                                st.markdown(f"""
+                
+                # Chemical Control
+                st.markdown(f"""
 <div class="section-card">
-    <h3>💊 CHEMICAL CONTROL</h3>
-    <p style="white-space: pre-line;">{alt_treatment['chemical_control'][:600]}</p>
+<h3>💊 CHEMICAL CONTROL</h3>
+<p style="white-space: pre-line;">{alt_treatment['chemical_control']}</p>
 </div>
 """, unsafe_allow_html=True)
-                                
-                                # Export and Share buttons
-                                alt_report_data = {'class': alt_pred['class'], 'confidence': alt_conf}
-                                alt_report = generate_export_report(alt_report_data, alt_treatment, get_references(), None)
-                                
-                                col_btn1, col_btn2 = st.columns(2)
-                                with col_btn1:
-                                    st.download_button(
-                                        label=f"📥 Download Report for {alt_pred['class'][:40]}",
-                                        data=alt_report,
-                                        file_name=f"crop_doctor_report_{alt_pred['class'].replace(' ', '_')}_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.txt",
-                                        mime="text/plain",
-                                        key=f"download_alt_batch_{alt_idx}"
-                                    )
-                                with col_btn2:
-                                    display_whatsapp_share_button(alt_pred['class'], alt_conf, st.session_state.location)
-                            else:
-                                st.success(f"✅ {alt_pred['class']} - Healthy crop, no treatment needed.")
-                        
-                        st.markdown("---")
+                
+                # Management References
+                management_refs = alt_treatment.get('management_refs', [])
+                if management_refs:
+                    management_refs_text = format_reference_list_sequential(management_refs, get_references())
+                    st.markdown(f"""
+<div class="section-card">
+<h3>📚 MANAGEMENT REFERENCES</h3>
+<div class="reference-text">{management_refs_text}</div>
+</div>
+""", unsafe_allow_html=True)
+                
+                # Chemical References
+                chemical_refs_original = alt_treatment.get('chemical_refs_original', [])
+                if chemical_refs_original:
+                    chem_ref_list = []
+                    for idx, ref_num in enumerate(chemical_refs_original, 1):
+                        if ref_num in get_references():
+                            chem_ref_list.append(f"[{idx}] {get_references()[ref_num]}")
+                        else:
+                            chem_ref_list.append(f"[{idx}] Reference {ref_num}")
+                    chemical_refs_text = "\n".join(chem_ref_list)
+                    st.markdown(f"""
+<div class="section-card">
+<h3>📚 CHEMICAL REFERENCES</h3>
+<div class="reference-text">{chemical_refs_text}</div>
+</div>
+""", unsafe_allow_html=True)
+                
+                # Export and Share buttons
+                alt_report_data = {'class': alt_pred['class'], 'confidence': alt_conf}
+                alt_report = generate_export_report(alt_report_data, alt_treatment, get_references(), None)
+                
+                col_btn1, col_btn2 = st.columns(2)
+                with col_btn1:
+                    st.download_button(
+                        label=f"📥 Export Report for {alt_pred['class'][:40]}",
+                        data=alt_report,
+                        file_name=f"crop_doctor_report_{alt_pred['class'].replace(' ', '_')}_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.txt",
+                        mime="text/plain",
+                        key=f"download_alt_batch_{alt_idx}"
+                    )
+                with col_btn2:
+                    display_whatsapp_share_button(alt_pred['class'], alt_conf, st.session_state.location)
+            else:
+                st.success(f"✅ {alt_pred['class']} - Healthy crop, no treatment needed.")
+            
+            if st.button("✖ Close Alternative View", use_container_width=True, key="close_alternative_batch"):
+                st.session_state.show_alternative_batch = None
+                st.rerun()
+    
+    # ============================================================
+    # K VALUE CHANGE DIALOG
+    # ============================================================
+    if st.session_state.get('show_k_dialog', False):
+        with st.expander("📊 Change number of top predictions", expanded=True):
+            st.markdown("**K** represents the number of top predictions to display and consider.")
+            st.markdown(f"Current K value: **{st.session_state.current_top_k}**")
+            
+            # Get the actual number of classes from the model
+            model_temp, class_names_temp = load_model_and_classes()
+            max_classes = len(class_names_temp) if class_names_temp else 50
+            
+            new_k = st.number_input(
+                "Enter new K value",
+                min_value=1,
+                max_value=max_classes,
+                value=st.session_state.current_top_k,
+                step=1,
+                key="batch_k_value_input"
+            )
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("✅ Set", use_container_width=True, key="batch_set_k_btn"):
+                    st.session_state.current_top_k = new_k
+                    st.session_state.show_k_dialog = False
+                    st.session_state.show_results = False
+                    st.rerun()
+            with col2:
+                if st.button("❌ Cancel", use_container_width=True, key="batch_cancel_k_btn"):
+                    st.session_state.show_k_dialog = False
+                    st.rerun()
 
     # ============================================================
     # K VALUE CHANGE DIALOG (FIXED - no class_names dependency)
