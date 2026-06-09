@@ -5562,6 +5562,17 @@ def display_batch_results(results):
                         st.session_state.show_common_chemicals_batch = False
                         st.rerun()
     
+    # Show navigation help if coming from "Select different image"
+    if st.session_state.get('highlight_dropdown', False):
+        st.markdown("""
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 10px; margin: 15px 0; text-align: center;">
+            <p style="margin-bottom: 10px;">📌 <strong>To select a different image:</strong></p>
+            <p>1️⃣ Scroll up to the <strong>"Select Image for Detailed Analysis"</strong> section</p>
+            <p>2️⃣ Choose a different image from the dropdown menu</p>
+            <p style="margin-top: 10px; font-size: 12px; color: #666;">💡 The dropdown is located right after the batch summary table</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
     # ============================================================
     # DISPLAY CONTENT BASED ON BUTTON CLICK (FULL WIDTH)
     # ============================================================
@@ -5668,38 +5679,6 @@ def display_batch_results(results):
             if st.button("✖ Close Alternative View", use_container_width=True, key="close_alternative_batch"):
                 st.session_state.show_alternative_batch = None
                 st.rerun()
-    
-    # ============================================================
-    # K VALUE CHANGE DIALOG (WITH UNIQUE KEYS FOR BATCH)
-    # ============================================================
-    if st.session_state.get('show_k_dialog', False):
-        with st.expander("📊 Change number of top predictions", expanded=True):
-            st.markdown("**K** represents the number of top predictions to display and consider.")
-            st.markdown(f"Current K value: **{st.session_state.current_top_k}**")
-            
-            # Get the actual number of classes from the model
-            model_temp, class_names_temp = load_model_and_classes()
-            max_classes = len(class_names_temp) if class_names_temp else 50
-            
-            new_k = st.number_input(
-                "Enter new K value",
-                min_value=1,
-                max_value=max_classes,
-                value=st.session_state.current_top_k,
-                step=1,
-                key="batch_k_value_input_unique"
-            )
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✅ Set", use_container_width=True, key="batch_set_k_btn_unique"):
-                    st.session_state.current_top_k = new_k
-                    st.session_state.show_k_dialog = False
-                    st.session_state.show_results = False
-                    st.rerun()
-            with col2:
-                if st.button("❌ Cancel", use_container_width=True, key="batch_cancel_k_btn_unique"):
-                    st.session_state.show_k_dialog = False
-                    st.rerun()
 
     
     # ============================================================
