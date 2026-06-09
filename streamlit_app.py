@@ -4977,7 +4977,7 @@ def display_batch_results(results):
         return
     
     # Create summary table
-    st.markdown("#### \U0001F4CB Summary Table")
+    st.markdown("#### \U0001F4CB Diagnosis Summary Table")
     summary_data = []
     for r in successful:
         confidence_value = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
