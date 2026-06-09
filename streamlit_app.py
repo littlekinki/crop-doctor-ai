@@ -5673,9 +5673,10 @@ def display_batch_results(results):
     # ============================================================
     # VIEW ALL BATCH RESULTS
     # ============================================================
+    st.markdown("---")
     st.markdown("""
 <div class="section-card">
-<h3>VIEW ALL BATCH RESULTS (IMAGES AND THEIR OVERLAYS)"</h3>
+<h3>VIEW ALL BATCH RESULTS (IMAGES AND THEIR OVERLAYS)</h3>
 </div>
 """, unsafe_allow_html=True)
 
