@@ -5483,7 +5483,7 @@ def display_batch_results(results):
 """, unsafe_allow_html=True)
     
     # ============================================================
-    # 21. OPTIONS MENU
+    # 21. OPTIONS MENU (WITH K VALUE CHANGE)
     # ============================================================
     st.markdown("---")
     st.markdown("## 💡 OPTIONS MENU")
@@ -5541,50 +5541,52 @@ def display_batch_results(results):
                         alt_treatment = get_full_treatment(alt_pred['class'], get_references())
                         alt_conf = float(alt_pred['confidence']) if hasattr(alt_pred['confidence'], 'item') else alt_pred['confidence']
                         
-                        # Display alternative diagnosis in clean, farmer-friendly format
-                        st.markdown("---")
-                        st.markdown(f"""
+                        # Display alternative diagnosis in a full-width expander
+                        with st.expander(f"🔬 ALTERNATIVE {alt_idx} ANALYSIS: {alt_pred['class']} ({alt_conf*100:.1f}%)", expanded=True):
+                            st.markdown(f"""
 <div class="section-card">
-    <h3>🔬 ALTERNATIVE {alt_idx} ANALYSIS: {alt_pred['class']}</h3>
     <p><strong>📊 CONFIDENCE:</strong> {alt_conf*100:.1f}%</p>
     <p><strong>🏷️ TYPE:</strong> {alt_treatment['category']}</p>
     <p><strong>🦠 CAUSAL AGENT:</strong> {alt_treatment['causal_agent']}</p>
 </div>
 """, unsafe_allow_html=True)
-                        
-                        if not alt_treatment.get('is_healthy', False):
-                            # Management
-                            st.markdown(f"""
+                            
+                            if not alt_treatment.get('is_healthy', False):
+                                # Management
+                                st.markdown(f"""
 <div class="section-card">
     <h3>🔧 RECOMMENDED MANAGEMENT</h3>
-    <p style="white-space: pre-line;">{alt_treatment['management'][:600]}</p>
+    <p style="white-space: pre-line;">{alt_treatment['management'][:800]}</p>
 </div>
 """, unsafe_allow_html=True)
-                            
-                            # Chemical Control (collapsible to save space)
-                            with st.expander("💊 View Chemical Control Options", expanded=False):
-                                st.markdown(f"<p style=\"white-space: pre-line;\">{alt_treatment['chemical_control']}</p>", unsafe_allow_html=True)
-                            
-                            # Export button for alternative
-                            alt_report_data = {'class': alt_pred['class'], 'confidence': alt_conf}
-                            alt_report = generate_export_report(alt_report_data, alt_treatment, get_references(), None)
-                            
-                            col_btn1, col_btn2 = st.columns(2)
-                            with col_btn1:
-                                st.download_button(
-                                    label=f"📥 Download Report for {alt_pred['class'][:30]}",
-                                    data=alt_report,
-                                    file_name=f"crop_doctor_report_{alt_pred['class'].replace(' ', '_')}_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.txt",
-                                    mime="text/plain",
-                                    key=f"download_alt_batch_{alt_idx}"
-                                )
-                            with col_btn2:
-                                display_whatsapp_share_button(alt_pred['class'], alt_conf, st.session_state.location)
-                        else:
-                            st.success(f"✅ {alt_pred['class']} - Healthy crop, no treatment needed.")
+                                
+                                # Chemical Control
+                                st.markdown(f"""
+<div class="section-card">
+    <h3>💊 CHEMICAL CONTROL</h3>
+    <p style="white-space: pre-line;">{alt_treatment['chemical_control'][:600]}</p>
+</div>
+""", unsafe_allow_html=True)
+                                
+                                # Export and Share buttons
+                                alt_report_data = {'class': alt_pred['class'], 'confidence': alt_conf}
+                                alt_report = generate_export_report(alt_report_data, alt_treatment, get_references(), None)
+                                
+                                col_btn1, col_btn2 = st.columns(2)
+                                with col_btn1:
+                                    st.download_button(
+                                        label=f"📥 Download Report for {alt_pred['class'][:40]}",
+                                        data=alt_report,
+                                        file_name=f"crop_doctor_report_{alt_pred['class'].replace(' ', '_')}_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.txt",
+                                        mime="text/plain",
+                                        key=f"download_alt_batch_{alt_idx}"
+                                    )
+                                with col_btn2:
+                                    display_whatsapp_share_button(alt_pred['class'], alt_conf, st.session_state.location)
+                            else:
+                                st.success(f"✅ {alt_pred['class']} - Healthy crop, no treatment needed.")
                         
                         st.markdown("---")
-
 
     # ============================================================
     # K VALUE CHANGE DIALOG (FIXED - no class_names dependency)
