@@ -4247,8 +4247,6 @@ def display_options_menu(top_predictions, references, location, class_names, cur
             st.session_state.common_chemicals_data = None
             st.rerun()
 
-    # NOTE: WhatsApp button REMOVED from here - now only appears in results area
-
     # Online features based on current displayed disease
     if current_mode == "online":
         st.markdown("---")
@@ -5675,23 +5673,43 @@ def display_batch_results(results):
     # ============================================================
     # VIEW ALL BATCH RESULTS
     # ============================================================
-    st.markdown("### View All Batch Results (Images and their Overlays)")
-    with st.expander("\U0001F4F8 Click to expand", expanded=False):
-        for r in successful:
-            conf_val = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
-            st.markdown(f"**📷 {r['filename']}** - {r['primary_diagnosis']} ({conf_val*100:.1f}%)")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.image(r['image'], caption="Original Image", use_container_width=True)
-            with col2:
-                st.image(r['heatmap_overlay'], caption="Visual Overlay Image", use_container_width=True)
-            st.markdown("---")
+    with st.expander("\U0001F4F8 View All Batch Results (Images and their Overlays) \U0001F4F8", expanded=False):
+        st.markdown("""
+        <div style="background: #f0f2f6; padding: 10px; border-radius: 10px; margin-bottom: 15px;">
+            <p style="margin: 0; font-size: 14px; color: #333;">
+                📸 Below are all the images processed in this batch. Each image is shown alongside its visual overlay.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Display in rows of 2
+        for idx in range(0, len(successful), 2):
+            cols = st.columns(2)
+            for j in range(2):
+                if idx + j < len(successful):
+                    r = successful[idx + j]
+                    conf_val = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
+                    
+                    with cols[j]:
+                        st.markdown(f"""
+                        <div style="background: white; border-radius: 10px; padding: 10px; margin-bottom: 10px; border: 1px solid #e0e0e0;">
+                            <p style="font-weight: bold; margin-bottom: 8px; font-size: 13px;">
+                                📷 {r['filename']}
+                                <br>
+                                <span style="background: #2E7D32; color: white; padding: 2px 6px; border-radius: 12px; font-size: 11px;">
+                                    {r['primary_diagnosis']} ({conf_val*100:.1f}%)
+                                </span>
+                            </p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        st.image(r['image'], caption="Original Image", use_container_width=True)
+                        st.image(r['heatmap_overlay'], caption="Visual Overlay Image", use_container_width=True)
     
     # Show failed images if any
     if failed:
-        st.markdown("#### \u274C Failed Images")
-        for r in failed:
-            st.warning(f"**{r['filename']}:** {r['error_message']}")
+        with st.expander("\u274C Failed Images (Click to expand)", expanded=False):
+            for r in failed:
+                st.warning(f"**{r['filename']}:** {r['error_message']}")
     
     # ============================================================
     # ONLINE MODE FEATURES
