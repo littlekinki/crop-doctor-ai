@@ -5675,9 +5675,14 @@ def display_batch_results(results):
     # ============================================================
     st.markdown("---")
     st.markdown("""
-<div class="section-card">
-<h3>VIEW ALL BATCH RESULTS (IMAGES AND THEIR OVERLAYS)</h3>
-</div>
+<style>
+    /* Make the expander label text larger */
+    .streamlit-expanderHeader p {
+        font-size: 20px !important;
+        font-weight: bold !important;
+        color: #2E7D32 !important;
+    }
+</style>
 """, unsafe_allow_html=True)
 
     #st.markdown("### View All Batch Results (Images and their Overlays)".upper())
