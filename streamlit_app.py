@@ -4400,9 +4400,9 @@ def display_top_manual_entry_dialog():
 def display_feedback_section(disease_name, confidence):
     """Display a feedback section with questions farmers can actually answer"""
 
-    st.markdown("---")
+    #st.markdown("---")
     st.markdown("#### 📝 Help Improve Crop Doctor")
-    st.caption("Your answers help us serve Kenyan farmers better")
+    #st.caption("Your answers help us serve Kenyan farmers better")
 
     # Question 1: Have you seen this disease before?
     st.markdown("**1. Have you seen this disease on your farm before?**")
@@ -5039,21 +5039,6 @@ def display_batch_results(results):
         })
     st.dataframe(summary_data, use_container_width=True)
     
-    # Selection dropdown for detailed analysis
-    st.markdown("---")
-    st.markdown("#### \U0001F4F0 Select Image for Detailed Analysis")
-    
-    image_options = [f"{r['filename']} - {r['primary_diagnosis']}" for r in successful]
-    selected_index = st.selectbox(
-        "Choose an image to view full details, treatment, weather, and provide feedback:",
-        options=range(len(image_options)),
-        format_func=lambda x: image_options[x],
-        key="batch_selected_index"
-    )
-    
-    selected_result = successful[selected_index]
-    confidence_value = float(selected_result['primary_confidence']) if hasattr(selected_result['primary_confidence'], 'item') else selected_result['primary_confidence']
-    
     # Export buttons
     st.markdown("---")
     col1, col2 = st.columns(2)
@@ -5090,18 +5075,22 @@ def display_batch_results(results):
             generate_comprehensive_batch_report(successful, batch_timestamp)
     
     st.markdown("---")
+
+    # Selection dropdown for detailed analysis
+    st.markdown("---")
+    st.markdown("#### \U0001F4F0 Select Image for Detailed Analysis")
     
-    # ============================================================
-    # DETAILED ANALYSIS FOR SELECTED IMAGE
-    # ============================================================
+    image_options = [f"{r['filename']} - {r['primary_diagnosis']}" for r in successful]
+    selected_index = st.selectbox(
+        "Choose an image to view full details, treatment, weather, and provide feedback:",
+        options=range(len(image_options)),
+        format_func=lambda x: image_options[x],
+        key="batch_selected_index"
+    )
     
-    # Display images side by side
-    col_img1, col_img2 = st.columns(2)
-    with col_img1:
-        st.image(selected_result['image'], caption="Original Image", width="stretch")
-    with col_img2:
-        st.image(selected_result['heatmap_overlay'], caption=f"Heatmap Showing areas that led the model to pick on:\n{selected_result['primary_diagnosis']}", width="stretch")
-    
+    selected_result = successful[selected_index]
+    confidence_value = float(selected_result['primary_confidence']) if hasattr(selected_result['primary_confidence'], 'item') else selected_result['primary_confidence']
+
     # ============================================================
     # 1. TOP PREDICTIONS
     # ============================================================
@@ -5228,7 +5217,14 @@ def display_batch_results(results):
 <h3>🔥 VISUAL EVIDENCE: HOW THE CLASSIFIER MADE THE DECISION</h3>
 </div>
 """, unsafe_allow_html=True)
-    
+
+    # Display images side by side
+    col_img1, col_img2 = st.columns(2)
+    with col_img1:
+        st.image(selected_result['image'], caption="Original Image", width="stretch")
+    with col_img2:
+        st.image(selected_result['heatmap_overlay'], caption=f"Heatmap Showing areas that led the model to pick on:\n{selected_result['primary_diagnosis']}", width="stretch")
+
     # Display heatmap with colorbar
     fig, ax = plt.subplots(figsize=(10, 1))
     fig.patch.set_visible(False)
@@ -5284,7 +5280,7 @@ def display_batch_results(results):
             xai_refs_text += f"[{idx}] {get_references()[ref_num]}\n"
     
     grad_cam_ref_num = len(xai_refs) + 1
-    xai_refs_text += f"[{grad_cam_ref_num}] R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra, 'Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization,' in Proceedings of the IEEE International Conference on Computer Vision (ICCV), 2017, pp. 618-626.\n"
+    #xai_refs_text += f"[{grad_cam_ref_num}] R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra, 'Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization,' in Proceedings of the IEEE International Conference on Computer Vision (ICCV), 2017, pp. 618-626.\n"
     
     if xai_refs_text:
         st.markdown(f"""
@@ -5478,9 +5474,9 @@ def display_batch_results(results):
     # ============================================================
     # 21. OPTIONS MENU (SIMPLIFIED - NO "SELECT DIFFERENT IMAGE")
     # ============================================================
-    st.markdown("---")
-    st.markdown("## 💡 OPTIONS MENU")
-    st.caption("Explore alternative diagnoses and settings for this image")
+    #st.markdown("---")
+    #st.markdown("## 💡 OPTIONS MENU")
+    #st.caption("Explore alternative diagnoses and settings for this image")
     
     num_predictions = len(selected_result['top_predictions'])
     common_chemicals_option = num_predictions + 1
@@ -5679,7 +5675,8 @@ def display_batch_results(results):
     # ============================================================
     # VIEW ALL BATCH RESULTS
     # ============================================================
-    with st.expander("\U0001F4F8 View All Batch Results (Click to expand)", expanded=False):
+    st.markdown("###View All Batch Results (Images and their Overlays)")
+    with st.expander("\U0001F4F8 Click to expand", expanded=False):
         for r in successful:
             conf_val = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
             st.markdown(f"**📷 {r['filename']}** - {r['primary_diagnosis']} ({conf_val*100:.1f}%)")
@@ -5687,7 +5684,7 @@ def display_batch_results(results):
             with col1:
                 st.image(r['image'], caption="Original Image", use_container_width=True)
             with col2:
-                st.image(r['heatmap_overlay'], caption="Grad-CAM Heatmap", use_container_width=True)
+                st.image(r['heatmap_overlay'], caption="Visual Overlay Image", use_container_width=True)
             st.markdown("---")
     
     # Show failed images if any
@@ -5700,8 +5697,8 @@ def display_batch_results(results):
     # ONLINE MODE FEATURES
     # ============================================================
     if st.session_state.mode == "online":
-        st.markdown("---")
-        st.markdown("## 📡 ONLINE MODE - LIVE UPDATES")
+        #st.markdown("---")
+        #st.markdown("## 📡 ONLINE MODE - LIVE UPDATES")
         display_online_features(
             selected_result['primary_diagnosis'], 
             clean_category(selected_result['category']), 
@@ -5712,25 +5709,24 @@ def display_batch_results(results):
     # ============================================================
     # FEEDBACK SECTION
     # ============================================================
-    st.markdown("---")
+    #st.markdown("---")
     st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
     display_feedback_section(selected_result['primary_diagnosis'], confidence_value)
     
     # ============================================================
     # THANK YOU MESSAGE
     # ============================================================
-    st.markdown("---")
+    #st.markdown("---")
     st.markdown("""
     <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
-        <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana! (Thank You Very Much!)</strong></p>
-        <p style="font-size: 13px; color: #555;">Your feedback helps us serve Kenyan farmers better.</p>
+        <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana! (Thank You Very Much!)</strong></p>        
         <p style="font-size: 12px; color: #888; margin-top: 10px;">🌾 Happy Farming! 🌾</p>
     </div>
     """, unsafe_allow_html=True)
     
     # Add a note about timezone
     st.caption("\u2139\uFE0F All timestamps are in East Africa Time (EAT, UTC+3)")
-    
+
 # ============================================================
 # MAIN APP
 # ============================================================
@@ -5957,7 +5953,7 @@ def main():
 
             else:  # Batch Processing Mode
                 st.caption("📁 Upload multiple images for batch analysis (ideal for research)")
-                st.info("💡 **Tip:** Batch processing is great for researchers, extension officers, and large farms. Upload up to 50 images at once.")
+                st.info("💡 **Tip:** Batch processing is great for researchers, extension officers, and large farms. Upload multiple images at once. The more the images, the longer the analysis will take.")
 
                 batch_files = st.file_uploader(
                     "Select multiple images",
@@ -6074,14 +6070,14 @@ def main():
                         display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
 
                         # INVITATION MESSAGE
-                        st.markdown("---")
+                        #st.markdown("---")
                         st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
 
                         # FEEDBACK SECTION
                         display_feedback_section(current_disease, current_confidence)
 
                         # THANK YOU MESSAGE
-                        st.markdown("---")
+                        #st.markdown("---")
                         st.markdown("""
                         <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
                             <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana! (Thank You Very Much!)</strong></p>
