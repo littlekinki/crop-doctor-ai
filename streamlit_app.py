@@ -4906,6 +4906,23 @@ def display_batch_results(results):
     with col_img2:
         st.image(selected_result['heatmap_overlay'], caption="Grad-CAM Heatmap - Red areas influenced the diagnosis", use_container_width=True)
     
+    # ============================================================
+    # TOP PREDICTIONS (MOVED TO TOP - RIGHT AFTER IMAGES)
+    # ============================================================
+    st.markdown(f"""
+    <div class="section-card">
+        <h3>📈 TOP {len(selected_result['top_predictions'])} PREDICTIONS</h3>
+        <div class="prediction-list">
+    """, unsafe_allow_html=True)
+    
+    for i, pred in enumerate(selected_result['top_predictions']):
+        pred_conf = float(pred['confidence']) if hasattr(pred['confidence'], 'item') else pred['confidence']
+        if i == 0:
+            st.markdown(f'<div class="prediction-row"><span class="prediction-marker">✓.</span> <span class="prediction-name">{pred["class"]}</span>: <span class="prediction-value">{pred_conf*100:.1f}%</span></div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="prediction-row"><span class="prediction-marker">{i+1}.</span> <span class="prediction-name">{pred["class"]}</span>: <span class="prediction-value">{pred_conf*100:.1f}%</span></div>', unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
+    
     # Grad-CAM Legend
     with st.expander("\U0001F4CA Understanding the Heatmap Colors", expanded=False):
         st.markdown("""
@@ -4979,20 +4996,6 @@ def display_batch_results(results):
     </div>
     """, unsafe_allow_html=True)
     
-    # TOP PREDICTIONS SECTION (ADDED BACK)
-    st.markdown(f"""
-    <div class="section-card">
-        <h3>📈 TOP {len(selected_result['top_predictions'])} PREDICTIONS</h3>
-    """, unsafe_allow_html=True)
-    
-    for i, pred in enumerate(selected_result['top_predictions']):
-        pred_conf = float(pred['confidence']) if hasattr(pred['confidence'], 'item') else pred['confidence']
-        if i == 0:
-            st.markdown(f'<div class="prediction-row"><span class="prediction-marker">✓.</span> <span class="prediction-name">{pred["class"]}</span>: <span class="prediction-value">{pred_conf*100:.1f}%</span></div>', unsafe_allow_html=True)
-        else:
-            st.markdown(f'<div class="prediction-row"><span class="prediction-marker">{i+1}.</span> <span class="prediction-name">{pred["class"]}</span>: <span class="prediction-value">{pred_conf*100:.1f}%</span></div>', unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-    
     # Disease Type
     st.markdown(f"""
     <div class="section-card">
@@ -5039,7 +5042,7 @@ def display_batch_results(results):
             </ol>
         </div>
         """, unsafe_allow_html=True)
-    
+
     # ============================================================
     # TREATMENT RECOMMENDATION (Matching Single Image)
     # ============================================================
