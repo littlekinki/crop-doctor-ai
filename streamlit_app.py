@@ -5221,7 +5221,7 @@ def display_batch_results(results):
     with col_img1:
         st.image(selected_result['image'], caption="Original Image", width="stretch")
     with col_img2:
-        st.image(selected_result['heatmap_overlay'], caption=f"Heatmap Showing areas that led the model to pick on:\n{selected_result['primary_diagnosis']}", width="stretch")
+        st.image(selected_result['heatmap_overlay'], caption=f"Visual Overlay Image Showing areas that led the model to pick on:\n{selected_result['primary_diagnosis']}", width="stretch")
 
     # Display heatmap with colorbar
     fig, ax = plt.subplots(figsize=(10, 1))
@@ -5470,7 +5470,7 @@ def display_batch_results(results):
 """, unsafe_allow_html=True)
     
     # ============================================================
-    # 21. OPTIONS MENU (SIMPLIFIED - NO "SELECT DIFFERENT IMAGE")
+    # 21. OPTIONS MENU
     # ============================================================
     #st.markdown("---")
     #st.markdown("## 💡 OPTIONS MENU")
@@ -5673,43 +5673,29 @@ def display_batch_results(results):
     # ============================================================
     # VIEW ALL BATCH RESULTS
     # ============================================================
-    with st.expander("\U0001F4F8 View All Batch Results (Images and their Overlays) \U0001F4F8", expanded=False):
-        st.markdown("""
-        <div style="background: #f0f2f6; padding: 10px; border-radius: 10px; margin-bottom: 15px;">
-            <p style="margin: 0; font-size: 14px; color: #333;">
-                📸 Below are all the images processed in this batch. Each image is shown alongside its visual overlay.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Display in rows of 2
-        for idx in range(0, len(successful), 2):
-            cols = st.columns(2)
-            for j in range(2):
-                if idx + j < len(successful):
-                    r = successful[idx + j]
-                    conf_val = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
-                    
-                    with cols[j]:
-                        st.markdown(f"""
-                        <div style="background: white; border-radius: 10px; padding: 10px; margin-bottom: 10px; border: 1px solid #e0e0e0;">
-                            <p style="font-weight: bold; margin-bottom: 8px; font-size: 13px;">
-                                📷 {r['filename']}
-                                <br>
-                                <span style="background: #2E7D32; color: white; padding: 2px 6px; border-radius: 12px; font-size: 11px;">
-                                    {r['primary_diagnosis']} ({conf_val*100:.1f}%)
-                                </span>
-                            </p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        st.image(r['image'], caption="Original Image", use_container_width=True)
-                        st.image(r['heatmap_overlay'], caption="Visual Overlay Image", use_container_width=True)
+    st.markdown("""
+<div class="section-card">
+<h3>VIEW ALL BATCH RESULTS (IMAGES AND THEIR OVERLAYS)"</h3>
+</div>
+""", unsafe_allow_html=True)
+
+    #st.markdown("### View All Batch Results (Images and their Overlays)".upper())
+    with st.expander("\U0001F4F8 Click to expand", expanded=False):
+        for r in successful:
+            conf_val = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
+            st.markdown(f"**📷 {r['filename']}** - {r['primary_diagnosis']} ({conf_val*100:.1f}%)")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.image(r['image'], caption="Original Image", use_container_width=True)
+            with col2:
+                st.image(r['heatmap_overlay'], caption="Visual Overlay Image", use_container_width=True)
+            st.markdown("---")
     
     # Show failed images if any
     if failed:
-        with st.expander("\u274C Failed Images (Click to expand)", expanded=False):
-            for r in failed:
-                st.warning(f"**{r['filename']}:** {r['error_message']}")
+        st.markdown("#### \u274C Failed Images")
+        for r in failed:
+            st.warning(f"**{r['filename']}:** {r['error_message']}")
     
     # ============================================================
     # ONLINE MODE FEATURES
