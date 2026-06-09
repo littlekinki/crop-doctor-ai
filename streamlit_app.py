@@ -4960,7 +4960,7 @@ def generate_comprehensive_batch_report(results, batch_timestamp):
             # Grad-CAM Reference
             report_lines.append("XAI SOURCES (Grad-CAM):")
             report_lines.append("-" * 40)
-            report_lines.append("  [1] R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra, 'Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization,' in Proceedings of the IEEE International Conference on Computer Vision (ICCV), 2017, pp. 618-626.")
+            #report_lines.append("  [1] R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra, 'Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization,' in Proceedings of the IEEE International Conference on Computer Vision (ICCV), 2017, pp. 618-626.")
             report_lines.append("")
         else:
             report_lines.append("STATUS: HEALTHY CROP")
@@ -5285,7 +5285,7 @@ def display_batch_results(results):
             xai_refs_text += f"[{idx}] {get_references()[ref_num]}\n"
     
     grad_cam_ref_num = len(xai_refs) + 1
-    xai_refs_text += f"[{grad_cam_ref_num}] R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra, 'Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization,' in Proceedings of the IEEE International Conference on Computer Vision (ICCV), 2017, pp. 618-626.\n"
+    #xai_refs_text += f"[{grad_cam_ref_num}] R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra, 'Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization,' in Proceedings of the IEEE International Conference on Computer Vision (ICCV), 2017, pp. 618-626.\n"
     
     if xai_refs_text:
         st.markdown(f"""
@@ -5684,6 +5684,7 @@ def display_batch_results(results):
     # ============================================================
     # 22. VIEW ALL BATCH RESULTS
     # ============================================================
+    st.markdown("---")
     with st.expander("\U0001F4F8 View All Batch Results (Click to expand)", expanded=False):
         for r in successful:
             conf_val = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
@@ -5705,7 +5706,7 @@ def display_batch_results(results):
     # 23. ONLINE MODE FEATURES
     # ============================================================
     if st.session_state.mode == "online":
-        st.markdown("---")
+        #st.markdown("---")
         #st.markdown("## 📡 ONLINE MODE - LIVE UPDATES")
         display_online_features(
             selected_result['primary_diagnosis'], 
