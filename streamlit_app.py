@@ -3964,7 +3964,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # ============================================================
     # SECTION 5: WEATHER-BASED FARMING TIP
     # ============================================================
-    st.markdown("---")
+    #st.markdown("---")
     st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
 
     if weather:
@@ -5027,7 +5027,7 @@ def display_batch_results(results):
         return
     
     # Create summary table
-    st.markdown("#### \U0001F4CB Summary Table")
+    st.markdown("#### \U0001F4CB Diagnosis Summary Table")
     summary_data = []
     for r in successful:
         confidence_value = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
@@ -5040,7 +5040,7 @@ def display_batch_results(results):
     st.dataframe(summary_data, use_container_width=True)
     
     # Export buttons
-    st.markdown("---")
+    #st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("\U0001F4CA Export Summary CSV", use_container_width=True):
@@ -5077,7 +5077,7 @@ def display_batch_results(results):
     st.markdown("---")
 
     # Selection dropdown for detailed analysis
-    st.markdown("---")
+    #st.markdown("---")
     st.markdown("#### \U0001F4F0 Select Image for Detailed Analysis")
     
     image_options = [f"{r['filename']} - {r['primary_diagnosis']}" for r in successful]
@@ -5675,7 +5675,7 @@ def display_batch_results(results):
     # ============================================================
     # VIEW ALL BATCH RESULTS
     # ============================================================
-    st.markdown("###View All Batch Results (Images and their Overlays)")
+    st.markdown("### View All Batch Results (Images and their Overlays)")
     with st.expander("\U0001F4F8 Click to expand", expanded=False):
         for r in successful:
             conf_val = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
