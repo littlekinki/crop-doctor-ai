@@ -4833,13 +4833,13 @@ def display_batch_results(results):
             "Confidence": f"{confidence_value*100:.1f}%",
             "Category": clean_category(r['category']),
         })
-    st.dataframe(summary_data, use_container_width=True)
+    st.dataframe(summary_data, width="stretch")
 
     # Export buttons
     st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("\U0001F4CA Export Summary CSV", use_container_width=True):
+        if st.button("\U0001F4CA Export Summary CSV", width="stretch"):
             csv_data = []
             for r in successful:
                 conf_val = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
@@ -4867,7 +4867,7 @@ def display_batch_results(results):
                 pass
     
     with col2:
-        if st.button("\U0001F4D1 Export Comprehensive Report", use_container_width=True):
+        if st.button("\U0001F4D1 Export Comprehensive Report", width="stretch"):
             generate_comprehensive_batch_report(successful, batch_timestamp)
     
     st.markdown("---")
@@ -5266,7 +5266,7 @@ def display_batch_results(results):
         # ============================================================
         col_exp1, col_exp2 = st.columns(2)
         with col_exp1:
-            if st.button("📄 Export Report for This Image", use_container_width=True):
+            if st.button("📄 Export Report for This Image", width="stretch"):
                 single_report_data = {
                     'class': selected_result['primary_diagnosis'],
                     'confidence': confidence_value
@@ -5317,7 +5317,7 @@ def display_batch_results(results):
     opt_cols = st.columns(min(num_predictions + 3, 6))
     for i in range(1, min(num_predictions + 4, 7)):
         with opt_cols[i-1]:
-            if st.button(f"{i}", key=f"batch_opt_{i}", use_container_width=True):
+            if st.button(f"{i}", key=f"batch_opt_{i}", width="stretch"):
                 if i == num_predictions + 3:
                     st.session_state.show_batch_results = False
                     st.session_state.batch_results = None
@@ -5394,9 +5394,29 @@ def display_batch_results(results):
     st.markdown("---")
     st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
     display_feedback_section(selected_result['primary_diagnosis'], confidence_value)
-    
+
     # ============================================================
-    # 24. THANK YOU MESSAGE
+    # 24. ALL BATCH RESULTS (Collapsible)
+    # ============================================================
+    with st.expander("\U0001F4F8 View All Batch Results (Click to expand)", expanded=False):
+        for r in successful:
+            conf_val = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
+            st.markdown(f"**📷 {r['filename']}** - {r['primary_diagnosis']} ({conf_val*100:.1f}%)")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.image(r['image'], caption="Original Image", width="stretch")
+            with col2:
+                st.image(r['heatmap_overlay'], caption="Visual Overlay Image", width="stretch")
+            st.markdown("---")
+    
+    # Show failed images if any
+    if failed:
+        st.markdown("#### \u274C Failed Images")
+        for r in failed:
+            st.warning(f"**{r['filename']}:** {r['error_message']}")
+
+    # ============================================================
+    # 25. THANK YOU MESSAGE
     # ============================================================
     st.markdown("---")
     st.markdown("""
@@ -5406,26 +5426,6 @@ def display_batch_results(results):
         <p style="font-size: 12px; color: #888; margin-top: 10px;">🌾 Happy Farming! 🌾</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    # ============================================================
-    # 25. ALL BATCH RESULTS (Collapsible)
-    # ============================================================
-    with st.expander("\U0001F4F8 View All Batch Results (Click to expand)", expanded=False):
-        for r in successful:
-            conf_val = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
-            st.markdown(f"**📷 {r['filename']}** - {r['primary_diagnosis']} ({conf_val*100:.1f}%)")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.image(r['image'], caption="Original Image", use_container_width=True)
-            with col2:
-                st.image(r['heatmap_overlay'], caption="Grad-CAM Heatmap", use_container_width=True)
-            st.markdown("---")
-    
-    # Show failed images if any
-    if failed:
-        st.markdown("#### \u274C Failed Images")
-        for r in failed:
-            st.warning(f"**{r['filename']}:** {r['error_message']}")
     
     # Add a note about timezone
     st.caption("\u2139\uFE0F All timestamps are in East Africa Time (EAT, UTC+3)")
