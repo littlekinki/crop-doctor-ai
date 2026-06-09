@@ -4898,16 +4898,8 @@ def display_batch_results(results):
     # DETAILED ANALYSIS FOR SELECTED IMAGE (Matching Single Image Display)
     # ============================================================
     st.markdown(f"#### \U0001F4F8 Detailed Analysis: {selected_result['filename']}")
-    
-    # Display images side by side
-    col_img1, col_img2 = st.columns(2)
-    with col_img1:
-        st.image(selected_result['image'], caption="Original Image", use_container_width=True)
-    with col_img2:
-        st.image(selected_result['heatmap_overlay'], caption="Grad-CAM Heatmap - Red areas influenced the diagnosis", use_container_width=True)
-    
     # ============================================================
-    # TOP PREDICTIONS (MOVED TO TOP - RIGHT AFTER IMAGES)
+    # TOP PREDICTIONS
     # ============================================================
     st.markdown(f"""
     <div class="section-card">
@@ -4922,21 +4914,6 @@ def display_batch_results(results):
         else:
             st.markdown(f'<div class="prediction-row"><span class="prediction-marker">{i+1}.</span> <span class="prediction-name">{pred["class"]}</span>: <span class="prediction-value">{pred_conf*100:.1f}%</span></div>', unsafe_allow_html=True)
     st.markdown("</div></div>", unsafe_allow_html=True)
-    
-    # Grad-CAM Legend
-    with st.expander("\U0001F4CA Understanding the Heatmap Colors", expanded=False):
-        st.markdown("""
-        <div class="section-card">
-            <h3>📊 LEGEND FOR THE VISUAL EVIDENCE</h3>
-            <p>🔴 <strong>RED (HOT)</strong> = HIGH influence - These areas strongly indicate the disease</p>
-            <p>🟠 <strong>ORANGE</strong> = HIGH-MEDIUM influence</p>
-            <p>🟡 <strong>YELLOW</strong> = MEDIUM influence</p>
-            <p>🟢 <strong>GREEN</strong> = LOW-MEDIUM influence</p>
-            <p>💠 <strong>CYAN</strong> = VERY LOW influence</p>
-            <p>🔵 <strong>BLUE (COOL)</strong> = LOWEST influence - These areas had minimal impact on the diagnosis</p>
-            <p class="gradcam-tip">💡 The warmer the color (Red → Orange → Yellow), the more it influenced the model's decision. Cooler colors (Green → Cyan → Blue) had less influence.</p>
-        </div>
-        """, unsafe_allow_html=True)
     
     # Determine confidence level and description
     if confidence_value >= 0.9:
@@ -4980,6 +4957,28 @@ def display_batch_results(results):
         <p>{level_desc}</p>
     </div>
     """, unsafe_allow_html=True)
+
+    # Display images side by side
+    col_img1, col_img2 = st.columns(2)
+    with col_img1:
+        st.image(selected_result['image'], caption="Original Image", use_container_width=True)
+    with col_img2:
+        st.image(selected_result['heatmap_overlay'], caption="Grad-CAM Heatmap - Red areas influenced the diagnosis", use_container_width=True)
+
+    # Grad-CAM Legend
+    with st.expander("\U0001F4CA Understanding the Heatmap Colors", expanded=False):
+        st.markdown("""
+        <div class="section-card">
+            <h3>📊 LEGEND FOR THE VISUAL EVIDENCE</h3>
+            <p>🔴 <strong>RED (HOT)</strong> = HIGH influence - These areas strongly indicate the disease</p>
+            <p>🟠 <strong>ORANGE</strong> = HIGH-MEDIUM influence</p>
+            <p>🟡 <strong>YELLOW</strong> = MEDIUM influence</p>
+            <p>🟢 <strong>GREEN</strong> = LOW-MEDIUM influence</p>
+            <p>💠 <strong>CYAN</strong> = VERY LOW influence</p>
+            <p>🔵 <strong>BLUE (COOL)</strong> = LOWEST influence - These areas had minimal impact on the diagnosis</p>
+            <p class="gradcam-tip">💡 The warmer the color (Red → Orange → Yellow), the more it influenced the model's decision. Cooler colors (Green → Cyan → Blue) had less influence.</p>
+        </div>
+        """, unsafe_allow_html=True)
     
     # Confidence Key
     st.markdown("""
