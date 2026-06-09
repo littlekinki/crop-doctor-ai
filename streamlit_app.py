@@ -4794,7 +4794,7 @@ def export_all_images_analysis(results):
     )
 
 def display_batch_results(results):
-    """Display batch processing results in an organized way with selectable image for detailed analysis"""
+    """Display batch processing results in an organised way with selectable image for detailed analysis"""
     from datetime import datetime, timedelta, timezone as dt_timezone
     import csv
     import os
@@ -4895,25 +4895,29 @@ def display_batch_results(results):
     st.markdown("---")
     
     # ============================================================
-    # DETAILED ANALYSIS FOR SELECTED IMAGE (Matching Single Image Display)
+    # DETAILED ANALYSIS FOR SELECTED IMAGE (EXACT MATCH TO SINGLE IMAGE)
     # ============================================================
-    st.markdown(f"#### \U0001F4F8 Detailed Analysis: {selected_result['filename']}")
-    # ============================================================
-    # TOP PREDICTIONS
-    # ============================================================
-    st.markdown(f"""
-    <div class="section-card">
-        <h3>📈 TOP {len(selected_result['top_predictions'])} PREDICTIONS</h3>
-        <div class="prediction-list">
-    """, unsafe_allow_html=True)
     
-    for i, pred in enumerate(selected_result['top_predictions']):
-        pred_conf = float(pred['confidence']) if hasattr(pred['confidence'], 'item') else pred['confidence']
-        if i == 0:
-            st.markdown(f'<div class="prediction-row"><span class="prediction-marker">✓.</span> <span class="prediction-name">{pred["class"]}</span>: <span class="prediction-value">{pred_conf*100:.1f}%</span></div>', unsafe_allow_html=True)
-        else:
-            st.markdown(f'<div class="prediction-row"><span class="prediction-marker">{i+1}.</span> <span class="prediction-name">{pred["class"]}</span>: <span class="prediction-value">{pred_conf*100:.1f}%</span></div>', unsafe_allow_html=True)
-    st.markdown("</div></div>", unsafe_allow_html=True)
+    # Display images side by side (matching single image)
+    col_img1, col_img2 = st.columns(2)
+    with col_img1:
+        st.image(selected_result['image'], caption="Original Image", width="stretch")
+    with col_img2:
+        st.image(selected_result['heatmap_overlay'], caption=f"Heatmap Showing areas that led the model to pick on:\n{selected_result['primary_diagnosis']}", width="stretch")
+    
+    # Grad-CAM Legend (matching single image)
+    with st.expander("📊 LEGEND FOR THE VISUAL EVIDENCE", expanded=False):
+        st.markdown("""
+        <div class="section-card">
+            <p>🔴 <strong>RED (HOT)</strong> = HIGH influence - These areas strongly indicate the disease</p>
+            <p>🟠 <strong>ORANGE</strong> = HIGH-MEDIUM influence</p>
+            <p>🟡 <strong>YELLOW</strong> = MEDIUM influence</p>
+            <p>🟢 <strong>GREEN</strong> = LOW-MEDIUM influence</p>
+            <p>💠 <strong>CYAN</strong> = VERY LOW influence</p>
+            <p>🔵 <strong>BLUE (COOL)</strong> = LOWEST influence - These areas had minimal impact on the diagnosis</p>
+            <p class="gradcam-tip">💡 The warmer the colour (Red → Orange → Yellow), the more it influenced the model's decision. Cooler colours (Green → Cyan → Blue) had less influence.</p>
+        </div>
+        """, unsafe_allow_html=True)
     
     # Determine confidence level and description
     if confidence_value >= 0.9:
@@ -4949,101 +4953,94 @@ def display_batch_results(results):
         level_icon = "🔴"
         level_desc = "Very low reliability - disease indicators are absent or unclear."
     
-    # XAI Analysis Section
+    # XAI Analysis Section (matching single image exactly)
     st.markdown(f"""
-    <div class="section-card">
-        <h3>🔬 EXPLAINABLE ARTIFICIAL INTELLIGENCE (XAI) ANALYSIS FOR: {selected_result['primary_diagnosis']}</h3>
-        <p><strong>📊 CLASSIFIER CONFIDENCE SCORE:</strong> {confidence_value*100:.1f}% ({level}) {level_icon}</p>
-        <p>{level_desc}</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Display images side by side
-    col_img1, col_img2 = st.columns(2)
-    with col_img1:
-        st.image(selected_result['image'], caption="Original Image", use_container_width=True)
-    with col_img2:
-        st.image(selected_result['heatmap_overlay'], caption="Grad-CAM Heatmap - Red areas influenced the diagnosis", use_container_width=True)
-
-    # Grad-CAM Legend
-    with st.expander("\U0001F4CA Understanding the Heatmap Colors", expanded=False):
-        st.markdown("""
-        <div class="section-card">
-            <h3>📊 LEGEND FOR THE VISUAL EVIDENCE</h3>
-            <p>🔴 <strong>RED (HOT)</strong> = HIGH influence - These areas strongly indicate the disease</p>
-            <p>🟠 <strong>ORANGE</strong> = HIGH-MEDIUM influence</p>
-            <p>🟡 <strong>YELLOW</strong> = MEDIUM influence</p>
-            <p>🟢 <strong>GREEN</strong> = LOW-MEDIUM influence</p>
-            <p>💠 <strong>CYAN</strong> = VERY LOW influence</p>
-            <p>🔵 <strong>BLUE (COOL)</strong> = LOWEST influence - These areas had minimal impact on the diagnosis</p>
-            <p class="gradcam-tip">💡 The warmer the color (Red → Orange → Yellow), the more it influenced the model's decision. Cooler colors (Green → Cyan → Blue) had less influence.</p>
-        </div>
-        """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>🔬 EXPLAINABLE ARTIFICIAL INTELLIGENCE (XAI) ANALYSIS FOR: {selected_result['primary_diagnosis']}</h3>
+<p><strong>📊 CLASSIFIER CONFIDENCE SCORE:</strong> {confidence_value*100:.1f}% ({level}) {level_icon}</p>
+<p>{level_desc}</p>
+</div>
+""", unsafe_allow_html=True)
     
     # Confidence Key
     st.markdown("""
-    <div class="section-card">
-        <h3>📊 CONFIDENCE KEY - How to Understand the Score</h3>
-        <p>   🟢 <strong>90-100% (VERY HIGH)</strong> → Extremely reliable. Clear disease indicators.</p>
-        <p>   🟢 <strong>80-89% (HIGH)</strong>     → Very reliable. Strong disease indicators.</p>
-        <p>   🟡 <strong>70-79% (HIGH)</strong>     → Reliable. Disease indicators present.</p>
-        <p>   🟡 <strong>60-69% (MODERATE)</strong> → Moderately reliable. Some indicators visible.</p>
-        <p>   🟠 <strong>50-59% (MODERATE)</strong> → Moderately reliable. Weak indicators.</p>
-        <p>   🟠 <strong>40-49% (LOW)</strong>      → Low reliability. Unclear indicators.</p>
-        <p>   🔴 <strong>30-39% (LOW)</strong>      → Low reliability. Mixed evidence.</p>
-        <p>   🔴 <strong>0-29% (VERY LOW)</strong>  → Very low reliability. Seek expert advice.</p>
-    </div>
-    """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>📊 CONFIDENCE KEY - How to Understand the Score</h3>
+<p>   🟢 <strong>90-100% (VERY HIGH)</strong> → Extremely reliable. Clear disease indicators.</p>
+<p>   🟢 <strong>80-89% (HIGH)</strong>     → Very reliable. Strong disease indicators.</p>
+<p>   🟡 <strong>70-79% (HIGH)</strong>     → Reliable. Disease indicators present.</p>
+<p>   🟡 <strong>60-69% (MODERATE)</strong> → Moderately reliable. Some indicators visible.</p>
+<p>   🟠 <strong>50-59% (MODERATE)</strong> → Moderately reliable. Weak indicators.</p>
+<p>   🟠 <strong>40-49% (LOW)</strong>      → Low reliability. Unclear indicators.</p>
+<p>   🔴 <strong>30-39% (LOW)</strong>      → Low reliability. Mixed evidence.</p>
+<p>   🔴 <strong>0-29% (VERY LOW)</strong>  → Very low reliability. Seek expert advice.</p>
+</div>
+""", unsafe_allow_html=True)
+    
+    # Top Predictions (matching single image)
+    st.markdown(f"""
+<div class="section-card">
+<h3>📈 TOP {len(selected_result['top_predictions'])} PREDICTIONS</h3>
+<div class="prediction-list">
+""", unsafe_allow_html=True)
+    
+    for i, pred in enumerate(selected_result['top_predictions']):
+        pred_conf = float(pred['confidence']) if hasattr(pred['confidence'], 'item') else pred['confidence']
+        if i == 0:
+            st.markdown(f'<div class="prediction-row"><span class="prediction-marker">✓.</span> <span class="prediction-name">{pred["class"]}</span>: <span class="prediction-value">{pred_conf*100:.1f}%</span></div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="prediction-row"><span class="prediction-marker">{i+1}.</span> <span class="prediction-name">{pred["class"]}</span>: <span class="prediction-value">{pred_conf*100:.1f}%</span></div>', unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
     
     # Disease Type
     st.markdown(f"""
-    <div class="section-card">
-        <h3>🏷️ DISEASE TYPE</h3>
-        <p>{selected_result['category']}</p>
-    </div>
-    """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>🏷️ DISEASE TYPE</h3>
+<p>{selected_result['category']}</p>
+</div>
+""", unsafe_allow_html=True)
     
     # Causal Agent
     st.markdown(f"""
-    <div class="section-card">
-        <h3>🦠 CAUSAL AGENT</h3>
-        <p>{selected_result['causal_agent']}</p>
-    </div>
-    """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>🦠 CAUSAL AGENT</h3>
+<p>{selected_result['causal_agent']}</p>
+</div>
+""", unsafe_allow_html=True)
     
     # Key Characteristics
     st.markdown(f"""
-    <div class="section-card">
-        <h3>📋 KEY CHARACTERISTICS</h3>
-        <p style="white-space: pre-line;">{selected_result['treatment'].get('causes_characteristics', 'See detailed description')}</p>
-    </div>
-    """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>📋 KEY CHARACTERISTICS</h3>
+<p style="white-space: pre-line;">{selected_result['treatment'].get('causes_characteristics', 'See detailed description')}</p>
+</div>
+""", unsafe_allow_html=True)
     
     # What the Model Analysed
     st.markdown(f"""
-    <div class="section-card">
-        <h3>💡 WHAT THE MODEL ANALYSED</h3>
-        <p>The model examined your crop image and identified visual patterns that match the characteristic appearance of {selected_result['primary_diagnosis']}.</p>
-    </div>
-    """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>💡 WHAT THE MODEL ANALYSED</h3>
+<p>The model examined your crop image and identified visual patterns that match the characteristic appearance of {selected_result['primary_diagnosis']}.</p>
+</div>
+""", unsafe_allow_html=True)
     
     # Low Confidence Guidance (if needed)
     if confidence_value < 0.6:
         st.markdown("""
-        <div class="section-card">
-            <h3>⚠️ LOW CONFIDENCE GUIDANCE</h3>
-            <p>The model is not very confident about this diagnosis. We recommend:</p>
-            <ol>
-                <li>📸 Take a clearer photo focusing on the affected areas</li>
-                <li>🔍 Examine multiple plants in your field for comparison</li>
-                <li>👨‍🌾 Consult an agricultural extension officer for confirmation</li>
-                <li>🔄 Consider the treatment options for ALL top 3 predictions</li>
-            </ol>
-        </div>
-        """, unsafe_allow_html=True)
-
+<div class="section-card">
+<h3>⚠️ LOW CONFIDENCE GUIDANCE</h3>
+<p>The model is not very confident about this diagnosis. We recommend:</p>
+<ol>
+    <li>📸 Take a clearer photo focusing on the affected areas</li>
+    <li>🔍 Examine multiple plants in your field for comparison</li>
+    <li>👨‍🌾 Consult an agricultural extension officer for confirmation</li>
+    <li>🔄 Consider the treatment options for ALL top 3 predictions</li>
+</ol>
+</div>
+""", unsafe_allow_html=True)
+    
     # ============================================================
-    # TREATMENT RECOMMENDATION (Matching Single Image)
+    # TREATMENT RECOMMENDATION (Matching Single Image Exactly)
     # ============================================================
     if not selected_result.get('is_healthy', False):
         # Determine urgency based on confidence
@@ -5105,65 +5102,65 @@ def display_batch_results(results):
             reason = "Symptoms unclear or absent - seek expert advice"
         
         st.markdown(f"""
-        <div class="section-card">
-            <h3>🌾 TREATMENT RECOMMENDATION FOR: {selected_result['primary_diagnosis']}</h3>
-            <p><strong>📊 DIAGNOSIS:</strong> {selected_result['primary_diagnosis']}</p>
-            <p><strong>🏷️ TYPE:</strong> {selected_result['category']}</p>
-            <p><strong>📈 CLASSIFIER CONFIDENCE:</strong> {confidence_value*100:.1f}% ({confidence_desc}) {confidence_icon}</p>
-            <p><strong>⚡ URGENCY & ACTION:</strong> {urgency_icon} {urgency_level} - {action}</p>
-            <p><strong>💡 REASON:</strong> {reason}</p>
-        </div>
-        """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>🌾 TREATMENT RECOMMENDATION FOR: {selected_result['primary_diagnosis']}</h3>
+<p><strong>📊 DIAGNOSIS:</strong> {selected_result['primary_diagnosis']}</p>
+<p><strong>🏷️ TYPE:</strong> {selected_result['category']}</p>
+<p><strong>📈 CLASSIFIER CONFIDENCE:</strong> {confidence_value*100:.1f}% ({confidence_desc}) {confidence_icon}</p>
+<p><strong>⚡ URGENCY & ACTION:</strong> {urgency_icon} {urgency_level} - {action}</p>
+<p><strong>💡 REASON:</strong> {reason}</p>
+</div>
+""", unsafe_allow_html=True)
         
         # Urgency Key
         st.markdown("""
-        <div class="section-card">
-            <h3>⚡ URGENCY KEY - What Action to Take Based on Score</h3>
-            <p>   🔴 <strong>90-100% (URGENT)</strong>    → Very clear symptoms. Act immediately!</p>
-            <p>   🟠 <strong>80-89% (HIGH)</strong>       → Clear symptoms. Treat promptly.</p>
-            <p>   🟡 <strong>70-79% (MEDIUM)</strong>     → Clear symptoms. Treat promptly.</p>
-            <p>   🟡 <strong>60-69% (MEDIUM)</strong>     → Some symptoms visible. Consider treatment.</p>
-            <p>   🟠 <strong>50-59% (CAUTIOUS)</strong>   → Weak symptoms. Verify before treatment.</p>
-            <p>   🟠 <strong>40-49% (CAUTIOUS)</strong>   → Unclear indicators. Verify before treatment.</p>
-            <p>   🟢 <strong>30-39% (LOW)</strong>        → Weak indicators. Consult an expert.</p>
-            <p>   ⚪ <strong>0-29% (VERY LOW)</strong>     → Unclear. Seek expert advice immediately.</p>
-        </div>
-        """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>⚡ URGENCY KEY - What Action to Take Based on Score</h3>
+<p>   🔴 <strong>90-100% (URGENT)</strong>    → Very clear symptoms. Act immediately!</p>
+<p>   🟠 <strong>80-89% (HIGH)</strong>       → Clear symptoms. Treat promptly.</p>
+<p>   🟡 <strong>70-79% (MEDIUM)</strong>     → Clear symptoms. Treat promptly.</p>
+<p>   🟡 <strong>60-69% (MEDIUM)</strong>     → Some symptoms visible. Consider treatment.</p>
+<p>   🟠 <strong>50-59% (CAUTIOUS)</strong>   → Weak symptoms. Verify before treatment.</p>
+<p>   🟠 <strong>40-49% (CAUTIOUS)</strong>   → Unclear indicators. Verify before treatment.</p>
+<p>   🟢 <strong>30-39% (LOW)</strong>        → Weak indicators. Consult an expert.</p>
+<p>   ⚪ <strong>0-29% (VERY LOW)</strong>     → Unclear. Seek expert advice immediately.</p>
+</div>
+""", unsafe_allow_html=True)
         
         # Causes & Characteristics
         st.markdown(f"""
-        <div class="section-card">
-            <h3>📋 CAUSES & CHARACTERISTICS</h3>
-            <p style="white-space: pre-line;">{selected_result['treatment'].get('causes_characteristics', 'Information not available')}</p>
-        </div>
-        """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>📋 CAUSES & CHARACTERISTICS</h3>
+<p style="white-space: pre-line;">{selected_result['treatment'].get('causes_characteristics', 'Information not available')}</p>
+</div>
+""", unsafe_allow_html=True)
         
         # Recommended Management
         st.markdown(f"""
-        <div class="section-card">
-            <h3>🔧 RECOMMENDED MANAGEMENT</h3>
-            <p style="white-space: pre-line;">{selected_result['management']}</p>
-        </div>
-        """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>🔧 RECOMMENDED MANAGEMENT</h3>
+<p style="white-space: pre-line;">{selected_result['management']}</p>
+</div>
+""", unsafe_allow_html=True)
         
         # Chemical Control
         st.markdown(f"""
-        <div class="section-card">
-            <h3>💊 CHEMICAL CONTROL</h3>
-            <p style="white-space: pre-line;">{selected_result['chemical_control']}</p>
-        </div>
-        """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>💊 CHEMICAL CONTROL</h3>
+<p style="white-space: pre-line;">{selected_result['chemical_control']}</p>
+</div>
+""", unsafe_allow_html=True)
         
         # Management References
         management_refs = selected_result['treatment'].get('management_refs', [])
         if management_refs:
             management_refs_text = format_reference_list_sequential(management_refs, get_references())
             st.markdown(f"""
-            <div class="section-card">
-                <h3>📚 MANAGEMENT REFERENCES</h3>
-                <div class="reference-text">{management_refs_text}</div>
-            </div>
-            """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>📚 MANAGEMENT REFERENCES</h3>
+<div class="reference-text">{management_refs_text}</div>
+</div>
+""", unsafe_allow_html=True)
         
         # Chemical References
         chemical_refs_original = selected_result['treatment'].get('chemical_refs_original', [])
@@ -5177,11 +5174,11 @@ def display_batch_results(results):
             chemical_refs_text = "\n".join(chem_ref_list)
             
             st.markdown(f"""
-            <div class="section-card">
-                <h3>📚 CHEMICAL REFERENCES</h3>
-                <div class="reference-text">{chemical_refs_text}</div>
-            </div>
-            """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>📚 CHEMICAL REFERENCES</h3>
+<div class="reference-text">{chemical_refs_text}</div>
+</div>
+""", unsafe_allow_html=True)
         
         # XAI Sources
         xai_refs = selected_result['treatment'].get('xai_ref_numbers', [])
@@ -5196,23 +5193,23 @@ def display_batch_results(results):
         
         if xai_refs_text:
             st.markdown(f"""
-            <div class="section-card">
-                <h3>📚 XAI SOURCES</h3>
-                <div class="reference-text">{xai_refs_text}</div>
-            </div>
-            """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>📚 XAI SOURCES</h3>
+<div class="reference-text">{xai_refs_text}</div>
+</div>
+""", unsafe_allow_html=True)
         
         # Important Notes
         st.markdown(f"""
-        <div class="section-card">
-            <h3>📋 IMPORTANT NOTES:</h3>
-            <p>  • <strong>Diagnosis:</strong> AI-assisted with {confidence_value*100:.1f}% confidence. Confirm with expert if uncertain.</p>
-            <p>  • <strong>Treatments:</strong> Curated from verified sources (product labels, research papers, extension guides)</p>
-            <p>  • <strong>Always read product labels</strong> before applying any chemicals</p>
-            <p>  • <strong>Local availability:</strong> Check with your local agrovet for product availability</p>
-            <p>  • <strong>Expert consultation:</strong> Contact your local agricultural extension officer for confirmation</p>
-        </div>
-        """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>📋 IMPORTANT NOTES:</h3>
+<p>  • <strong>Diagnosis:</strong> AI-assisted with {confidence_value*100:.1f}% confidence. Confirm with expert if uncertain.</p>
+<p>  • <strong>Treatments:</strong> Curated from verified sources (product labels, research papers, extension guides)</p>
+<p>  • <strong>Always read product labels</strong> before applying any chemicals</p>
+<p>  • <strong>Local availability:</strong> Check with your local agrovet for product availability</p>
+<p>  • <strong>Expert consultation:</strong> Contact your local agricultural extension officer for confirmation</p>
+</div>
+""", unsafe_allow_html=True)
         
         # Export and Share buttons for this image
         col_exp1, col_exp2 = st.columns(2)
@@ -5233,18 +5230,16 @@ def display_batch_results(results):
         with col_exp2:
             display_whatsapp_share_button(selected_result['primary_diagnosis'], confidence_value, st.session_state.location)
     else:
-        # Healthy crop display
-        st.success(f"✅ **{selected_result['filename']}** shows a HEALTHY crop. No treatment needed.")
-        
+        # Healthy crop display (matching single image)
         st.markdown(f"""
-        <div class="section-card">
-            <h3>🌿 HEALTHY CROP ASSESSMENT</h3>
-            <p><strong>Diagnosis:</strong> {selected_result['primary_diagnosis']}</p>
-            <p><strong>Confidence:</strong> {confidence_value*100:.1f}%</p>
-            <p><strong>Category:</strong> {clean_category(selected_result['category'])}</p>
-            <p>Your crop appears healthy. Continue good farming practices.</p>
-        </div>
-        """, unsafe_allow_html=True)
+<div class="section-card">
+<h3>🌿 HEALTHY CROP ASSESSMENT</h3>
+<p><strong>Diagnosis:</strong> {selected_result['primary_diagnosis']}</p>
+<p><strong>Confidence:</strong> {confidence_value*100:.1f}%</p>
+<p><strong>Category:</strong> {clean_category(selected_result['category'])}</p>
+<p>Your crop appears healthy. Continue good farming practices.</p>
+</div>
+""", unsafe_allow_html=True)
     
     # ============================================================
     # OPTIONS MENU FOR SELECTED IMAGE
@@ -5259,19 +5254,25 @@ def display_batch_results(results):
     for i, pred in enumerate(selected_result['top_predictions'], 1):
         pred_conf = float(pred['confidence']) if hasattr(pred['confidence'], 'item') else pred['confidence']
         if i == 1:
-            st.markdown(f"**1.** PRIMARY DIAGNOSIS: {pred['class']} ({pred_conf*100:.1f}%)")
+            st.markdown(f"**1.** Get treatment for PRIMARY DIAGNOSIS ({pred['class']}) - {pred_conf*100:.1f}%")
         else:
-            st.markdown(f"**{i}.** ALTERNATIVE {i-1}: {pred['class']} ({pred_conf*100:.1f}%)")
+            st.markdown(f"**{i}.** Get treatment for ALTERNATIVE {i-1} ({pred['class']}) - {pred_conf*100:.1f}%")
     
     st.markdown(f"**{num_predictions + 1}.** Show common chemicals for ALL TOP {num_predictions} diseases")
-    st.markdown(f"**{num_predictions + 2}.** Select a different image")
+    st.markdown(f"**{num_predictions + 2}.** Analyse another image")
+    st.markdown(f"**{num_predictions + 3}.** Exit batch view")
     
     # Buttons for options
-    opt_cols = st.columns(min(num_predictions + 2, 6))
-    for i in range(1, min(num_predictions + 3, 7)):
+    opt_cols = st.columns(min(num_predictions + 3, 6))
+    for i in range(1, min(num_predictions + 4, 7)):
         with opt_cols[i-1]:
             if st.button(f"{i}", key=f"batch_opt_{i}", use_container_width=True):
-                if i == num_predictions + 2:
+                if i == num_predictions + 3:
+                    st.session_state.show_batch_results = False
+                    st.session_state.batch_results = None
+                    st.session_state.batch_mode = False
+                    st.rerun()
+                elif i == num_predictions + 2:
                     st.info("📌 Please use the dropdown at the top to select a different image.")
                 elif i == num_predictions + 1:
                     # Show common chemicals
@@ -5287,39 +5288,43 @@ def display_batch_results(results):
                             st.markdown("_No chemical products in database_")
                         st.markdown("---")
                 elif 1 <= i <= num_predictions:
-                    alt_idx = i - 1
-                    alt_pred = selected_result['top_predictions'][alt_idx]
-                    alt_treatment = get_full_treatment(alt_pred['class'], get_references())
-                    alt_conf = float(alt_pred['confidence']) if hasattr(alt_pred['confidence'], 'item') else alt_pred['confidence']
-                    
-                    st.markdown(f"""
-                    <div class="section-card">
-                        <h3>🔬 ALTERNATIVE {alt_idx} ANALYSIS: {alt_pred['class']}</h3>
-                        <p><strong>Confidence:</strong> {alt_conf*100:.1f}%</p>
-                        <p><strong>Category:</strong> {alt_treatment['category']}</p>
-                        <p><strong>Causal Agent:</strong> {alt_treatment['causal_agent']}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    if not alt_treatment.get('is_healthy', False):
+                    if i == 1:
+                        # Already showing primary, just refresh
+                        st.rerun()
+                    else:
+                        alt_idx = i - 1
+                        alt_pred = selected_result['top_predictions'][alt_idx]
+                        alt_treatment = get_full_treatment(alt_pred['class'], get_references())
+                        alt_conf = float(alt_pred['confidence']) if hasattr(alt_pred['confidence'], 'item') else alt_pred['confidence']
+                        
                         st.markdown(f"""
                         <div class="section-card">
-                            <h3>🌾 Treatment for {alt_pred['class']}</h3>
-                            <p style="white-space: pre-line;">{alt_treatment['management'][:800]}</p>
+                            <h3>🔬 ALTERNATIVE {alt_idx} ANALYSIS: {alt_pred['class']}</h3>
+                            <p><strong>Confidence:</strong> {alt_conf*100:.1f}%</p>
+                            <p><strong>Category:</strong> {alt_treatment['category']}</p>
+                            <p><strong>Causal Agent:</strong> {alt_treatment['causal_agent']}</p>
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        alt_report_data = {'class': alt_pred['class'], 'confidence': alt_conf}
-                        alt_report = generate_export_report(alt_report_data, alt_treatment, get_references(), None)
-                        st.download_button(
-                            label=f"📥 Export Report for {alt_pred['class']}",
-                            data=alt_report,
-                            file_name=f"crop_doctor_report_{alt_pred['class'].replace(' ', '_')}_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.txt",
-                            mime="text/plain",
-                            key=f"download_alt_batch_{alt_idx}"
-                        )
-                    else:
-                        st.success(f"✅ {alt_pred['class']} - Healthy crop, no treatment needed.")
+                        if not alt_treatment.get('is_healthy', False):
+                            st.markdown(f"""
+                            <div class="section-card">
+                                <h3>🌾 Treatment for {alt_pred['class']}</h3>
+                                <p style="white-space: pre-line;">{alt_treatment['management'][:800]}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            alt_report_data = {'class': alt_pred['class'], 'confidence': alt_conf}
+                            alt_report = generate_export_report(alt_report_data, alt_treatment, get_references(), None)
+                            st.download_button(
+                                label=f"📥 Export Report for {alt_pred['class']}",
+                                data=alt_report,
+                                file_name=f"crop_doctor_report_{alt_pred['class'].replace(' ', '_')}_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.txt",
+                                mime="text/plain",
+                                key=f"download_alt_batch_{alt_idx}"
+                            )
+                        else:
+                            st.success(f"✅ {alt_pred['class']} - Healthy crop, no treatment needed.")
     
     # ============================================================
     # ONLINE MODE FEATURES FOR SELECTED IMAGE
@@ -5327,7 +5332,6 @@ def display_batch_results(results):
     if st.session_state.mode == "online":
         st.markdown("---")
         st.markdown("## 📡 ONLINE MODE - LIVE UPDATES")
-        st.caption("Weather, news, and alerts for your location")
         display_online_features(
             selected_result['primary_diagnosis'], 
             clean_category(selected_result['category']), 
@@ -5339,7 +5343,7 @@ def display_batch_results(results):
     # FEEDBACK SECTION FOR SELECTED IMAGE
     # ============================================================
     st.markdown("---")
-    st.info("💡 **We value your feedback!** Please share your experience with this diagnosis. Your answers help improve Crop Doctor for all Kenyan farmers.")
+    st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
     display_feedback_section(selected_result['primary_diagnosis'], confidence_value)
     
     # ============================================================
@@ -5363,9 +5367,9 @@ def display_batch_results(results):
             st.markdown(f"**📷 {r['filename']}** - {r['primary_diagnosis']} ({conf_val*100:.1f}%)")
             col1, col2 = st.columns(2)
             with col1:
-                st.image(r['image'], caption="Original", use_container_width=True)
+                st.image(r['image'], caption="Original Image", use_container_width=True)
             with col2:
-                st.image(r['heatmap_overlay'], caption="Heatmap", use_container_width=True)
+                st.image(r['heatmap_overlay'], caption="Grad-CAM Heatmap", use_container_width=True)
             st.markdown("---")
     
     # Show failed images if any
@@ -5376,7 +5380,6 @@ def display_batch_results(results):
     
     # Add a note about timezone
     st.caption("\u2139\uFE0F All timestamps are in East Africa Time (EAT, UTC+3)")
-
 
 # ============================================================
 # MAIN APP
