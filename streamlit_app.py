@@ -5496,9 +5496,9 @@ def display_batch_results(results):
     # ============================================================
     # 21. OPTIONS MENU (MATCHING SINGLE IMAGE STYLE)
     # ============================================================
-    st.markdown("---")
-    st.markdown("## 💡 OPTIONS MENU")
-    st.caption("Explore alternative diagnoses and settings for this image")
+    #st.markdown("---")
+    #st.markdown("## 💡 OPTIONS MENU")
+    #st.caption("Explore alternative diagnoses and settings for this image")
     
     num_predictions = len(selected_result['top_predictions'])
     common_chemicals_option = num_predictions + 1
@@ -5706,7 +5706,7 @@ def display_batch_results(results):
     # ============================================================
     if st.session_state.mode == "online":
         st.markdown("---")
-        st.markdown("## 📡 ONLINE MODE - LIVE UPDATES")
+        #st.markdown("## 📡 ONLINE MODE - LIVE UPDATES")
         display_online_features(
             selected_result['primary_diagnosis'], 
             clean_category(selected_result['category']), 
