@@ -3839,7 +3839,7 @@ def fetch_live_weather_forecast(location, disease_name, treatment_data=None):
 def display_online_features(disease_name, crop_type, location, treatment_data=None):
     """Display online features including weather, news, and agricultural updates"""
 
-    st.markdown("---")
+    #st.markdown("---")
     st.markdown("### 📡 ONLINE MODE - LIVE UPDATES")
     st.caption(f"🕐 Data last refreshed: {datetime.now().strftime('%H:%M:%S')}")
 
@@ -5042,8 +5042,7 @@ def display_batch_results(results):
     # Selection dropdown for detailed analysis
     st.markdown("---")
     st.markdown("#### \U0001F4F0 Select Image for Detailed Analysis")
-    # Add a div with ID for scrolling
-    st.markdown('<div id="batch-dropdown-section"></div>', unsafe_allow_html=True)
+    
     image_options = [f"{r['filename']} - {r['primary_diagnosis']}" for r in successful]
     selected_index = st.selectbox(
         "Choose an image to view full details, treatment, weather, and provide feedback:",
@@ -5285,7 +5284,7 @@ def display_batch_results(results):
             xai_refs_text += f"[{idx}] {get_references()[ref_num]}\n"
     
     grad_cam_ref_num = len(xai_refs) + 1
-    #xai_refs_text += f"[{grad_cam_ref_num}] R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra, 'Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization,' in Proceedings of the IEEE International Conference on Computer Vision (ICCV), 2017, pp. 618-626.\n"
+    xai_refs_text += f"[{grad_cam_ref_num}] R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra, 'Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization,' in Proceedings of the IEEE International Conference on Computer Vision (ICCV), 2017, pp. 618-626.\n"
     
     if xai_refs_text:
         st.markdown(f"""
@@ -5296,7 +5295,7 @@ def display_batch_results(results):
 """, unsafe_allow_html=True)
     
     # ============================================================
-    # 12. TREATMENT RECOMMENDATION (for diseased crops)
+    # 12. TREATMENT RECOMMENDATION
     # ============================================================
     if not selected_result.get('is_healthy', False):
         if confidence_value >= 0.9:
@@ -5367,9 +5366,7 @@ def display_batch_results(results):
 </div>
 """, unsafe_allow_html=True)
         
-        # ============================================================
-        # 13. URGENCY KEY
-        # ============================================================
+        # Urgency Key
         st.markdown("""
 <div class="section-card">
 <h3>⚡ URGENCY KEY - What Action to Take Based on Score</h3>
@@ -5384,9 +5381,7 @@ def display_batch_results(results):
 </div>
 """, unsafe_allow_html=True)
         
-        # ============================================================
-        # 14. CAUSES & CHARACTERISTICS
-        # ============================================================
+        # Causes & Characteristics
         st.markdown(f"""
 <div class="section-card">
 <h3>📋 CAUSES & CHARACTERISTICS</h3>
@@ -5394,9 +5389,7 @@ def display_batch_results(results):
 </div>
 """, unsafe_allow_html=True)
         
-        # ============================================================
-        # 15. RECOMMENDED MANAGEMENT
-        # ============================================================
+        # Recommended Management
         st.markdown(f"""
 <div class="section-card">
 <h3>🔧 RECOMMENDED MANAGEMENT</h3>
@@ -5404,9 +5397,7 @@ def display_batch_results(results):
 </div>
 """, unsafe_allow_html=True)
         
-        # ============================================================
-        # 16. CHEMICAL CONTROL
-        # ============================================================
+        # Chemical Control
         st.markdown(f"""
 <div class="section-card">
 <h3>💊 CHEMICAL CONTROL</h3>
@@ -5414,9 +5405,7 @@ def display_batch_results(results):
 </div>
 """, unsafe_allow_html=True)
         
-        # ============================================================
-        # 17. MANAGEMENT REFERENCES
-        # ============================================================
+        # Management References
         management_refs = selected_result['treatment'].get('management_refs', [])
         if management_refs:
             management_refs_text = format_reference_list_sequential(management_refs, get_references())
@@ -5427,9 +5416,7 @@ def display_batch_results(results):
 </div>
 """, unsafe_allow_html=True)
         
-        # ============================================================
-        # 18. CHEMICAL REFERENCES
-        # ============================================================
+        # Chemical References
         chemical_refs_original = selected_result['treatment'].get('chemical_refs_original', [])
         if chemical_refs_original:
             chem_ref_list = []
@@ -5439,7 +5426,6 @@ def display_batch_results(results):
                 else:
                     chem_ref_list.append(f"[{idx}] Reference {ref_num}")
             chemical_refs_text = "\n".join(chem_ref_list)
-            
             st.markdown(f"""
 <div class="section-card">
 <h3>📚 CHEMICAL REFERENCES</h3>
@@ -5447,9 +5433,7 @@ def display_batch_results(results):
 </div>
 """, unsafe_allow_html=True)
         
-        # ============================================================
-        # 19. IMPORTANT NOTES
-        # ============================================================
+        # Important Notes
         st.markdown(f"""
 <div class="section-card">
 <h3>📋 IMPORTANT NOTES:</h3>
@@ -5461,9 +5445,7 @@ def display_batch_results(results):
 </div>
 """, unsafe_allow_html=True)
         
-        # ============================================================
-        # 20. EXPORT AND SHARE BUTTONS
-        # ============================================================
+        # Export and Share buttons
         col_exp1, col_exp2 = st.columns(2)
         with col_exp1:
             if st.button("📄 Export Report for This Image", use_container_width=True):
@@ -5494,17 +5476,16 @@ def display_batch_results(results):
 """, unsafe_allow_html=True)
     
     # ============================================================
-    # 21. OPTIONS MENU (MATCHING SINGLE IMAGE STYLE)
+    # 21. OPTIONS MENU (SIMPLIFIED - NO "SELECT DIFFERENT IMAGE")
     # ============================================================
-    #st.markdown("---")
-    #st.markdown("## 💡 OPTIONS MENU")
-    #st.caption("Explore alternative diagnoses and settings for this image")
+    st.markdown("---")
+    st.markdown("## 💡 OPTIONS MENU")
+    st.caption("Explore alternative diagnoses and settings for this image")
     
     num_predictions = len(selected_result['top_predictions'])
     common_chemicals_option = num_predictions + 1
     change_topk_option = common_chemicals_option + 1
-    analyze_another_option = change_topk_option + 1
-    exit_option = analyze_another_option + 1
+    exit_option = change_topk_option + 1
     
     # Build the menu as a single markdown block
     menu_html = f"""
@@ -5520,12 +5501,14 @@ def display_batch_results(results):
     menu_html += f"""
 <p><strong>{common_chemicals_option}.</strong> Show common chemicals for ALL TOP {num_predictions} diseases</p>
 <p><strong>{change_topk_option}.</strong> Change number of top predictions (current: {st.session_state.current_top_k})</p>
-<p><strong>{analyze_another_option}.</strong> Select a different image from batch</p>
 <p><strong>{exit_option}.</strong> Exit batch view</p>
 </div>
 """
     st.markdown(menu_html, unsafe_allow_html=True)
-
+    
+    # Clear message about selecting a different image
+    st.info("💡 **Tip:** To analyse a different image from this batch, simply scroll up and select a different image from the dropdown menu at the top of this page.")
+    
     # Create button row for menu options
     total_options = exit_option
     cols = st.columns(min(total_options, 10))
@@ -5537,13 +5520,6 @@ def display_batch_results(results):
                     st.session_state.show_batch_results = False
                     st.session_state.batch_results = None
                     st.session_state.batch_mode = False
-                    st.rerun()
-                elif i == analyze_another_option:
-                    # Clear any alternative view
-                    st.session_state.show_alternative_batch = None
-                    st.session_state.show_common_chemicals_batch = False
-                    # Set flag to highlight dropdown
-                    st.session_state.highlight_dropdown = True
                     st.rerun()
                 elif i == change_topk_option:
                     st.session_state.show_k_dialog = True
@@ -5562,19 +5538,8 @@ def display_batch_results(results):
                         st.session_state.show_common_chemicals_batch = False
                         st.rerun()
     
-    # Show navigation help if coming from "Select different image"
-    if st.session_state.get('highlight_dropdown', False):
-        st.markdown("""
-        <div style="background: #e3f2fd; padding: 15px; border-radius: 10px; margin: 15px 0; text-align: center;">
-            <p style="margin-bottom: 10px;">📌 <strong>To select a different image:</strong></p>
-            <p>1️⃣ Scroll up to the <strong>"Select Image for Detailed Analysis"</strong> section</p>
-            <p>2️⃣ Choose a different image from the dropdown menu</p>
-            <p style="margin-top: 10px; font-size: 12px; color: #666;">💡 The dropdown is located right after the batch summary table</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
     # ============================================================
-    # DISPLAY CONTENT BASED ON BUTTON CLICK (FULL WIDTH)
+    # DISPLAY CONTENT BASED ON BUTTON CLICK
     # ============================================================
     
     # Show common chemicals if requested
@@ -5679,12 +5644,41 @@ def display_batch_results(results):
             if st.button("✖ Close Alternative View", use_container_width=True, key="close_alternative_batch"):
                 st.session_state.show_alternative_batch = None
                 st.rerun()
-
     
     # ============================================================
-    # 22. VIEW ALL BATCH RESULTS
+    # K VALUE CHANGE DIALOG
     # ============================================================
-    st.markdown("---")
+    if st.session_state.get('show_k_dialog', False):
+        with st.expander("📊 Change number of top predictions", expanded=True):
+            st.markdown("**K** represents the number of top predictions to display and consider.")
+            st.markdown(f"Current K value: **{st.session_state.current_top_k}**")
+            
+            model_temp, class_names_temp = load_model_and_classes()
+            max_classes = len(class_names_temp) if class_names_temp else 50
+            
+            new_k = st.number_input(
+                "Enter new K value",
+                min_value=1,
+                max_value=max_classes,
+                value=st.session_state.current_top_k,
+                step=1,
+                key="batch_k_value_input_unique"
+            )
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("✅ Set", use_container_width=True, key="batch_set_k_btn_unique"):
+                    st.session_state.current_top_k = new_k
+                    st.session_state.show_k_dialog = False
+                    st.session_state.show_results = False
+                    st.rerun()
+            with col2:
+                if st.button("❌ Cancel", use_container_width=True, key="batch_cancel_k_btn_unique"):
+                    st.session_state.show_k_dialog = False
+                    st.rerun()
+    
+    # ============================================================
+    # VIEW ALL BATCH RESULTS
+    # ============================================================
     with st.expander("\U0001F4F8 View All Batch Results (Click to expand)", expanded=False):
         for r in successful:
             conf_val = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
@@ -5703,11 +5697,11 @@ def display_batch_results(results):
             st.warning(f"**{r['filename']}:** {r['error_message']}")
     
     # ============================================================
-    # 23. ONLINE MODE FEATURES
+    # ONLINE MODE FEATURES
     # ============================================================
     if st.session_state.mode == "online":
-        #st.markdown("---")
-        #st.markdown("## 📡 ONLINE MODE - LIVE UPDATES")
+        st.markdown("---")
+        st.markdown("## 📡 ONLINE MODE - LIVE UPDATES")
         display_online_features(
             selected_result['primary_diagnosis'], 
             clean_category(selected_result['category']), 
@@ -5716,14 +5710,14 @@ def display_batch_results(results):
         )
     
     # ============================================================
-    # 24. FEEDBACK SECTION
+    # FEEDBACK SECTION
     # ============================================================
     st.markdown("---")
     st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
     display_feedback_section(selected_result['primary_diagnosis'], confidence_value)
     
     # ============================================================
-    # 25. THANK YOU MESSAGE
+    # THANK YOU MESSAGE
     # ============================================================
     st.markdown("---")
     st.markdown("""
@@ -5736,7 +5730,7 @@ def display_batch_results(results):
     
     # Add a note about timezone
     st.caption("\u2139\uFE0F All timestamps are in East Africa Time (EAT, UTC+3)")
-
+    
 # ============================================================
 # MAIN APP
 # ============================================================
