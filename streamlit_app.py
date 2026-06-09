@@ -4742,8 +4742,59 @@ def process_batch_images(uploaded_files, model, class_names, references, gradcam
     
     return results
 
+def export_all_images_analysis(results):
+    """Export a comprehensive analysis of all images in the batch"""
+    from datetime import datetime, timedelta, timezone as dt_timezone
+    
+    eat_timezone = dt_timezone(timedelta(hours=3))
+    timestamp = datetime.now(eat_timezone).strftime('%Y-%m-%d %H:%M:%S')
+    
+    report = []
+    report.append("=" * 80)
+    report.append("CROP DOCTOR - COMPLETE BATCH ANALYSIS")
+    report.append("=" * 80)
+    report.append(f"Report Generated: {timestamp}")
+    report.append(f"Total Images: {len(results)}")
+    report.append("")
+    
+    for idx, r in enumerate(results, 1):
+        if r['status'] == 'success':
+            confidence_value = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
+            
+            report.append(f"\n{'=' * 80}")
+            report.append(f"IMAGE {idx}: {r['filename']}")
+            report.append(f"{'=' * 80}")
+            report.append(f"Diagnosis: {r['primary_diagnosis']}")
+            report.append(f"Confidence: {confidence_value*100:.1f}%")
+            report.append(f"Category: {r['category']}")
+            report.append(f"Causal Agent: {r['causal_agent']}")
+            report.append("")
+            
+            if not r.get('is_healthy', False):
+                report.append("MANAGEMENT:")
+                report.append("-" * 40)
+                report.append(r['management'])
+                report.append("")
+                report.append("CHEMICAL CONTROL:")
+                report.append("-" * 40)
+                report.append(r['chemical_control'])
+            else:
+                report.append("STATUS: HEALTHY CROP - No treatment needed")
+            report.append("")
+    
+    report_text = "\n".join(report)
+    
+    txt_filename = f"batch_complete_analysis_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.txt"
+    
+    st.download_button(
+        label="\U0001F4E5 Download Complete Analysis",
+        data=report_text,
+        file_name=txt_filename,
+        mime="text/plain"
+    )
+
 def display_batch_results(results):
-    """Display batch processing results in an organized way with correct timestamps and treatments"""
+    """Display batch processing results in an organized way with selectable image for detailed analysis"""
     from datetime import datetime, timedelta, timezone as dt_timezone
     import csv
     import os
@@ -4767,151 +4818,330 @@ def display_batch_results(results):
     
     # Helper function to clean category (remove emojis only, keep the text)
     def clean_category(category_text):
-        # Remove emojis but keep the original text
         category_text = category_text.replace('🍄', '').replace('🦠', '').replace('🐛', '').replace('🌿', '').replace('🌱', '').strip()
-        # Capitalize first letter
         return category_text.capitalize()
     
     if successful:
-        # Create a summary table
+        # Create a summary table with selection capability
         st.markdown("#### \U0001F4CB Summary Table")
+        
+        # Add selection dropdown
+        image_options = [f"{r['filename']} - {r['primary_diagnosis']} ({float(r['primary_confidence'])*100:.1f}%)" for r in successful]
+        selected_image_idx = st.selectbox(
+            "Select an image for detailed analysis (including treatment, weather, and feedback):",
+            options=range(len(image_options)),
+            format_func=lambda x: image_options[x],
+            key="batch_selected_image"
+        )
+        
+        selected_result = successful[selected_image_idx]
+        
+        # Display summary table
         summary_data = []
         for r in successful:
-            # Convert numpy float to Python float
             confidence_value = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
-            
             summary_data.append({
                 "Image": r['filename'],
                 "Diagnosis": r['primary_diagnosis'],
                 "Confidence": f"{confidence_value*100:.1f}%",
                 "Category": clean_category(r['category']),
-                "Causal Agent": r['causal_agent'][:50] + "..." if len(r['causal_agent']) > 50 else r['causal_agent'],
-                "Timestamp": r.get('timestamp', batch_timestamp)
+                "Causal Agent": r['causal_agent'][:50] + "..." if len(r['causal_agent']) > 50 else r['causal_agent']
             })
-        st.dataframe(summary_data, width="stretch" )
+        st.dataframe(summary_data, use_container_width=True)
         
-        # Export options
-        col1, col2, col3 = st.columns(3)
+        # Export options row
+        st.markdown("---")
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
-            if st.button("\U0001F4CA Export Summary CSV", width="stretch" ):
+            if st.button("\U0001F4CA Export Summary CSV", use_container_width=True):
                 csv_data = []
                 for r in successful:
+                    confidence_value = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
                     csv_data.append({
                         "filename": r['filename'],
                         "diagnosis": r['primary_diagnosis'],
-                        "confidence": r['primary_confidence'],
-                        "confidence_percent": f"{r['primary_confidence']*100:.1f}%",
+                        "confidence": confidence_value,
+                        "confidence_percent": f"{confidence_value*100:.1f}%",
                         "category": clean_category(r['category']),
                         "causal_agent": r['causal_agent'],
-                        "management_summary": r['management'][:200] + "..." if len(r['management']) > 200 else r['management'],
                         "timestamp": r.get('timestamp', batch_timestamp)
                     })
                 
                 csv_filename = f"batch_results_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.csv"
                 with open(csv_filename, 'w', newline='', encoding='utf-8-sig') as f:
-                    writer = csv.DictWriter(f, fieldnames=["filename", "diagnosis", "confidence", "confidence_percent", "category", "causal_agent", "management_summary", "timestamp"])
+                    writer = csv.DictWriter(f, fieldnames=["filename", "diagnosis", "confidence", "confidence_percent", "category", "causal_agent", "timestamp"])
                     writer.writeheader()
                     writer.writerows(csv_data)
                 
                 with open(csv_filename, 'rb') as f:
                     st.download_button(
-                        label="\U0001F4E5 Download Summary CSV",
+                        label="\U0001F4E5 Download CSV",
                         data=f,
                         file_name=csv_filename,
                         mime="text/csv"
                     )
-                
                 try:
                     os.remove(csv_filename)
                 except:
                     pass
         
         with col2:
-            if st.button("\U0001F4D1 Generate Full Report", width="stretch" ):
+            if st.button("\U0001F4D1 Generate Full Report", use_container_width=True):
                 generate_batch_report(successful)
         
         with col3:
-            if st.button("\U0001F4E6 Export Detailed Text Report", width="stretch" ):
+            if st.button("\U0001F4E6 Detailed Text Report", use_container_width=True):
                 export_batch_detailed_report(successful)
         
-        # Display individual results in expanders with treatment details
-        st.markdown("#### \U0001F4F8 Individual Results with Treatments")
-        for r in successful:
-            # Determine urgency color based on health status and confidence
-            if r.get('is_healthy', False):
-                status_color = "🟢"
-                status_text = "HEALTHY CROP"
-            elif r['primary_confidence'] >= 0.9:
-                status_color = "🔴"
-                status_text = "URGENT"
-            elif r['primary_confidence'] >= 0.7:
-                status_color = "🟠"
-                status_text = "HIGH PRIORITY"
-            elif r['primary_confidence'] >= 0.5:
-                status_color = "🟡"
-                status_text = "MEDIUM PRIORITY"
-            else:
-                status_color = "⚪"
-                status_text = "LOW CONFIDENCE"
+        with col4:
+            if st.button("\U0001F4AC Export for All Images", use_container_width=True):
+                export_all_images_analysis(successful)
+        
+        st.markdown("---")
+
+def display_batch_options_menu(top_predictions, references, location, class_names, current_disease_name, current_crop_type, current_treatment_data=None):
+    """Display options menu for batch processing - simplified version"""
+    
+    num_predictions = len(top_predictions)
+    common_chemicals_option = num_predictions + 1
+    analyze_another_option = common_chemicals_option + 1
+    
+    current_mode = st.session_state.mode
+
+    # Build the menu as a single markdown block
+    menu_html = f"""
+<div class="section-card">
+<h3>💡 OPTIONS MENU</h3>
+<p><strong>1.</strong> PRIMARY DIAGNOSIS ({top_predictions[0]['class']}) - {top_predictions[0]['confidence']*100:.1f}%</p>
+"""
+    for i in range(1, num_predictions):
+        menu_html += f'<p><strong>{i+1}.</strong> ALTERNATIVE {i} ({top_predictions[i]["class"]}) - {top_predictions[i]["confidence"]*100:.1f}%</p>\n'
+
+    menu_html += f"""
+<p><strong>{common_chemicals_option}.</strong> Show common chemicals for ALL TOP {num_predictions} diseases</p>
+<p><strong>{analyze_another_option}.</strong> Select a different image from batch</p>
+</div>
+"""
+    st.markdown(menu_html, unsafe_allow_html=True)
+
+    # Create button row for menu options
+    total_options = analyze_another_option
+    cols = st.columns(min(total_options, 6))
+
+    for i in range(1, min(total_options + 1, 7)):
+        with cols[i-1]:
+            if st.button(f"{i}", key=f"batch_menu_btn_{i}", width="stretch"):
+                if i == analyze_another_option:
+                    # User wants to select another image - just scroll up
+                    st.info("📌 Please use the dropdown above to select a different image for detailed analysis.")
+                    st.rerun()
+                elif i == common_chemicals_option:
+                    show_common_chemicals_for_top_k(top_predictions, references)
+                elif 1 <= i <= num_predictions:
+                    if i == 1:
+                        # Already showing primary, just refresh
+                        st.rerun()
+                    else:
+                        # Show alternative diagnosis info
+                        alt_idx = i - 1
+                        alt_pred = top_predictions[alt_idx]
+                        alt_treatment = get_full_treatment(alt_pred['class'], references)
+                        alt_confidence = alt_pred['confidence']
+                        
+                        st.markdown(f"""
+                        <div class="section-card">
+                            <h3>🔬 ALTERNATIVE {alt_idx} ANALYSIS: {alt_pred['class']}</h3>
+                            <p><strong>Confidence:</strong> {alt_confidence*100:.1f}%</p>
+                            <p><strong>Category:</strong> {alt_treatment['category']}</p>
+                            <p><strong>Causal Agent:</strong> {alt_treatment['causal_agent']}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if not alt_treatment.get('is_healthy', False):
+                            st.markdown(f"""
+                            <div class="section-card">
+                                <h3>🌾 Treatment for {alt_pred['class']}</h3>
+                                <p style="white-space: pre-line;">{alt_treatment['management']}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            st.markdown(f"""
+                            <div class="section-card">
+                                <h3>💊 Chemical Control</h3>
+                                <p style="white-space: pre-line;">{alt_treatment['chemical_control']}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Export for alternative
+                            alt_report_data = {'class': alt_pred['class'], 'confidence': alt_confidence}
+                            alt_report = generate_export_report(alt_report_data, alt_treatment, references, None)
+                            from datetime import datetime, timedelta, timezone as dt_timezone
+                            eat_timezone = dt_timezone(timedelta(hours=3))
+                            st.download_button(
+                                label=f"📥 Export Report for {alt_pred['class']}",
+                                data=alt_report,
+                                file_name=f"crop_doctor_report_{alt_pred['class'].replace(' ', '_')}_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.txt",
+                                mime="text/plain",
+                                key=f"download_alt_batch_{alt_idx}"
+                            )
+                        else:
+                            st.success(f"✅ {alt_pred['class']} - Healthy crop, no treatment needed.")
+
+        # ============================================================
+        # DETAILED ANALYSIS FOR SELECTED IMAGE
+        # ============================================================
+        st.markdown(f"### \U0001F4F8 Detailed Analysis: {selected_result['filename']}")
+        
+        # Display images side by side
+        col_img1, col_img2 = st.columns(2)
+        with col_img1:
+            st.image(selected_result['image'], caption="Original Image", use_container_width=True)
+        with col_img2:
+            st.image(selected_result['heatmap_overlay'], caption="Grad-CAM Heatmap", use_container_width=True)
+        
+        # Diagnosis information
+        confidence_value = float(selected_result['primary_confidence']) if hasattr(selected_result['primary_confidence'], 'item') else selected_result['primary_confidence']
+        
+        st.markdown(f"""
+        <div class="section-card">
+            <h3>📊 Diagnosis Summary</h3>
+            <p><strong>Primary Diagnosis:</strong> {selected_result['primary_diagnosis']}</p>
+            <p><strong>Confidence:</strong> {confidence_value*100:.1f}%</p>
+            <p><strong>Category:</strong> {clean_category(selected_result['category'])}</p>
+            <p><strong>Causal Agent:</strong> {selected_result['causal_agent']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Top predictions
+        st.markdown("""
+        <div class="section-card">
+            <h3>📈 Top Predictions</h3>
+        """, unsafe_allow_html=True)
+        for i, pred in enumerate(selected_result['top_predictions'], 1):
+            pred_confidence = float(pred['confidence']) if hasattr(pred['confidence'], 'item') else pred['confidence']
+            st.markdown(f"<p><strong>{i}.</strong> {pred['class']}: {pred_confidence*100:.1f}%</p>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Treatment recommendations (for diseased crops)
+        if not selected_result.get('is_healthy', False):
+            st.markdown(f"""
+            <div class="section-card">
+                <h3>🌾 Treatment Recommendation</h3>
+                <p><strong>Diagnosis:</strong> {selected_result['primary_diagnosis']}</p>
+                <p><strong>Category:</strong> {clean_category(selected_result['category'])}</p>
+                <p><strong>Confidence:</strong> {confidence_value*100:.1f}%</p>
+            </div>
+            """, unsafe_allow_html=True)
             
-            with st.expander(f"\U0001F4F7 {r['filename']} - {r['primary_diagnosis']} ({r['primary_confidence']*100:.1f}%) [{status_color} {status_text}]"):
+            st.markdown(f"""
+            <div class="section-card">
+                <h3>🔧 Recommended Management</h3>
+                <p style="white-space: pre-line;">{selected_result['management']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown(f"""
+            <div class="section-card">
+                <h3>💊 Chemical Control</h3>
+                <p style="white-space: pre-line;">{selected_result['chemical_control']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Export and Share buttons for this image
+            col_export1, col_export2, col_export3 = st.columns(3)
+            with col_export1:
+                if st.button("📄 Export Report for This Image", use_container_width=True):
+                    single_report_data = {
+                        'class': selected_result['primary_diagnosis'],
+                        'confidence': confidence_value
+                    }
+                    report = generate_export_report(single_report_data, selected_result['treatment'], get_references(), None)
+                    st.download_button(
+                        label="📥 Download Report",
+                        data=report,
+                        file_name=f"crop_doctor_report_{selected_result['filename'].replace('.jpg', '')}_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.txt",
+                        mime="text/plain",
+                        key=f"download_selected"
+                    )
+            with col_export2:
+                display_whatsapp_share_button(selected_result['primary_diagnosis'], confidence_value, st.session_state.location)
+            with col_export3:
+                st.markdown("---")
+        else:
+            st.success(f"✅ **{selected_result['filename']}** shows a HEALTHY crop. No treatment needed.")
+        
+        # ============================================================
+        # OPTIONS MENU FOR SELECTED IMAGE
+        # ============================================================
+        st.markdown("---")
+        st.markdown("### 💡 OPTIONS MENU")
+        st.caption("Explore alternative diagnoses and customize settings for this image")
+        
+        # Create top predictions list for options menu
+        top_predictions_for_menu = selected_result['top_predictions']
+        
+        # Display options menu for the selected image
+        display_batch_options_menu(
+            top_predictions_for_menu, 
+            get_references(), 
+            st.session_state.location, 
+            None,  # class_names not needed for this menu
+            selected_result['primary_diagnosis'], 
+            clean_category(selected_result['category']), 
+            selected_result
+        )
+        
+        # ============================================================
+        # ONLINE MODE FEATURES FOR SELECTED IMAGE (if in online mode)
+        # ============================================================
+        if st.session_state.mode == "online":
+            st.markdown("---")
+            st.markdown("### 📡 ONLINE MODE - LIVE UPDATES")
+            st.caption("Weather, news, and alerts for your location")
+            display_online_features(
+                selected_result['primary_diagnosis'], 
+                clean_category(selected_result['category']), 
+                st.session_state.location, 
+                selected_result['treatment']
+            )
+        
+        # ============================================================
+        # FEEDBACK SECTION FOR SELECTED IMAGE
+        # ============================================================
+        st.markdown("---")
+        st.info("💡 **We value your feedback!** Please share your experience with this diagnosis. Your answers help improve Crop Doctor for all Kenyan farmers.")
+        display_feedback_section(selected_result['primary_diagnosis'], confidence_value)
+        
+        # ============================================================
+        # THANK YOU MESSAGE
+        # ============================================================
+        st.markdown("---")
+        st.markdown("""
+        <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
+            <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana! (Thank You Very Much!)</strong></p>
+            <p style="font-size: 13px; color: #555;">Your feedback helps us serve Kenyan farmers better.</p>
+            <p style="font-size: 12px; color: #888; margin-top: 10px;">🌾 Happy Farming! 🌾</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Individual results expanders (collapsible for reference)
+        st.markdown("#### \U0001F4F8 All Batch Results (Expand for Details)")
+        for r in successful:
+            with st.expander(f"\U0001F4F7 {r['filename']} - {r['primary_diagnosis']} ({float(r['primary_confidence'])*100:.1f}%)"):
                 st.caption(f"\U0001F550 Processed: {r.get('timestamp', batch_timestamp)}")
-                
-                # Image display
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.image(r['image'], caption="Original Image", width="stretch" )
+                    st.image(r['image'], caption="Original Image", use_container_width=True)
                 with col2:
-                    st.image(r['heatmap_overlay'], caption="Grad-CAM Heatmap", width="stretch" )
+                    st.image(r['heatmap_overlay'], caption="Grad-CAM Heatmap", use_container_width=True)
                 
-                # Diagnosis summary
-                st.markdown(f"**Diagnosis:** {r['primary_diagnosis']}")
-                st.markdown(f"**Confidence:** {r['primary_confidence']*100:.1f}%")
-                st.markdown(f"**Category:** {clean_category(r['category'])}")
-                st.markdown(f"**Causal Agent:** {r['causal_agent']}")
-                
-                # Top predictions
                 st.markdown(f"**Top Predictions:**")
                 for i, pred in enumerate(r['top_predictions'], 1):
-                    st.markdown(f"{i}. {pred['class']}: {pred['confidence']*100:.1f}%")
+                    pred_conf = float(pred['confidence']) if hasattr(pred['confidence'], 'item') else pred['confidence']
+                    st.markdown(f"{i}. {pred['class']}: {pred_conf*100:.1f}%")
                 
-                # Treatment recommendations (for diseased crops)
-                if not r.get('is_healthy', False):
-                    st.markdown("---")
-                    st.markdown("#### \U0001F48A Treatment Recommendations")
-                    
-                    # Management
-                    with st.expander("📋 Management Practices", expanded=False):
-                        st.markdown(r['management'])
-                    
-                    # Chemical Control
-                    with st.expander("💊 Chemical Control", expanded=False):
-                        st.markdown(r['chemical_control'])
-                    
-                    # Quick action buttons for this specific image
-                    col_action1, col_action2 = st.columns(2)
-                    with col_action1:
-                        if st.button(f"📄 Export Report for {r['filename'][:20]}", width="stretch" , key=f"export_{r['filename']}_{hash(r['filename'])}"):
-                            # Create single image report data structure
-                            single_report_data = {
-                                'class': r['primary_diagnosis'],
-                                'confidence': r['primary_confidence']
-                            }
-                            report = generate_export_report(single_report_data, r['treatment'], get_references(), None)
-                            st.download_button(
-                                label="📥 Download Report",
-                                data=report,
-                                file_name=f"crop_doctor_report_{r['filename'].replace('.jpg', '')}_{datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')}.txt",
-                                mime="text/plain",
-                                key=f"download_{r['filename']}_{hash(r['filename'])}"
-                            )
-                    
-                    with col_action2:
-                        if st.button(f"📱 Share {r['filename'][:20]} via WhatsApp", width="stretch" , key=f"whatsapp_{r['filename']}_{hash(r['filename'])}"):
-                            display_whatsapp_share_button(r['primary_diagnosis'], r['primary_confidence'], st.session_state.location)
-                else:
-                    st.markdown("---")
-                    st.success("✅ This is a HEALTHY crop. No treatment needed. Continue good farming practices.")
+                st.markdown(f"**Category:** {clean_category(r['category'])}")
+                st.markdown(f"**Causal Agent:** {r['causal_agent']}")
         
         if failed:
             st.markdown("#### \u274C Failed Images")
@@ -4920,6 +5150,7 @@ def display_batch_results(results):
     
     # Add a note about timezone
     st.caption("\u2139\uFE0F All timestamps are in East Africa Time (EAT, UTC+3)")
+
 
 def generate_batch_report(results):
     """Generate a comprehensive batch report with correct timestamps"""
