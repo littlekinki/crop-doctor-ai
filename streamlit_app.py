@@ -4857,7 +4857,7 @@ def display_batch_results(results):
     selected_result = successful[selected_index]
     confidence_value = float(selected_result['primary_confidence']) if hasattr(selected_result['primary_confidence'], 'item') else selected_result['primary_confidence']
     
-    # Single comprehensive report button
+    # Export buttons
     st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
@@ -4895,7 +4895,7 @@ def display_batch_results(results):
     st.markdown("---")
     
     # ============================================================
-    # DETAILED ANALYSIS FOR SELECTED IMAGE
+    # DETAILED ANALYSIS FOR SELECTED IMAGE (Matching Single Image Display)
     # ============================================================
     st.markdown(f"## \U0001F4F8 Detailed Analysis: {selected_result['filename']}")
     
@@ -4906,49 +4906,295 @@ def display_batch_results(results):
     with col_img2:
         st.image(selected_result['heatmap_overlay'], caption="Grad-CAM Heatmap - Red areas influenced the diagnosis", use_container_width=True)
     
-    # Diagnosis information
+    # Grad-CAM Legend
+    with st.expander("\U0001F4CA Understanding the Heatmap Colors", expanded=False):
+        st.markdown("""
+        <div class="section-card">
+            <h3>📊 LEGEND FOR THE VISUAL EVIDENCE</h3>
+            <p>🔴 <strong>RED (HOT)</strong> = HIGH influence - These areas strongly indicate the disease</p>
+            <p>🟠 <strong>ORANGE</strong> = HIGH-MEDIUM influence</p>
+            <p>🟡 <strong>YELLOW</strong> = MEDIUM influence</p>
+            <p>🟢 <strong>GREEN</strong> = LOW-MEDIUM influence</p>
+            <p>💠 <strong>CYAN</strong> = VERY LOW influence</p>
+            <p>🔵 <strong>BLUE (COOL)</strong> = LOWEST influence - These areas had minimal impact on the diagnosis</p>
+            <p class="gradcam-tip">💡 The warmer the color (Red → Orange → Yellow), the more it influenced the model's decision. Cooler colors (Green → Cyan → Blue) had less influence.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Determine confidence level and description
+    if confidence_value >= 0.9:
+        level = 'VERY HIGH'
+        level_icon = "🟢"
+        level_desc = "Extremely reliable - the disease indicators are very clear and distinct."
+    elif confidence_value >= 0.8:
+        level = 'HIGH'
+        level_icon = "🟢"
+        level_desc = "Very reliable - the disease indicators are clearly visible."
+    elif confidence_value >= 0.7:
+        level = 'HIGH'
+        level_icon = "🟡"
+        level_desc = "Reliable - the disease indicators are present but not extremely strong."
+    elif confidence_value >= 0.6:
+        level = 'MODERATE'
+        level_icon = "🟡"
+        level_desc = "Moderately reliable - some disease indicators are visible."
+    elif confidence_value >= 0.5:
+        level = 'MODERATE'
+        level_icon = "🟠"
+        level_desc = "Moderately reliable - disease indicators are present but weak."
+    elif confidence_value >= 0.4:
+        level = 'LOW'
+        level_icon = "🟠"
+        level_desc = "Low reliability - disease indicators are unclear or mixed."
+    elif confidence_value >= 0.3:
+        level = 'LOW'
+        level_icon = "🔴"
+        level_desc = "Low reliability - weak disease indicators present."
+    else:
+        level = 'VERY LOW'
+        level_icon = "🔴"
+        level_desc = "Very low reliability - disease indicators are absent or unclear."
+    
+    # XAI Analysis Section
     st.markdown(f"""
     <div class="section-card">
-        <h3>📊 Diagnosis Summary</h3>
-        <p><strong>Primary Diagnosis:</strong> {selected_result['primary_diagnosis']}</p>
-        <p><strong>Confidence:</strong> {confidence_value*100:.1f}%</p>
-        <p><strong>Category:</strong> {clean_category(selected_result['category'])}</p>
-        <p><strong>Causal Agent:</strong> {selected_result['causal_agent']}</p>
+        <h3>🔬 EXPLAINABLE ARTIFICIAL INTELLIGENCE (XAI) ANALYSIS FOR: {selected_result['primary_diagnosis']}</h3>
+        <p><strong>📊 CLASSIFIER CONFIDENCE SCORE:</strong> {confidence_value*100:.1f}% ({level}) {level_icon}</p>
+        <p>{level_desc}</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Top predictions
+    # Confidence Key
     st.markdown("""
     <div class="section-card">
-        <h3>📈 Top Predictions</h3>
+        <h3>📊 CONFIDENCE KEY - How to Understand the Score</h3>
+        <p>   🟢 <strong>90-100% (VERY HIGH)</strong> → Extremely reliable. Clear disease indicators.</p>
+        <p>   🟢 <strong>80-89% (HIGH)</strong>     → Very reliable. Strong disease indicators.</p>
+        <p>   🟡 <strong>70-79% (HIGH)</strong>     → Reliable. Disease indicators present.</p>
+        <p>   🟡 <strong>60-69% (MODERATE)</strong> → Moderately reliable. Some indicators visible.</p>
+        <p>   🟠 <strong>50-59% (MODERATE)</strong> → Moderately reliable. Weak indicators.</p>
+        <p>   🟠 <strong>40-49% (LOW)</strong>      → Low reliability. Unclear indicators.</p>
+        <p>   🔴 <strong>30-39% (LOW)</strong>      → Low reliability. Mixed evidence.</p>
+        <p>   🔴 <strong>0-29% (VERY LOW)</strong>  → Very low reliability. Seek expert advice.</p>
+    </div>
     """, unsafe_allow_html=True)
-    for i, pred in enumerate(selected_result['top_predictions'], 1):
-        pred_confidence = float(pred['confidence']) if hasattr(pred['confidence'], 'item') else pred['confidence']
-        st.markdown(f"<p><strong>{i}.</strong> {pred['class']}: {pred_confidence*100:.1f}%</p>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
     
-    # Treatment recommendations (for diseased crops)
-    if not selected_result.get('is_healthy', False):
-        st.markdown(f"""
+    # Disease Type
+    st.markdown(f"""
+    <div class="section-card">
+        <h3>🏷️ DISEASE TYPE</h3>
+        <p>{selected_result['category']}</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Causal Agent
+    st.markdown(f"""
+    <div class="section-card">
+        <h3>🦠 CAUSAL AGENT</h3>
+        <p>{selected_result['causal_agent']}</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Key Characteristics
+    st.markdown(f"""
+    <div class="section-card">
+        <h3>📋 KEY CHARACTERISTICS</h3>
+        <p style="white-space: pre-line;">{selected_result['treatment'].get('causes_characteristics', 'See detailed description')}</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # What the Model Analysed
+    st.markdown(f"""
+    <div class="section-card">
+        <h3>💡 WHAT THE MODEL ANALYSED</h3>
+        <p>The model examined your crop image and identified visual patterns that match the characteristic appearance of {selected_result['primary_diagnosis']}.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Low Confidence Guidance (if needed)
+    if confidence_value < 0.6:
+        st.markdown("""
         <div class="section-card">
-            <h3>🌾 Treatment Recommendation</h3>
-            <p><strong>Diagnosis:</strong> {selected_result['primary_diagnosis']}</p>
-            <p><strong>Category:</strong> {clean_category(selected_result['category'])}</p>
-            <p><strong>Confidence:</strong> {confidence_value*100:.1f}%</p>
+            <h3>⚠️ LOW CONFIDENCE GUIDANCE</h3>
+            <p>The model is not very confident about this diagnosis. We recommend:</p>
+            <ol>
+                <li>📸 Take a clearer photo focusing on the affected areas</li>
+                <li>🔍 Examine multiple plants in your field for comparison</li>
+                <li>👨‍🌾 Consult an agricultural extension officer for confirmation</li>
+                <li>🔄 Consider the treatment options for ALL top 3 predictions</li>
+            </ol>
         </div>
         """, unsafe_allow_html=True)
+    
+    # ============================================================
+    # TREATMENT RECOMMENDATION (Matching Single Image)
+    # ============================================================
+    if not selected_result.get('is_healthy', False):
+        # Determine urgency based on confidence
+        if confidence_value >= 0.9:
+            urgency_icon = "🔴"
+            urgency_level = "URGENT"
+            action = "IMMEDIATE TREATMENT REQUIRED"
+            confidence_desc = "VERY HIGH"
+            confidence_icon = "🟢"
+            reason = "Very clear disease symptoms - act immediately"
+        elif confidence_value >= 0.8:
+            urgency_icon = "🟠"
+            urgency_level = "HIGH"
+            action = "TREAT PROMPTLY"
+            confidence_desc = "HIGH"
+            confidence_icon = "🟢"
+            reason = "Clear disease symptoms visible - treat promptly"
+        elif confidence_value >= 0.7:
+            urgency_icon = "🟡"
+            urgency_level = "MEDIUM"
+            action = "TREAT PROMPTLY"
+            confidence_desc = "HIGH"
+            confidence_icon = "🟡"
+            reason = "Clear but not extremely strong indicators"
+        elif confidence_value >= 0.6:
+            urgency_icon = "🟡"
+            urgency_level = "MEDIUM"
+            action = "CONSIDER TREATMENT"
+            confidence_desc = "MODERATE"
+            confidence_icon = "🟡"
+            reason = "Some disease symptoms visible - consider treatment"
+        elif confidence_value >= 0.5:
+            urgency_icon = "🟠"
+            urgency_level = "CAUTIOUS"
+            action = "VERIFY BEFORE TREATMENT"
+            confidence_desc = "MODERATE"
+            confidence_icon = "🟠"
+            reason = "Weak disease indicators present"
+        elif confidence_value >= 0.4:
+            urgency_icon = "🟠"
+            urgency_level = "CAUTIOUS"
+            action = "VERIFY BEFORE TREATMENT"
+            confidence_desc = "LOW"
+            confidence_icon = "🟠"
+            reason = "Unclear or mixed indicators"
+        elif confidence_value >= 0.3:
+            urgency_icon = "🟢"
+            urgency_level = "LOW"
+            action = "CONSULT EXPERT"
+            confidence_desc = "LOW"
+            confidence_icon = "🔴"
+            reason = "Weak disease indicators - seek verification"
+        else:
+            urgency_icon = "⚪"
+            urgency_level = "VERY LOW"
+            action = "SEEK EXPERT ADVICE"
+            confidence_desc = "VERY LOW"
+            confidence_icon = "🔴"
+            reason = "Symptoms unclear or absent - seek expert advice"
         
         st.markdown(f"""
         <div class="section-card">
-            <h3>🔧 Recommended Management</h3>
+            <h3>🌾 TREATMENT RECOMMENDATION FOR: {selected_result['primary_diagnosis']}</h3>
+            <p><strong>📊 DIAGNOSIS:</strong> {selected_result['primary_diagnosis']}</p>
+            <p><strong>🏷️ TYPE:</strong> {selected_result['category']}</p>
+            <p><strong>📈 CLASSIFIER CONFIDENCE:</strong> {confidence_value*100:.1f}% ({confidence_desc}) {confidence_icon}</p>
+            <p><strong>⚡ URGENCY & ACTION:</strong> {urgency_icon} {urgency_level} - {action}</p>
+            <p><strong>💡 REASON:</strong> {reason}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Urgency Key
+        st.markdown("""
+        <div class="section-card">
+            <h3>⚡ URGENCY KEY - What Action to Take Based on Score</h3>
+            <p>   🔴 <strong>90-100% (URGENT)</strong>    → Very clear symptoms. Act immediately!</p>
+            <p>   🟠 <strong>80-89% (HIGH)</strong>       → Clear symptoms. Treat promptly.</p>
+            <p>   🟡 <strong>70-79% (MEDIUM)</strong>     → Clear symptoms. Treat promptly.</p>
+            <p>   🟡 <strong>60-69% (MEDIUM)</strong>     → Some symptoms visible. Consider treatment.</p>
+            <p>   🟠 <strong>50-59% (CAUTIOUS)</strong>   → Weak symptoms. Verify before treatment.</p>
+            <p>   🟠 <strong>40-49% (CAUTIOUS)</strong>   → Unclear indicators. Verify before treatment.</p>
+            <p>   🟢 <strong>30-39% (LOW)</strong>        → Weak indicators. Consult an expert.</p>
+            <p>   ⚪ <strong>0-29% (VERY LOW)</strong>     → Unclear. Seek expert advice immediately.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Causes & Characteristics
+        st.markdown(f"""
+        <div class="section-card">
+            <h3>📋 CAUSES & CHARACTERISTICS</h3>
+            <p style="white-space: pre-line;">{selected_result['treatment'].get('causes_characteristics', 'Information not available')}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Recommended Management
+        st.markdown(f"""
+        <div class="section-card">
+            <h3>🔧 RECOMMENDED MANAGEMENT</h3>
             <p style="white-space: pre-line;">{selected_result['management']}</p>
         </div>
         """, unsafe_allow_html=True)
         
+        # Chemical Control
         st.markdown(f"""
         <div class="section-card">
-            <h3>💊 Chemical Control</h3>
+            <h3>💊 CHEMICAL CONTROL</h3>
             <p style="white-space: pre-line;">{selected_result['chemical_control']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Management References
+        management_refs = selected_result['treatment'].get('management_refs', [])
+        if management_refs:
+            management_refs_text = format_reference_list_sequential(management_refs, get_references())
+            st.markdown(f"""
+            <div class="section-card">
+                <h3>📚 MANAGEMENT REFERENCES</h3>
+                <div class="reference-text">{management_refs_text}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Chemical References
+        chemical_refs_original = selected_result['treatment'].get('chemical_refs_original', [])
+        if chemical_refs_original:
+            chem_ref_list = []
+            for idx, ref_num in enumerate(chemical_refs_original, 1):
+                if ref_num in get_references():
+                    chem_ref_list.append(f"[{idx}] {get_references()[ref_num]}")
+                else:
+                    chem_ref_list.append(f"[{idx}] Reference {ref_num}")
+            chemical_refs_text = "\n".join(chem_ref_list)
+            
+            st.markdown(f"""
+            <div class="section-card">
+                <h3>📚 CHEMICAL REFERENCES</h3>
+                <div class="reference-text">{chemical_refs_text}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # XAI Sources
+        xai_refs = selected_result['treatment'].get('xai_ref_numbers', [])
+        xai_refs_text = ""
+        for idx, ref_num in enumerate(xai_refs, 1):
+            if ref_num in get_references():
+                xai_refs_text += f"[{idx}] {get_references()[ref_num]}\n"
+        
+        # Add Grad-CAM reference
+        grad_cam_ref_num = len(xai_refs) + 1
+        xai_refs_text += f"[{grad_cam_ref_num}] R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra, 'Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization,' in Proceedings of the IEEE International Conference on Computer Vision (ICCV), 2017, pp. 618-626.\n"
+        
+        if xai_refs_text:
+            st.markdown(f"""
+            <div class="section-card">
+                <h3>📚 XAI SOURCES</h3>
+                <div class="reference-text">{xai_refs_text}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Important Notes
+        st.markdown(f"""
+        <div class="section-card">
+            <h3>📋 IMPORTANT NOTES:</h3>
+            <p>  • <strong>Diagnosis:</strong> AI-assisted with {confidence_value*100:.1f}% confidence. Confirm with expert if uncertain.</p>
+            <p>  • <strong>Treatments:</strong> Curated from verified sources (product labels, research papers, extension guides)</p>
+            <p>  • <strong>Always read product labels</strong> before applying any chemicals</p>
+            <p>  • <strong>Local availability:</strong> Check with your local agrovet for product availability</p>
+            <p>  • <strong>Expert consultation:</strong> Contact your local agricultural extension officer for confirmation</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -4971,7 +5217,18 @@ def display_batch_results(results):
         with col_exp2:
             display_whatsapp_share_button(selected_result['primary_diagnosis'], confidence_value, st.session_state.location)
     else:
+        # Healthy crop display
         st.success(f"✅ **{selected_result['filename']}** shows a HEALTHY crop. No treatment needed.")
+        
+        st.markdown(f"""
+        <div class="section-card">
+            <h3>🌿 HEALTHY CROP ASSESSMENT</h3>
+            <p><strong>Diagnosis:</strong> {selected_result['primary_diagnosis']}</p>
+            <p><strong>Confidence:</strong> {confidence_value*100:.1f}%</p>
+            <p><strong>Category:</strong> {clean_category(selected_result['category'])}</p>
+            <p>Your crop appears healthy. Continue good farming practices.</p>
+        </div>
+        """, unsafe_allow_html=True)
     
     # ============================================================
     # OPTIONS MENU FOR SELECTED IMAGE
@@ -5066,7 +5323,7 @@ def display_batch_results(results):
     # FEEDBACK SECTION FOR SELECTED IMAGE
     # ============================================================
     st.markdown("---")
-    st.info("💡 **We value your feedback!** Please share your experience with this diagnosis.")
+    st.info("💡 **We value your feedback!** Please share your experience with this diagnosis. Your answers help improve Crop Doctor for all Kenyan farmers.")
     display_feedback_section(selected_result['primary_diagnosis'], confidence_value)
     
     # ============================================================
@@ -5103,6 +5360,7 @@ def display_batch_results(results):
     
     # Add a note about timezone
     st.caption("\u2139\uFE0F All timestamps are in East Africa Time (EAT, UTC+3)")
+
 
 def generate_comprehensive_batch_report(results, batch_timestamp):
     """Generate a single comprehensive report for all images in the batch"""
@@ -5555,7 +5813,7 @@ Image: {r['filename']}
     report += f"""
 {'='*60}
 END OF REPORT
-Report generated by Crop Doctor - AI-Powered Crop Disease Diagnosis
+Report generated by Crop Doctor - AI-Powered Crop Disease Diagnosis and Treatment Recommendation System
 """
     
     st.download_button(
