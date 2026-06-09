@@ -5656,7 +5656,8 @@ def display_batch_results(results):
     """, unsafe_allow_html=True)
     
     # Add a note about timezone
-    st.caption("\u2139\u
+    st.caption("\u2139\uFE0F All timestamps are in East Africa Time (EAT, UTC+3)")
+
 # ============================================================
 # MAIN APP
 # ============================================================
