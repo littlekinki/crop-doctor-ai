@@ -3153,31 +3153,24 @@ def display_heatmap_with_colorbar(original_img, heatmap_overlay, predicted_class
     with col2:
         st.image(heatmap_overlay, caption=f"Visual overlay image showing areas that led the model to pick on:\n{predicted_class}", width="stretch")
 
-        # Create larger, more readable color bar
-        fig, ax = plt.subplots(figsize=(10, 1))
-        fig.patch.set_visible(False)
-        ax.axis('off')
-
-        gradient = np.linspace(0, 1, 256).reshape(1, -1)
-        spectrum_colors = ['blue', 'cyan', 'green', 'yellow', 'orange', 'red']
-        spectrum_cmap = LinearSegmentedColormap.from_list('spectrum', spectrum_colors, N=256)
-
-        ax.imshow(gradient, aspect='auto', cmap=spectrum_cmap, extent=[0, 1, 0, 1])
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-
-        ax.text(0, -0.8, 'LOW', ha='center', va='top', fontsize=14, fontweight='bold', color='blue')
-        ax.text(0.5, -0.8, 'MEDIUM', ha='center', va='top', fontsize=14, fontweight='bold', color='green')
-        ax.text(1, -0.8, 'HIGH', ha='center', va='top', fontsize=14, fontweight='bold', color='red')
-
-        ax.annotate('', xy=(1, -1.5), xytext=(0, -1.5),
-                   arrowprops=dict(arrowstyle='->', color='black', lw=2))
-
-        ax.text(0.5, -1.8, 'Influence on Predictions', ha='center', va='top', fontsize=16, fontweight='bold', color='black')
-
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
+    # Display heatmap with colorbar
+    fig, ax = plt.subplots(figsize=(10, 1))
+    fig.patch.set_visible(False)
+    ax.axis('off')
+    gradient = np.linspace(0, 1, 256).reshape(1, -1)
+    spectrum_colors = ['blue', 'cyan', 'green', 'yellow', 'orange', 'red']
+    spectrum_cmap = LinearSegmentedColormap.from_list('spectrum', spectrum_colors, N=256)
+    ax.imshow(gradient, aspect='auto', cmap=spectrum_cmap, extent=[0, 1, 0, 1])
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.text(0, -0.8, 'LOW', ha='center', va='top', fontsize=14, fontweight='bold', color='blue')
+    ax.text(0.5, -0.8, 'MEDIUM', ha='center', va='top', fontsize=14, fontweight='bold', color='green')
+    ax.text(1, -0.8, 'HIGH', ha='center', va='top', fontsize=14, fontweight='bold', color='red')
+    ax.annotate('', xy=(1, -1.5), xytext=(0, -1.5), arrowprops=dict(arrowstyle='->', color='black', lw=2))
+    ax.text(0.5, -1.8, 'Influence on Predictions', ha='center', va='top', fontsize=16, fontweight='bold', color='black')
+    plt.tight_layout()
+    st.pyplot(fig)
+    plt.close()
 
 def display_top_predictions(top_predictions):
     """Display top predictions - each in its own curved box"""
@@ -4841,22 +4834,7 @@ def display_batch_results(results):
             "Category": clean_category(r['category']),
         })
     st.dataframe(summary_data, use_container_width=True)
-    
-    # Selection dropdown for detailed analysis
-    st.markdown("---")
-    st.markdown("#### \U0001F4F0 Select Image for Detailed Analysis")
-    
-    image_options = [f"{r['filename']} - {r['primary_diagnosis']}" for r in successful]
-    selected_index = st.selectbox(
-        "Choose an image to view full details, treatment, weather, and provide feedback:",
-        options=range(len(image_options)),
-        format_func=lambda x: image_options[x],
-        key="batch_selected_index"
-    )
-    
-    selected_result = successful[selected_index]
-    confidence_value = float(selected_result['primary_confidence']) if hasattr(selected_result['primary_confidence'], 'item') else selected_result['primary_confidence']
-    
+
     # Export buttons
     st.markdown("---")
     col1, col2 = st.columns(2)
@@ -4894,17 +4872,25 @@ def display_batch_results(results):
     
     st.markdown("---")
     
+    # Selection dropdown for detailed analysis
+    st.markdown("---")
+    st.markdown("#### \U0001F4F0 Select Image for Detailed Analysis")
+    
+    image_options = [f"{r['filename']} - {r['primary_diagnosis']}" for r in successful]
+    selected_index = st.selectbox(
+        "Choose an image to view full details, treatment, weather, and provide feedback:",
+        options=range(len(image_options)),
+        format_func=lambda x: image_options[x],
+        key="batch_selected_index"
+    )
+    
+    selected_result = successful[selected_index]
+    confidence_value = float(selected_result['primary_confidence']) if hasattr(selected_result['primary_confidence'], 'item') else selected_result['primary_confidence']
+
     # ============================================================
     # DETAILED ANALYSIS FOR SELECTED IMAGE (EXACT ORDER AS SINGLE IMAGE)
     # ============================================================
-    
-    # Display images side by side
-    col_img1, col_img2 = st.columns(2)
-    with col_img1:
-        st.image(selected_result['image'], caption="Original Image", width="stretch")
-    with col_img2:
-        st.image(selected_result['heatmap_overlay'], caption=f"Heatmap Showing areas that led the model to pick on:\n{selected_result['primary_diagnosis']}", width="stretch")
-    
+
     # ============================================================
     # 1. TOP PREDICTIONS
     # ============================================================
@@ -4925,6 +4911,7 @@ def display_batch_results(results):
     # ============================================================
     # 2. XAI ANALYSIS
     # ============================================================
+
     # Determine confidence level
     if confidence_value >= 0.9:
         level = 'VERY HIGH'
@@ -5027,13 +5014,21 @@ def display_batch_results(results):
     # ============================================================
     # 8. VISUAL EVIDENCE (Grad-CAM Heatmap)
     # ============================================================
+
     st.markdown("""
 <div class="section-card">
 <h3>🔥 VISUAL EVIDENCE: HOW THE CLASSIFIER MADE THE DECISION</h3>
 </div>
 """, unsafe_allow_html=True)
-    
-    # Display heatmap with colorbar (already shown above, but add colorbar)
+
+    # Display images side by side
+    col_img1, col_img2 = st.columns(2)
+    with col_img1:
+        st.image(selected_result['image'], caption="Original Image", width="stretch")
+    with col_img2:
+        st.image(selected_result['heatmap_overlay'], caption=f"Visual overlay image showing areas that led the model to pick on:\n{selected_result['primary_diagnosis']}", width="stretch")
+
+    # Display heatmap with colorbar
     fig, ax = plt.subplots(figsize=(10, 1))
     fig.patch.set_visible(False)
     ax.axis('off')
