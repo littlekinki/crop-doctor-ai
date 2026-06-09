@@ -515,6 +515,8 @@ if 'show_common_chemicals_batch' not in st.session_state:
     st.session_state.show_common_chemicals_batch = False
 if 'show_alternative_batch' not in st.session_state:
     st.session_state.show_alternative_batch = None
+if 'scroll_to_dropdown' not in st.session_state:
+    st.session_state.scroll_to_dropdown = False
 
 # ============================================================
 # HELPER FUNCTION: Check Internet Connection (for mode switch suggestion)
@@ -5038,7 +5040,8 @@ def display_batch_results(results):
     # Selection dropdown for detailed analysis
     st.markdown("---")
     st.markdown("#### \U0001F4F0 Select Image for Detailed Analysis")
-    
+    # Add a div with ID for scrolling
+    st.markdown('<div id="batch-dropdown-section"></div>', unsafe_allow_html=True)
     image_options = [f"{r['filename']} - {r['primary_diagnosis']}" for r in successful]
     selected_index = st.selectbox(
         "Choose an image to view full details, treatment, weather, and provide feedback:",
@@ -5515,7 +5518,7 @@ def display_batch_results(results):
     menu_html += f"""
 <p><strong>{common_chemicals_option}.</strong> Show common chemicals for ALL TOP {num_predictions} diseases</p>
 <p><strong>{change_topk_option}.</strong> Change number of top predictions (current: {st.session_state.current_top_k})</p>
-<p><strong>{analyze_another_option}.</strong> Analyse another image from batch</p>
+<p><strong>{analyze_another_option}.</strong> Select a different image from batch</p>
 <p><strong>{exit_option}.</strong> Exit batch view</p>
 </div>
 """
@@ -5534,11 +5537,11 @@ def display_batch_results(results):
                     st.session_state.batch_mode = False
                     st.rerun()
                 elif i == analyze_another_option:
-                    # Clear any alternative view and show the selection dropdown again
+                    # Clear any alternative view
                     st.session_state.show_alternative_batch = None
                     st.session_state.show_common_chemicals_batch = False
-                    st.info("📌 Please use the dropdown at the top to select a different image from the batch.")
-                    time.sleep(2)
+                    # Set flag to scroll to dropdown
+                    st.session_state.scroll_to_dropdown = True
                     st.rerun()
                 elif i == change_topk_option:
                     st.session_state.show_k_dialog = True
@@ -5558,10 +5561,36 @@ def display_batch_results(results):
                         st.rerun()
     
     # ============================================================
-    # DISPLAY CONTENT BASED ON BUTTON CLICK (BELOW BUTTONS)
+    # SCROLL TO DROPDOWN (when "Select different image" is clicked)
+    # ============================================================
+    if st.session_state.get('scroll_to_dropdown', False):
+        st.markdown("""
+        <script>
+            // Scroll to the dropdown section
+            var dropdown = document.querySelector('div[data-testid="stSelectbox"]');
+            if (dropdown) {
+                dropdown.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Highlight the dropdown briefly
+                dropdown.style.transition = 'background-color 0.5s';
+                dropdown.style.backgroundColor = '#e8f5e9';
+                setTimeout(function() {
+                    dropdown.style.backgroundColor = '';
+                }, 2000);
+            }
+        </script>
+        """, unsafe_allow_html=True)
+        st.session_state.scroll_to_dropdown = False
+        
+        # Show a success message
+        st.success("📌 Please select a different image from the dropdown above to analyse another image.")
+        time.sleep(3)
+        st.rerun()
+    
+    # ============================================================
+    # DISPLAY CONTENT BASED ON BUTTON CLICK (FULL WIDTH)
     # ============================================================
     
-    # Show common chemicals if requested
+    # Show common chemicals if requested (FULL WIDTH)
     if st.session_state.get('show_common_chemicals_batch', False):
         st.markdown("---")
         st.markdown("#### 🌿 Common Chemicals for All Top Predictions")
@@ -5577,7 +5606,7 @@ def display_batch_results(results):
             st.session_state.show_common_chemicals_batch = False
             st.rerun()
     
-    # Show alternative diagnosis if requested
+    # Show alternative diagnosis if requested (FULL WIDTH)
     if st.session_state.get('show_alternative_batch') is not None:
         alt_idx = st.session_state.show_alternative_batch
         if alt_idx is not None and alt_idx < len(selected_result['top_predictions']):
@@ -5663,38 +5692,6 @@ def display_batch_results(results):
             if st.button("✖ Close Alternative View", use_container_width=True, key="close_alternative_batch"):
                 st.session_state.show_alternative_batch = None
                 st.rerun()
-    
-    # ============================================================
-    # K VALUE CHANGE DIALOG (WITH UNIQUE KEYS FOR BATCH)
-    # ============================================================
-    if st.session_state.get('show_k_dialog', False):
-        with st.expander("📊 Change number of top predictions", expanded=True):
-            st.markdown("**K** represents the number of top predictions to display and consider.")
-            st.markdown(f"Current K value: **{st.session_state.current_top_k}**")
-            
-            # Get the actual number of classes from the model
-            model_temp, class_names_temp = load_model_and_classes()
-            max_classes = len(class_names_temp) if class_names_temp else 50
-            
-            new_k = st.number_input(
-                "Enter new K value",
-                min_value=1,
-                max_value=max_classes,
-                value=st.session_state.current_top_k,
-                step=1,
-                key="batch_k_value_input_unique"
-            )
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✅ Set", use_container_width=True, key="batch_set_k_btn_unique"):
-                    st.session_state.current_top_k = new_k
-                    st.session_state.show_k_dialog = False
-                    st.session_state.show_results = False
-                    st.rerun()
-            with col2:
-                if st.button("❌ Cancel", use_container_width=True, key="batch_cancel_k_btn_unique"):
-                    st.session_state.show_k_dialog = False
-                    st.rerun()
 
     
     # ============================================================
