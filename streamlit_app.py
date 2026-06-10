@@ -3902,7 +3902,10 @@ def summarize_article_with_api(text, hf_token):
 
 def summarize_news_batch(articles, hf_token, progress_bar=True):
     """Summarize a batch of news articles"""
+    import time
+    
     if not hf_token:
+        print("No HF_TOKEN available")
         return articles
     
     summarized = []
@@ -3911,19 +3914,23 @@ def summarize_news_batch(articles, hf_token, progress_bar=True):
         progress = st.progress(0)
     
     for idx, article in enumerate(articles):
+        # Make a copy of the article
+        new_article = article.copy()
+        
         # Only summarize real articles (not direct links)
         if article.get('date') != "Visit website" and article.get('source') != "🌱 Nation Africa":
             summary = summarize_article_with_api(article.get('summary', ''), hf_token)
             if summary:
-                article['ai_summary'] = summary  # Make sure this key is set
-                article['has_ai_summary'] = True
-                print(f"Summary for {article['title'][:30]}: {summary[:50]}...")
+                new_article['ai_summary'] = summary
+                new_article['has_ai_summary'] = True
+                print(f"✅ Added summary for: {article.get('title', 'Unknown')[:50]}")
             else:
-                article['has_ai_summary'] = False
+                new_article['has_ai_summary'] = False
+                print(f"❌ No summary for: {article.get('title', 'Unknown')[:50]}")
         else:
-            article['has_ai_summary'] = False
+            new_article['has_ai_summary'] = False
         
-        summarized.append(article)
+        summarized.append(new_article)
         
         if progress_bar:
             progress.progress((idx + 1) / len(articles))
@@ -4100,25 +4107,24 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         else:
             display_articles = news_articles
         
-        # Display news articles - SIMPLIFIED VERSION
+        # Display news articles
         for article in display_articles:
-            # Skip direct links
-            if article.get('date') == "Visit website":
-                continue
-            
             with st.expander(f"📰 {article['title']}"):
                 st.caption(f"Source: {article['source']} | {article.get('date', 'Recent')}")
                 
-                # Show AI summary (will only appear if it exists)
-                ai_summary = article.get('ai_summary')
-                if ai_summary:
-                    st.markdown(f"**🤖 AI Summary:** {ai_summary}")
+                # DEBUG: Show if AI summary exists
+                st.write(f"Debug: Has AI summary = {article.get('has_ai_summary', False)}")
+                st.write(f"Debug: ai_summary key exists = {'ai_summary' in article}")
+                
+                # Show AI summary if it exists
+                if article.get('ai_summary'):
+                    st.markdown(f"**🤖 AI Summary:** {article['ai_summary']}")
                     st.markdown("---")
                 
-                # Show original summary
                 st.markdown("**📖 Article Summary:**")
                 st.write(article.get('summary', 'No summary available'))
                 st.markdown(f"[Read full article]({article['url']})")
+
     else:
         st.info("📭 No recent news found. Please check your internet connection.")
         st.markdown("""
