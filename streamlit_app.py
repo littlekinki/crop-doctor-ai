@@ -3896,11 +3896,42 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         
     else:
         st.info("🌤️ Unable to fetch weather data. Please check your internet connection.")
+
+    # ============================================================
+    # SECTION 2: WEATHER-BASED FARMING TIP
+    # ============================================================
+    #st.markdown("---")
+    st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
     
+    if weather:
+        rain_sum = weather.get('rain_sum', 0)
+        rain_prob = weather.get('rain_prob', 0)
+        temp = weather.get('temperature', 0)
+        
+        if isinstance(temp, str):
+            try:
+                temp = float(temp)
+            except:
+                temp = 0
+        
+        if rain_sum and rain_sum > 10:
+            st.warning("🌧️ **Heavy rain expected!** Postpone spraying. Protect young seedlings from waterlogging.")
+        elif rain_prob and rain_prob > 70:
+            st.info("🌧️ **Rain likely today.** Consider using rain-fast products if spraying is urgent.")
+        elif temp and temp > 30:
+            st.warning("🔥 **High temperatures.** Ensure adequate irrigation. Apply mulch to retain moisture.")
+        elif temp and temp < 15:
+            st.info("❄️ **Cool temperatures.** Delay transplanting sensitive crops.")
+        else:
+            st.success("🌱 **Optimal conditions.** Good time for spraying, fertilizing, and field scouting.")
+    else:
+        st.info("🌱 Check local weather for optimal farming activities.")
+
+
     # ============================================================
-    # SECTION 2: KENYA MET WEATHER WARNINGS
+    # SECTION 3: KENYA MET WEATHER WARNINGS
     # ============================================================
-    st.markdown("---")
+    #st.markdown("---")
     st.markdown("#### 🚨 KENYA MET WEATHER WARNINGS")
     st.caption("Real-time alerts from Kenya Meteorological Department")
     
@@ -3919,7 +3950,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         st.caption("ℹ️ Follow [@MeteoKenya](https://twitter.com/MeteoKenya) on X for real-time updates")
     
     # ============================================================
-    # SECTION 3: REAL-TIME WEATHER ALERTS
+    # SECTION 4: REAL-TIME WEATHER ALERTS
     # ============================================================
     st.markdown("#### 📱 REAL-TIME WEATHER ALERTS")
 
@@ -3937,7 +3968,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     """)
     
     # ============================================================
-    # SECTION 4: LIVE AGRICULTURE NEWS
+    # SECTION 5: LIVE AGRICULTURE NEWS
     # ============================================================
     st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
     st.caption("Live updates from The Standard and Kenya News Agency")
@@ -3964,37 +3995,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
         - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold)
         """)
-    
-    # ============================================================
-    # SECTION 5: WEATHER-BASED FARMING TIP
-    # ============================================================
-    st.markdown("---")
-    st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
-    
-    if weather:
-        rain_sum = weather.get('rain_sum', 0)
-        rain_prob = weather.get('rain_prob', 0)
-        temp = weather.get('temperature', 0)
-        
-        if isinstance(temp, str):
-            try:
-                temp = float(temp)
-            except:
-                temp = 0
-        
-        if rain_sum and rain_sum > 10:
-            st.warning("🌧️ **Heavy rain expected!** Postpone spraying. Protect young seedlings from waterlogging.")
-        elif rain_prob and rain_prob > 70:
-            st.info("🌧️ **Rain likely today.** Consider using rain-fast products if spraying is urgent.")
-        elif temp and temp > 30:
-            st.warning("🔥 **High temperatures.** Ensure adequate irrigation. Apply mulch to retain moisture.")
-        elif temp and temp < 15:
-            st.info("❄️ **Cool temperatures.** Delay transplanting sensitive crops.")
-        else:
-            st.success("🌱 **Optimal conditions.** Good time for spraying, fertilizing, and field scouting.")
-    else:
-        st.info("🌱 Check local weather for optimal farming activities.")
-    
+
     # ============================================================
     # SECTION 6: RESOURCE DIRECTORY
     # ============================================================
