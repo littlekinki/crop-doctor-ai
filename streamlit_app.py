@@ -3919,6 +3919,55 @@ def extract_key_points(text, num_points=3):
     
     return key_points
 
+def test_summarization_api():
+    """Test if the summarization API is working"""
+    if not HF_TOKEN:
+        st.error("❌ No HF_TOKEN found! Please set HF_TOKEN in Hugging Face Secrets.")
+        return
+    
+    test_text = "A youth group in Kenya has achieved better returns from selling roasted coffee through the value addition initiative. The group processes and packages coffee themselves instead of selling raw beans to middlemen. This has created jobs for young people in the area. The initiative has been so successful that other groups are now copying the model. Farmers are encouraged to consider value addition to increase their income from coffee farming."
+    
+    with st.spinner("Testing API connection..."):
+        try:
+            import requests
+            
+            API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
+            headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+            
+            response = requests.post(
+                API_URL,
+                headers=headers,
+                json={
+                    "inputs": test_text,
+                    "parameters": {
+                        "max_length": 100,
+                        "min_length": 30,
+                        "do_sample": False
+                    }
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                if isinstance(result, list) and len(result) > 0:
+                    summary = result[0].get('summary_text', '')
+                    st.success("✅ API Working!")
+                    st.write("**Original text (first 100 chars):**")
+                    st.write(test_text[:100] + "...")
+                    st.write("**AI Summary:**")
+                    st.write(summary)
+                else:
+                    st.error("❌ API returned unexpected response format")
+            elif response.status_code == 503:
+                st.warning("⏳ Model is loading. Please wait 10 seconds and try again.")
+            else:
+                st.error(f"❌ API Error: {response.status_code}")
+                st.write(f"Response: {response.text[:200]}")
+                
+        except Exception as e:
+            st.error(f"❌ Connection error: {e}")
+
 def summarize_news_batch(articles):
     """Extract key points from articles (no API needed)"""
     summarized = []
@@ -3940,6 +3989,7 @@ def summarize_news_batch(articles):
         summarized.append(new_article)
     
     return summarized
+
 def display_online_features(disease_name, crop_type, location, treatment_data=None):
     """Display online features including weather, disease risk assessment, and news"""
 
@@ -4072,22 +4122,27 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     """)
 
     # ============================================================
-    # SECTION 5: LIVE AGRICULTURE NEWS (WITH KEY POINTS)
+    # SECTION 5: LIVE AGRICULTURE NEWS (WITH AI SUMMARIZATION)
     # ============================================================
     st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
     st.caption("Live updates from The Standard and Kenya News Agency")
     
-    # Key Points toggle
+    # Add a test button temporarily (remove after testing)
+    if st.button("🔧 Test AI Summarization", key="test_ai_btn"):
+        test_summarization_api()
+        st.rerun()
+    
+    # AI Summarization toggle
     col_toggle1, col_toggle2 = st.columns([3, 1])
     with col_toggle2:
-        key_points_toggle = st.toggle(
-            "📌 Key Points", 
+        ai_toggle = st.toggle(
+            "🤖 AI Summary", 
             value=st.session_state.use_ai_summaries,
-            help="Show key points extracted from articles for quicker reading."
+            help="Use AI to create concise summaries of articles."
         )
         
-        if key_points_toggle != st.session_state.use_ai_summaries:
-            st.session_state.use_ai_summaries = key_points_toggle
+        if ai_toggle != st.session_state.use_ai_summaries:
+            st.session_state.use_ai_summaries = ai_toggle
             st.session_state.summarized_articles = None
             st.rerun()
     
@@ -4096,11 +4151,11 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         news_articles = fetch_live_agriculture_news()
     
     if news_articles:
-        # Apply key points extraction if enabled
+        # Apply AI summarization if enabled
         if st.session_state.use_ai_summaries:
             if st.session_state.summarized_articles is None:
-                with st.spinner("📌 Extracting key points from articles..."):
-                    st.session_state.summarized_articles = summarize_news_batch(news_articles)
+                with st.spinner("🤖 Generating AI summaries... This may take 15-30 seconds."):
+                    st.session_state.summarized_articles = summarize_news_batch(news_articles, HF_TOKEN)
                     st.session_state.summarization_timestamp = time.time()
             
             display_articles = st.session_state.summarized_articles
@@ -4116,17 +4171,16 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
             with st.expander(f"📰 {article['title']}"):
                 st.caption(f"Source: {article['source']} | {article.get('date', 'Recent')}")
                 
-                # Show key points if available
+                # Show AI summary if available
                 if article.get('ai_summary'):
-                    st.markdown("**📌 Key Points:**")
-                    points = article['ai_summary'].split(' | ')
-                    for point in points:
-                        st.markdown(f"• {point}")
+                    st.markdown("**🤖 AI Summary (Quick Read):**")
+                    st.success(article['ai_summary'])
                     st.markdown("---")
+                    st.markdown("**📖 Full Article Summary:**")
+                    st.write(article.get('summary', 'No summary available'))
+                else:
+                    st.write(article.get('summary', 'No summary available'))
                 
-                # Show original summary
-                st.markdown("**📖 Full Summary:**")
-                st.write(article.get('summary', 'No summary available'))
                 st.markdown(f"[Read full article]({article['url']})")
     else:
         st.info("📭 No recent news found. Please check your internet connection.")
@@ -4137,10 +4191,9 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold)
         """)
     
-    # Information about key points
+    # Information about AI summarization
     if st.session_state.use_ai_summaries:
-        st.caption("📌 Key points are extracted from the article summary to help you quickly understand the main ideas.")
-
+        st.caption("🤖 AI summaries are generated by Facebook's BART model to help you quickly understand articles.")
 
     # ============================================================
     # SECTION 6: RESOURCE DIRECTORY
