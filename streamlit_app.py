@@ -3844,40 +3844,6 @@ def fetch_live_weather_forecast(location, disease_name, treatment_data=None):
     """Fetch live weather forecast from Open-Meteo API (already working)"""
     return get_weather_with_risk_assessment(location, disease_name, treatment_data)
 
-def summarize_news_batch(articles, hf_token):
-    """Summarize a batch of news articles using AI"""
-    if not hf_token:
-        return articles
-    
-    summarized = []
-    
-    progress = st.progress(0)
-    status_text = st.empty()
-    
-    for idx, article in enumerate(articles):
-        status_text.text(f"Summarizing article {idx + 1} of {len(articles)}...")
-        
-        new_article = article.copy()
-        
-        # Only summarize real articles
-        if article.get('date') != "Visit website" and article.get('source') != "🌱 Nation Africa":
-            summary = summarize_article_with_api(article.get('summary', ''), hf_token)
-            if summary:
-                new_article['ai_summary'] = summary
-                new_article['has_ai_summary'] = True
-            else:
-                new_article['has_ai_summary'] = False
-        else:
-            new_article['has_ai_summary'] = False
-        
-        summarized.append(new_article)
-        progress.progress((idx + 1) / len(articles))
-    
-    progress.empty()
-    status_text.empty()
-    
-    return summarized
-
 # ============================================================
 # AI NEWS SUMMARIZATION USING HUGGING FACE INFERENCE API
 # ============================================================
@@ -4002,18 +3968,27 @@ def test_summarization_api():
         except Exception as e:
             st.error(f"❌ Connection error: {e}")
 
-def summarize_news_batch(articles):
-    """Extract key points from articles (no API needed)"""
+def summarize_news_batch(articles, hf_token):
+    """Summarize a batch of news articles using AI"""
+    if not hf_token:
+        return articles
+    
     summarized = []
     
-    for article in articles:
+    # Optional progress bar
+    progress = st.progress(0)
+    status_text = st.empty()
+    
+    for idx, article in enumerate(articles):
+        status_text.text(f"Summarizing article {idx + 1} of {len(articles)}...")
+        
         new_article = article.copy()
         
-        # Only process real articles (not direct links)
+        # Only summarize real articles
         if article.get('date') != "Visit website" and article.get('source') != "🌱 Nation Africa":
-            key_points = extract_key_points(article.get('summary', ''))
-            if key_points:
-                new_article['ai_summary'] = ' | '.join(key_points)
+            summary = summarize_article_with_api(article.get('summary', ''), hf_token)
+            if summary:
+                new_article['ai_summary'] = summary
                 new_article['has_ai_summary'] = True
             else:
                 new_article['has_ai_summary'] = False
@@ -4021,9 +3996,12 @@ def summarize_news_batch(articles):
             new_article['has_ai_summary'] = False
         
         summarized.append(new_article)
+        progress.progress((idx + 1) / len(articles))
+    
+    progress.empty()
+    status_text.empty()
     
     return summarized
-
 def display_online_features(disease_name, crop_type, location, treatment_data=None):
     """Display online features including weather, disease risk assessment, and news"""
 
