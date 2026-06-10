@@ -3852,18 +3852,20 @@ def fetch_live_weather_forecast(location, disease_name, treatment_data=None):
 def summarize_article_with_api(text, hf_token):
     """Summarize article using Hugging Face Inference API"""
     import requests
+    import time
     
     if not hf_token or len(text) < 100:
+        print(f"No token or text too short: token={bool(hf_token)}, len={len(text)}")
         return None
     
-    # Using BART model - good for summarization
     API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
     headers = {"Authorization": f"Bearer {hf_token}"}
     
+    # Truncate text
+    text = text[:1024]
+    print(f"Attempting to summarize text of length: {len(text)}")
+    
     try:
-        # Truncate text to reasonable length
-        text = text[:1024]
-        
         response = requests.post(
             API_URL, 
             headers=headers, 
@@ -3875,19 +3877,23 @@ def summarize_article_with_api(text, hf_token):
                     "do_sample": False
                 }
             },
-            timeout=30
+            timeout=60
         )
+        
+        print(f"Response status code: {response.status_code}")
         
         if response.status_code == 200:
             result = response.json()
+            print(f"Response: {result}")
             if isinstance(result, list) and len(result) > 0:
                 return result[0].get('summary_text', None)
         elif response.status_code == 503:
-            # Model is loading, wait and retry
-            time.sleep(2)
+            # Model is loading
+            print("Model is loading, waiting...")
+            time.sleep(5)
             return summarize_article_with_api(text, hf_token)
         else:
-            print(f"API Error: {response.status_code}")
+            print(f"API Error Response: {response.text}")
             return None
             
     except Exception as e:
@@ -4083,23 +4089,19 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     
     if news_articles:
         # Apply AI summarization if enabled
+        # Apply AI summarization if enabled
         if st.session_state.use_ai_summaries:
-            # Check if we need to summarize or can use cached results
-            cache_valid = False
-            if st.session_state.summarized_articles and st.session_state.summarization_timestamp:
-                import time as time_module  # FIXED: import locally with alias
-                # Cache valid for 1 hour
-                if time_module.time() - st.session_state.summarization_timestamp < 3600:
-                    cache_valid = True
-                    news_articles = st.session_state.summarized_articles
-            
-            if not cache_valid:
+            st.write(f"Debug: AI Summaries enabled. HF_TOKEN exists: {bool(HF_TOKEN)}")
+            if st.session_state.summarized_articles is None:
+                st.write("Debug: No cached summaries, generating new ones...")
                 with st.spinner("🤖 Generating AI summaries... This may take 10-20 seconds."):
                     news_articles = summarize_news_batch(news_articles, HF_TOKEN)
-                    import time as time_module  # FIXED: import locally
                     st.session_state.summarized_articles = news_articles
-                    st.session_state.summarization_timestamp = time_module.time()
-        
+                    st.write(f"Debug: Generated {len(news_articles)} articles with summaries")
+            else:
+                st.write("Debug: Using cached summaries")
+                news_articles = st.session_state.summarized_articles
+
         # Display news articles
         for article in news_articles:
             # Check if this is a direct link (not a real article)
