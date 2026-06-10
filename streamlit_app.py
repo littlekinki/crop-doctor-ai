@@ -3839,7 +3839,7 @@ def fetch_live_weather_forecast(location, disease_name, treatment_data=None):
 def display_online_features(disease_name, crop_type, location, treatment_data=None):
     """Display online features including weather, disease risk assessment, and news"""
     
-    st.markdown("---")
+    #st.markdown("---")
     st.markdown("### 📡 ONLINE MODE - LIVE UPDATES")
     
     # ============================================================
@@ -3889,14 +3889,137 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
                 st.markdown(f"🌧️ **Rain Probability:** {weather['rain_prob']}% (Expected: {weather['rain_sum']} mm)", help=f"Chance of rain during the remaining hours today. {weather['rain_prob']}% means it may rain. Expected rainfall: {weather['rain_sum']}mm. Safe for spraying if under 2mm. Postpone spraying if expected rain exceeds 10mm.")
         
         # Disease risk assessment
-        st.markdown("---")
+        #st.markdown("---")
         st.markdown(f"**🎯 DISEASE RISK ASSESSMENT FOR {disease_name}:**")
         st.markdown(f"<span class=\"{risk_class}\">{risk_msg}</span>", unsafe_allow_html=True)
         st.caption("ℹ️ Risk assessment is based on current weather conditions and disease characteristics.", help="High risk means conditions favor disease development. Take preventive action like applying fungicides or improving air circulation.")
         
     else:
         st.info("🌤️ Unable to fetch weather data. Please check your internet connection.")
+    
+    # ============================================================
+    # SECTION 2: KENYA MET WEATHER WARNINGS
+    # ============================================================
+    st.markdown("---")
+    st.markdown("#### 🚨 KENYA MET WEATHER WARNINGS")
+    st.caption("Real-time alerts from Kenya Meteorological Department")
+    
+    with st.spinner("🔄 Checking for active weather warnings..."):
+        met_warnings = fetch_live_kenya_met_warnings()
+    
+    if met_warnings:
+        for warning in met_warnings:
+            with st.expander(f"⚠️ {warning['title']}"):
+                st.caption(f"Published: {warning['published']}")
+                st.write(warning['summary'])
+                if warning['link']:
+                    st.markdown(f"[View official alert]({warning['link']})")
+    else:
+        st.info("✅ No active weather warnings at this time.")
+        st.caption("ℹ️ Follow [@MeteoKenya](https://twitter.com/MeteoKenya) on X for real-time updates")
+    
+    # ============================================================
+    # SECTION 3: REAL-TIME WEATHER ALERTS
+    # ============================================================
+    st.markdown("#### 📱 REAL-TIME WEATHER ALERTS")
 
+    st.info("""
+    **Follow the Kenya Meteorological Department on X (Twitter) for live updates**
+    
+    The Kenya Meteorological Department (`@MeteoKenya`) uses X to issue **immediate** weather warnings, daily forecasts, and heavy rainfall advisories.
+    
+    ✅ **Why follow?**
+    - Get severe weather alerts instantly (heavy rain, floods, strong winds)
+    - Receive daily and 5-day weather forecasts
+    - Stay informed about conditions affecting your farm
+    
+    👉 **[Follow @MeteoKenya on X](https://twitter.com/MeteoKenya)** (No account needed. Just click to view)
+    """)
+    
+    # ============================================================
+    # SECTION 4: LIVE AGRICULTURE NEWS
+    # ============================================================
+    st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
+    st.caption("Live updates from The Standard and Kenya News Agency")
+    
+    with st.spinner("📰 Fetching latest agriculture news... Please wait"):
+        news_articles = fetch_live_agriculture_news()
+    
+    if news_articles:
+        for article in news_articles:
+            # Check if this is a direct link (not a real article)
+            if article.get('date') == "Visit website" or article.get('source') == "🌱 Nation Africa":
+                st.markdown(f"🔗 **{article['source']}** : [{article['title']}]({article['url']})")
+                st.caption(article['summary'])
+            else:
+                with st.expander(f"📰 {article['title']}"):
+                    st.caption(f"Source: {article['source']} | {article['date']}")
+                    st.write(article['summary'])
+                    st.markdown(f"[Read full article]({article['url']})")
+    else:
+        st.info("📭 No recent news found. Please check your internet connection.")
+        st.markdown("""
+        **📌 Direct links to agriculture news:**
+        - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya)
+        - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
+        - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold)
+        """)
+    
+    # ============================================================
+    # SECTION 5: WEATHER-BASED FARMING TIP
+    # ============================================================
+    st.markdown("---")
+    st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
+    
+    if weather:
+        rain_sum = weather.get('rain_sum', 0)
+        rain_prob = weather.get('rain_prob', 0)
+        temp = weather.get('temperature', 0)
+        
+        if isinstance(temp, str):
+            try:
+                temp = float(temp)
+            except:
+                temp = 0
+        
+        if rain_sum and rain_sum > 10:
+            st.warning("🌧️ **Heavy rain expected!** Postpone spraying. Protect young seedlings from waterlogging.")
+        elif rain_prob and rain_prob > 70:
+            st.info("🌧️ **Rain likely today.** Consider using rain-fast products if spraying is urgent.")
+        elif temp and temp > 30:
+            st.warning("🔥 **High temperatures.** Ensure adequate irrigation. Apply mulch to retain moisture.")
+        elif temp and temp < 15:
+            st.info("❄️ **Cool temperatures.** Delay transplanting sensitive crops.")
+        else:
+            st.success("🌱 **Optimal conditions.** Good time for spraying, fertilizing, and field scouting.")
+    else:
+        st.info("🌱 Check local weather for optimal farming activities.")
+    
+    # ============================================================
+    # SECTION 6: RESOURCE DIRECTORY
+    # ============================================================
+    with st.expander("📚 Agricultural Resources for Kenyan Farmers", expanded=False):
+        st.markdown("""
+        **Live News & Weather:**
+        - [Kenya Meteorological Department](https://meteo.go.ke) - Official weather warnings
+        - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya) - Agriculture news
+        - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/) - Government news
+        - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold) - Weekly farming pullout
+        
+        **Research & Advisory:**
+        - [KALRO](https://kalro.org) - Agricultural research
+        - [KEPHIS](https://www.kephis.org) - Seed certification
+        - [Ministry of Agriculture](https://kilimo.go.ke) - Government policies
+        
+        **Follow on X (Twitter) for Instant Updates:**
+        - [@MeteoKenya](https://twitter.com/MeteoKenya) - Weather warnings
+        - [@KALROKenya](https://twitter.com/KALROKenya) - Research updates
+        - [@FarmKenya](https://twitter.com/FarmKenya) - Agriculture news
+        - [@SeedsOfGold](https://twitter.com/SeedsOfGold) - Farming features
+        
+        **Farmer Support:**
+        - National Agricultural Extension Hotline: **0800 720 123**
+        """)
 
 def get_weather_advisory(weather_warnings, disease_name, location):
     """Generate a tailored advisory based on weather warnings and disease"""
@@ -5580,7 +5703,7 @@ def display_batch_results(results):
     # ============================================================
     # FEEDBACK SECTION
     # ============================================================
-    #st.markdown("---")
+    ##st.markdown("---")
     st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
     display_feedback_section(selected_result['primary_diagnosis'], confidence_value)
 
@@ -5590,7 +5713,7 @@ def display_batch_results(results):
     #st.markdown("---")
     st.markdown("""
     <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
-        <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana! (Thank You Very Much!)</strong></p>
+        <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana Kwa Maoni Yako! (Thank You Very Much For Your Feedback!)</strong></p>
         <p style="font-size: 12px; color: #888; margin-top: 10px;">🌾 Happy Farming! 🌾</p>
     </div>
     """, unsafe_allow_html=True)
@@ -5951,8 +6074,7 @@ def main():
                         #st.markdown("---")
                         st.markdown("""
                         <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
-                            <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana! (Thank You Very Much!)</strong></p>
-                            <p style="font-size: 13px; color: #555;">Your feedback helps us serve Kenyan farmers better.</p>
+                            <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana Kwa Maoni Yako! (Thank You Very Much For Your Feedback!)</strong></p>                            
                             <p style="font-size: 12px; color: #888; margin-top: 10px;">🌾 Happy Farming! 🌾</p>
                         </div>
                         """, unsafe_allow_html=True)
@@ -6018,8 +6140,7 @@ def main():
                     st.markdown("---")
                     st.markdown("""
                     <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
-                        <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana! (Thank You Very Much!)</strong></p>
-                        <p style="font-size: 13px; color: #555;">Your feedback helps us serve Kenyan farmers better.</p>
+                        <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana Kwa Maoni Yako! (Thank You Very Much For Your Feedback!)</strong></p>                        
                         <p style="font-size: 12px; color: #888; margin-top: 10px;">🌾 Happy Farming! 🌾</p>
                     </div>
                     """, unsafe_allow_html=True)
