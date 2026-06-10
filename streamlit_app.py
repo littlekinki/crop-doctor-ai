@@ -3915,8 +3915,9 @@ def summarize_news_batch(articles, hf_token, progress_bar=True):
         if article.get('date') != "Visit website" and article.get('source') != "🌱 Nation Africa":
             summary = summarize_article_with_api(article.get('summary', ''), hf_token)
             if summary:
-                article['ai_summary'] = summary
+                article['ai_summary'] = summary  # Make sure this key is set
                 article['has_ai_summary'] = True
+                print(f"Summary for {article['title'][:30]}: {summary[:50]}...")
             else:
                 article['has_ai_summary'] = False
         else:
@@ -4089,7 +4090,6 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     
     if news_articles:
         # Apply AI summarization if enabled
-        # Apply AI summarization if enabled
         if st.session_state.use_ai_summaries:
             st.write(f"Debug: AI Summaries enabled. HF_TOKEN exists: {bool(HF_TOKEN)}")
             if st.session_state.summarized_articles is None:
@@ -4104,6 +4104,9 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
 
         # Display news articles
         for article in news_articles:
+            # Debug: Print what's in the article
+            # st.write(f"Debug: Article keys: {list(article.keys())}")
+            
             # Check if this is a direct link (not a real article)
             if article.get('date') == "Visit website" or article.get('source') == "🌱 Nation Africa":
                 st.markdown(f"🔗 **{article['source']}** : [{article['title']}]({article['url']})")
@@ -4112,14 +4115,17 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
                 with st.expander(f"📰 {article['title']}"):
                     st.caption(f"Source: {article['source']} | {article['date']}")
                     
-                    # Show AI summary if available
-                    if article.get('ai_summary'):
+                    # Show AI summary if available - check both possible keys
+                    ai_summary = article.get('ai_summary') or article.get('summary_text')
+                    
+                    if ai_summary:
                         st.markdown("**🤖 AI Summary:**")
-                        st.success(article['ai_summary'])
+                        st.success(ai_summary)
                         st.markdown("---")
                         st.markdown("**📖 Full Summary:**")
                         st.write(article['summary'])
                     else:
+                        # Fallback to key points if AI summary not available
                         st.write(article['summary'])
                     
                     st.markdown(f"[Read full article]({article['url']})")
