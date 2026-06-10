@@ -4072,22 +4072,22 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     """)
 
     # ============================================================
-    # SECTION 5: LIVE AGRICULTURE NEWS (WITH AI SUMMARIZATION)
+    # SECTION 5: LIVE AGRICULTURE NEWS (WITH KEY POINTS)
     # ============================================================
     st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
     st.caption("Live updates from The Standard and Kenya News Agency")
     
-    # AI Summarization toggle
+    # Key Points toggle (renamed from AI Summary)
     col_toggle1, col_toggle2 = st.columns([3, 1])
     with col_toggle2:
-        ai_toggle = st.toggle(
-            "🤖 AI Summary", 
+        key_points_toggle = st.toggle(
+            "📌 Key Points", 
             value=st.session_state.use_ai_summaries,
-            help="Use AI to summarize articles for quicker reading."
+            help="Show key points extracted from articles for quicker reading."
         )
         
-        if ai_toggle != st.session_state.use_ai_summaries:
-            st.session_state.use_ai_summaries = ai_toggle
+        if key_points_toggle != st.session_state.use_ai_summaries:
+            st.session_state.use_ai_summaries = key_points_toggle
             st.session_state.summarized_articles = None
             st.rerun()
     
@@ -4096,11 +4096,11 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         news_articles = fetch_live_agriculture_news()
     
     if news_articles:
-        # Apply AI summarization if enabled
+        # Apply key points extraction if enabled
         if st.session_state.use_ai_summaries:
             if st.session_state.summarized_articles is None:
-                with st.spinner("🤖 Generating AI summaries... This may take 10-20 seconds."):
-                    st.session_state.summarized_articles = summarize_news_batch(news_articles, HF_TOKEN)
+                with st.spinner("📌 Extracting key points from articles..."):
+                    st.session_state.summarized_articles = summarize_news_batch(news_articles)
                     st.session_state.summarization_timestamp = time.time()
             
             display_articles = st.session_state.summarized_articles
@@ -4109,22 +4109,25 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         
         # Display news articles
         for article in display_articles:
+            # Skip direct links
+            if article.get('date') == "Visit website":
+                continue
+            
             with st.expander(f"📰 {article['title']}"):
                 st.caption(f"Source: {article['source']} | {article.get('date', 'Recent')}")
                 
-                # DEBUG: Show if AI summary exists
-                st.write(f"Debug: Has AI summary = {article.get('has_ai_summary', False)}")
-                st.write(f"Debug: ai_summary key exists = {'ai_summary' in article}")
-                
-                # Show AI summary if it exists
+                # Show key points if available
                 if article.get('ai_summary'):
-                    st.markdown(f"**🤖 AI Summary:** {article['ai_summary']}")
+                    st.markdown("**📌 Key Points:**")
+                    points = article['ai_summary'].split(' | ')
+                    for point in points:
+                        st.markdown(f"• {point}")
                     st.markdown("---")
                 
-                st.markdown("**📖 Article Summary:**")
+                # Show original summary
+                st.markdown("**📖 Full Summary:**")
                 st.write(article.get('summary', 'No summary available'))
                 st.markdown(f"[Read full article]({article['url']})")
-
     else:
         st.info("📭 No recent news found. Please check your internet connection.")
         st.markdown("""
@@ -4133,6 +4136,11 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
         - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold)
         """)
+    
+    # Information about key points
+    if st.session_state.use_ai_summaries:
+        st.caption("📌 Key points are extracted from the article summary to help you quickly understand the main ideas.")
+
 
     # ============================================================
     # SECTION 6: RESOURCE DIRECTORY
