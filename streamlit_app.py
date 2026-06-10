@@ -3900,46 +3900,46 @@ def summarize_article_with_api(text, hf_token):
         print(f"Summarization error: {e}")
         return None
 
-def summarize_news_batch(articles, hf_token, progress_bar=True):
-    """Summarize a batch of news articles"""
-    import time
+def extract_key_points(text, num_points=3):
+    """Extract key sentences as simple key points (no API needed)"""
+    import re
     
-    if not hf_token:
-        print("No HF_TOKEN available")
-        return articles
+    if not text or len(text) < 100:
+        return []
     
+    # Split into sentences
+    sentences = re.split(r'[.!?]+', text)
+    sentences = [s.strip() for s in sentences if len(s.strip()) > 40]
+    
+    # Remove very long sentences
+    sentences = [s for s in sentences if len(s) < 200]
+    
+    # Take first few key sentences
+    key_points = sentences[:num_points]
+    
+    return key_points
+
+def summarize_news_batch(articles):
+    """Extract key points from articles (no API needed)"""
     summarized = []
     
-    if progress_bar:
-        progress = st.progress(0)
-    
-    for idx, article in enumerate(articles):
-        # Make a copy of the article
+    for article in articles:
         new_article = article.copy()
         
-        # Only summarize real articles (not direct links)
+        # Only process real articles (not direct links)
         if article.get('date') != "Visit website" and article.get('source') != "🌱 Nation Africa":
-            summary = summarize_article_with_api(article.get('summary', ''), hf_token)
-            if summary:
-                new_article['ai_summary'] = summary
+            key_points = extract_key_points(article.get('summary', ''))
+            if key_points:
+                new_article['ai_summary'] = ' | '.join(key_points)
                 new_article['has_ai_summary'] = True
-                print(f"✅ Added summary for: {article.get('title', 'Unknown')[:50]}")
             else:
                 new_article['has_ai_summary'] = False
-                print(f"❌ No summary for: {article.get('title', 'Unknown')[:50]}")
         else:
             new_article['has_ai_summary'] = False
         
         summarized.append(new_article)
-        
-        if progress_bar:
-            progress.progress((idx + 1) / len(articles))
-    
-    if progress_bar:
-        progress.empty()
     
     return summarized
-
 def display_online_features(disease_name, crop_type, location, treatment_data=None):
     """Display online features including weather, disease risk assessment, and news"""
 
@@ -4077,7 +4077,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
     st.caption("Live updates from The Standard and Kenya News Agency")
     
-    # Key Points toggle (renamed from AI Summary)
+    # Key Points toggle
     col_toggle1, col_toggle2 = st.columns([3, 1])
     with col_toggle2:
         key_points_toggle = st.toggle(
