@@ -4065,7 +4065,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     """)
 
     # ============================================================
-    # SECTION 4: LIVE AGRICULTURE NEWS (WITH AI SUMMARIZATION)
+    # SECTION 5: LIVE AGRICULTURE NEWS (WITH AI SUMMARIZATION)
     # ============================================================
     st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
     st.caption("Live updates from The Standard and Kenya News Agency")
@@ -4076,7 +4076,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         ai_toggle = st.toggle(
             "🤖 AI Summary", 
             value=st.session_state.use_ai_summaries,
-            help="Use AI to summarize articles for quicker reading. Uses Hugging Face Inference API."
+            help="Use AI to summarize articles for quicker reading."
         )
         
         if ai_toggle != st.session_state.use_ai_summaries:
@@ -4085,7 +4085,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
             st.rerun()
     
     # Fetch news
-    with st.spinner("📰 Fetching latest agriculture news... Please wait"):
+    with st.spinner("📰 Fetching latest agriculture news..."):
         news_articles = fetch_live_agriculture_news()
     
     if news_articles:
@@ -4093,51 +4093,32 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         if st.session_state.use_ai_summaries:
             if st.session_state.summarized_articles is None:
                 with st.spinner("🤖 Generating AI summaries... This may take 10-20 seconds."):
-                    summarized_articles = summarize_news_batch(news_articles, HF_TOKEN)
-                    st.session_state.summarized_articles = summarized_articles
+                    st.session_state.summarized_articles = summarize_news_batch(news_articles, HF_TOKEN)
                     st.session_state.summarization_timestamp = time.time()
-                    
-                    # ============================================================
-                    # DEBUG EXPANDER - ADD THIS RIGHT HERE
-                    # ============================================================
-                    with st.expander("🔍 Debug: View Generated Summaries (remove later)", expanded=False):
-                        st.write(f"Total articles processed: {len(summarized_articles)}")
-                        st.write(f"HF_TOKEN present: {bool(HF_TOKEN)}")
-                        st.write("---")
-                        for i, art in enumerate(summarized_articles):
-                            st.write(f"**Article {i+1}:** {art.get('title', 'No title')[:50]}...")
-                            st.write(f"Source: {art.get('source', 'Unknown')}")
-                            st.write(f"Has AI summary: {bool(art.get('ai_summary'))}")
-                            if art.get('ai_summary'):
-                                st.write(f"Summary: {art['ai_summary'][:200]}...")
-                            else:
-                                st.write("Summary: NOT GENERATED")
-                            st.write("---")
-            else:
-                summarized_articles = st.session_state.summarized_articles
             
-            # Use the summarized articles for display
-            display_articles = summarized_articles
+            display_articles = st.session_state.summarized_articles
         else:
             display_articles = news_articles
         
-        # Display news articles
+        # Display news articles - SIMPLIFIED VERSION
         for article in display_articles:
-            # Check if this is a direct link (not a real article)
-            if article.get('date') == "Visit website" or article.get('source') == "🌱 Nation Africa":
-                st.markdown(f"🔗 **{article['source']}** : [{article['title']}]({article['url']})")
-                st.caption(article['summary'])
-            else:
-                with st.expander(f"📰 {article['title']}"):
-                    st.caption(f"Source: {article['source']} | {article['date']}")
-                    
-                    # Show AI summary if available
-                    if article.get('ai_summary'):
-                        st.info(f"🤖 **AI Summary:** {article['ai_summary']}")
-                        st.divider()
-                    
-                    st.write(article['summary'])
-                    st.markdown(f"[Read full article]({article['url']})")
+            # Skip direct links
+            if article.get('date') == "Visit website":
+                continue
+            
+            with st.expander(f"📰 {article['title']}"):
+                st.caption(f"Source: {article['source']} | {article.get('date', 'Recent')}")
+                
+                # Show AI summary (will only appear if it exists)
+                ai_summary = article.get('ai_summary')
+                if ai_summary:
+                    st.markdown(f"**🤖 AI Summary:** {ai_summary}")
+                    st.markdown("---")
+                
+                # Show original summary
+                st.markdown("**📖 Article Summary:**")
+                st.write(article.get('summary', 'No summary available'))
+                st.markdown(f"[Read full article]({article['url']})")
     else:
         st.info("📭 No recent news found. Please check your internet connection.")
         st.markdown("""
@@ -4146,11 +4127,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
         - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold)
         """)
-    
-    # Information about AI summarization
-    if st.session_state.use_ai_summaries:
-        st.caption("🤖 AI summaries are generated by Facebook's BART model to help you quickly understand the key points.")
-        
+
     # ============================================================
     # SECTION 6: RESOURCE DIRECTORY
     # ============================================================
