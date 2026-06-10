@@ -4102,32 +4102,20 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
                 st.write("Debug: Using cached summaries")
                 news_articles = st.session_state.summarized_articles
 
-        # Display news articles
+        # Display news articles - simplified version
         for article in news_articles:
-            # Debug: Print what's in the article
-            # st.write(f"Debug: Article keys: {list(article.keys())}")
-            
-            # Check if this is a direct link (not a real article)
             if article.get('date') == "Visit website" or article.get('source') == "🌱 Nation Africa":
                 st.markdown(f"🔗 **{article['source']}** : [{article['title']}]({article['url']})")
-                st.caption(article['summary'])
             else:
                 with st.expander(f"📰 {article['title']}"):
                     st.caption(f"Source: {article['source']} | {article['date']}")
                     
-                    # Show AI summary if available - check both possible keys
-                    ai_summary = article.get('ai_summary') or article.get('summary_text')
+                    # Show AI summary
+                    if article.get('ai_summary'):
+                        st.info(f"🤖 **AI Summary:** {article['ai_summary']}")
+                        st.divider()
                     
-                    if ai_summary:
-                        st.markdown("**🤖 AI Summary:**")
-                        st.success(ai_summary)
-                        st.markdown("---")
-                        st.markdown("**📖 Full Summary:**")
-                        st.write(article['summary'])
-                    else:
-                        # Fallback to key points if AI summary not available
-                        st.write(article['summary'])
-                    
+                    st.write(article['summary'])
                     st.markdown(f"[Read full article]({article['url']})")
     else:
         st.info("📭 No recent news found. Please check your internet connection.")
