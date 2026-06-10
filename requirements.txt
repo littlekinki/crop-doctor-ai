@@ -12,4 +12,6 @@ feedparser
 python-dateutil
 beautifulsoup4
 pytz
-
+transformers
+torch
+accelerate
