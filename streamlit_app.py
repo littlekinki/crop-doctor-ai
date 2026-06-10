@@ -3847,8 +3847,8 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # ============================================================
     st.markdown("#### 🌤️ CURRENT WEATHER & DISEASE RISK")
     
-    # Update tip for both desktop and mobile
-    st.caption("ℹ️ **Tip:** Tap or hover over the 📘 icons for detailed explanations.")
+    # Clear tip for both desktop and mobile
+    st.info("💡 **Tip:** On computers, hover over the ℹ️ icons. On phones, tap and hold the ℹ️ icons for detailed explanations.")
     
     weather = get_weather_with_risk_assessment(location, disease_name, treatment_data)
 
@@ -3856,44 +3856,47 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         risk_class = weather.get('risk_class', '')
         risk_msg = weather.get('risk_msg', '')
 
-        weather_text = f"""
-        <div class="weather-card">
-            <h4>🌤️ WEATHER FOR {weather['location']}</h4>
-        """
+        # Use columns for better mobile layout
+        col1, col2 = st.columns([1, 3])
         
-        if weather['temperature'] != 'N/A':
-            weather_text += f'<p>🌡️ <strong>Temperature:</strong> {weather["temperature"]}°C <span style="cursor: pointer; display: inline-block; margin-left: 5px; font-size: 14px; color: #666;" onclick="alert(\'Current air temperature. Ideal for most crops is 20-30°C. High temperatures (>30°C) can cause heat stress, low temperatures (<15°C) can slow growth.\')">📘</span></p>'
-        else:
-            weather_text += '<p>🌡️ <strong>Temperature:</strong> --</p>'
+        with col1:
+            st.markdown("**Current Weather**")
         
-        if weather['humidity'] != 'N/A':
-            weather_text += f'<p>💧 <strong>Humidity:</strong> {weather["humidity"]}% <span style="cursor: pointer; display: inline-block; margin-left: 5px; font-size: 14px; color: #666;" onclick="alert(\'Relative humidity. High humidity (>80%) favors fungal diseases. Low humidity (<40%) favors pests like spider mites. Ideal range is 40-70%.\')">📘</span></p>'
-        else:
-            weather_text += '<p>💧 <strong>Humidity:</strong> --</p>'
+        with col2:
+            # Temperature with tooltip
+            temp_value = weather['temperature']
+            st.markdown(f"🌡️ **Temperature:** {temp_value}°C", help="Current air temperature. Ideal for most crops is 20-30°C. High temperatures (>30°C) cause heat stress, low temperatures (<15°C) slow growth.")
+            
+            # Humidity with tooltip
+            humidity_value = weather['humidity']
+            st.markdown(f"💧 **Humidity:** {humidity_value}%", help="Relative humidity. High humidity (>80%) favors fungal diseases. Low humidity (<40%) favors pests like spider mites. Ideal range is 40-70%.")
+            
+            # Rainfall with tooltip
+            rain_value = weather['rain']
+            st.markdown(f"☔ **Current Rainfall:** {rain_value} mm", help="Rainfall in the last hour. Less than 2mm is safe for spraying. More than 10mm can wash off chemicals.")
+            
+            # Wind with tooltip
+            wind_value = weather['wind']
+            if wind_value != 'N/A':
+                st.markdown(f"🌬️ **Wind Speed:** {wind_value} km/h", help="Best for spraying: 5-15 km/h. High winds (>25 km/h) cause spray drift. Calm conditions (<5 km/h) may cause poor spray distribution.")
+            
+            # Forecast with tooltip
+            if weather['temp_max'] and weather['temp_min']:
+                st.markdown(f"📅 **Today's Forecast:** High {weather['temp_max']}°C / Low {weather['temp_min']}°C", help="Expected temperature range for today (from midnight to midnight). Use this to plan activities like transplanting or harvesting.")
+            
+            # Rain Probability with tooltip
+            if weather['rain_prob']:
+                st.markdown(f"🌧️ **Rain Probability:** {weather['rain_prob']}% (Expected: {weather['rain_sum']} mm)", help=f"Chance of rain during the remaining hours today. {weather['rain_prob']}% means it may rain. Expected rainfall: {weather['rain_sum']}mm. Safe for spraying if under 2mm. Postpone spraying if expected rain exceeds 10mm.")
         
-        weather_text += f'<p>☔ <strong>Current Rainfall:</strong> {weather["rain"]} mm <span style="cursor: pointer; display: inline-block; margin-left: 5px; font-size: 14px; color: #666;" onclick="alert(\'Rainfall in the last hour. Less than 2mm is safe for spraying. More than 10mm can wash off chemicals.\')">📘</span></p>'
+        # Disease risk assessment
+        st.markdown("---")
+        st.markdown(f"**🎯 DISEASE RISK ASSESSMENT FOR {disease_name}:**")
+        st.markdown(f"<span class=\"{risk_class}\">{risk_msg}</span>", unsafe_allow_html=True)
+        st.caption("ℹ️ Risk assessment is based on current weather conditions and disease characteristics.", help="High risk means conditions favor disease development. Take preventive action like applying fungicides or improving air circulation.")
         
-        if weather['wind'] != 'N/A':
-            weather_text += f'<p>🌬️ <strong>Wind Speed:</strong> {weather["wind"]} km/h <span style="cursor: pointer; display: inline-block; margin-left: 5px; font-size: 14px; color: #666;" onclick="alert(\'Best for spraying: 5-15 km/h. High winds (>25 km/h) cause spray drift. Calm conditions (<5 km/h) may cause poor spray distribution.\')">📘</span></p>'
-        else:
-            weather_text += '<p>🌬️ <strong>Wind Speed:</strong> --</p>'
-        
-        if weather['temp_max'] and weather['temp_min']:
-            weather_text += f'<p>📅 <strong>Today\'s Forecast:</strong> High {weather["temp_max"]}°C / Low {weather["temp_min"]}°C <span style="cursor: pointer; display: inline-block; margin-left: 5px; font-size: 14px; color: #666;" onclick="alert(\'Expected temperature range for today (from midnight to midnight). Use this to plan activities like transplanting or harvesting.\')">📘</span></p>'
-        
-        if weather['rain_prob']:
-            weather_text += f'<p>🌧️ <strong>Rain Probability:</strong> {weather["rain_prob"]}% (Expected: {weather["rain_sum"]} mm) <span style="cursor: pointer; display: inline-block; margin-left: 5px; font-size: 14px; color: #666;" onclick="alert(\'Chance of rain during the remaining hours today. {weather["rain_prob"]}% means it may rain. Expected rainfall: {weather["rain_sum"]}mm. Safe for spraying if under 2mm. Postpone spraying if expected rain exceeds 10mm.\')">📘</span></p>'
-        
-        weather_text += f"""
-            <hr>
-            <p><strong>🎯 DISEASE RISK ASSESSMENT FOR {disease_name}:</strong><br>
-            <span class="{risk_class}">{risk_msg}</span>
-            <span style="cursor: pointer; display: inline-block; margin-left: 5px; font-size: 14px; color: #666;" onclick="alert('Based on current weather conditions and the disease\'s known characteristics. High risk means conditions favor disease development. Take preventive action like applying fungicides or improving air circulation.')">📘</span></p>
-        </div>
-        """
-        st.markdown(weather_text, unsafe_allow_html=True)
     else:
         st.info("🌤️ Unable to fetch weather data. Please check your internet connection.")
+
 
 def get_weather_advisory(weather_warnings, disease_name, location):
     """Generate a tailored advisory based on weather warnings and disease"""
