@@ -3837,18 +3837,19 @@ def fetch_live_weather_forecast(location, disease_name, treatment_data=None):
     return get_weather_with_risk_assessment(location, disease_name, treatment_data)
 
 def display_online_features(disease_name, crop_type, location, treatment_data=None):
-    """Display online features including weather, news, and agricultural updates"""
-
-    #st.markdown("---")
+    """Display online features including weather, disease risk assessment, and news"""
+    
+    st.markdown("---")
     st.markdown("### 📡 ONLINE MODE - LIVE UPDATES")
-    st.caption(f"🕐 Data last refreshed: {datetime.now().strftime('%H:%M:%S')}")
-
+    
     # ============================================================
     # SECTION 1: WEATHER & DISEASE RISK
     # ============================================================
     st.markdown("#### 🌤️ CURRENT WEATHER & DISEASE RISK")
-    st.caption("ℹ️ **Tip:** Hover over the ❔ icons for detailed explanations of each weather parameter.")
-
+    
+    # Update tip for both desktop and mobile
+    st.caption("ℹ️ **Tip:** Tap or hover over the 📘 icons for detailed explanations.")
+    
     weather = get_weather_with_risk_assessment(location, disease_name, treatment_data)
 
     if weather:
@@ -3859,178 +3860,40 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         <div class="weather-card">
             <h4>🌤️ WEATHER FOR {weather['location']}</h4>
         """
-
+        
         if weather['temperature'] != 'N/A':
-            weather_text += f'<p>🌡️ <strong>Temperature:</strong> {weather["temperature"]}°C <span style="cursor: help; color: #666;" title="Current air temperature. Ideal for most crops is 20-30°C. High temperatures (>30°C) can cause heat stress, low temperatures (<15°C) can slow growth.">❔</span></p>'
+            weather_text += f'<p>🌡️ <strong>Temperature:</strong> {weather["temperature"]}°C <span style="cursor: pointer; display: inline-block; margin-left: 5px; font-size: 14px; color: #666;" onclick="alert(\'Current air temperature. Ideal for most crops is 20-30°C. High temperatures (>30°C) can cause heat stress, low temperatures (<15°C) can slow growth.\')">📘</span></p>'
         else:
             weather_text += '<p>🌡️ <strong>Temperature:</strong> --</p>'
-
+        
         if weather['humidity'] != 'N/A':
-            weather_text += f'<p>💧 <strong>Humidity:</strong> {weather["humidity"]}% <span style="cursor: help; color: #666;" title="Relative humidity. High humidity (>80%) favors fungal diseases. Low humidity (<40%) favors pests like spider mites. Ideal range is 40-70%.">❔</span></p>'
+            weather_text += f'<p>💧 <strong>Humidity:</strong> {weather["humidity"]}% <span style="cursor: pointer; display: inline-block; margin-left: 5px; font-size: 14px; color: #666;" onclick="alert(\'Relative humidity. High humidity (>80%) favors fungal diseases. Low humidity (<40%) favors pests like spider mites. Ideal range is 40-70%.\')">📘</span></p>'
         else:
             weather_text += '<p>💧 <strong>Humidity:</strong> --</p>'
-
-        weather_text += f'<p>☔ <strong>Current Rainfall:</strong> {weather["rain"]} mm <span style="cursor: help; color: #666;" title="Rainfall in the last hour. Less than 2mm is safe for spraying. More than 10mm can wash off chemicals.">❔</span></p>'
-
+        
+        weather_text += f'<p>☔ <strong>Current Rainfall:</strong> {weather["rain"]} mm <span style="cursor: pointer; display: inline-block; margin-left: 5px; font-size: 14px; color: #666;" onclick="alert(\'Rainfall in the last hour. Less than 2mm is safe for spraying. More than 10mm can wash off chemicals.\')">📘</span></p>'
+        
         if weather['wind'] != 'N/A':
-            weather_text += f'<p>🌬️ <strong>Wind Speed:</strong> {weather["wind"]} km/h <span style="cursor: help; color: #666;" title="Best for spraying: 5-15 km/h. High winds (>25 km/h) cause spray drift. Calm conditions (<5 km/h) may cause poor spray distribution.">❔</span></p>'
+            weather_text += f'<p>🌬️ <strong>Wind Speed:</strong> {weather["wind"]} km/h <span style="cursor: pointer; display: inline-block; margin-left: 5px; font-size: 14px; color: #666;" onclick="alert(\'Best for spraying: 5-15 km/h. High winds (>25 km/h) cause spray drift. Calm conditions (<5 km/h) may cause poor spray distribution.\')">📘</span></p>'
         else:
             weather_text += '<p>🌬️ <strong>Wind Speed:</strong> --</p>'
-
+        
         if weather['temp_max'] and weather['temp_min']:
-            weather_text += f'<p>📅 <strong>Today\'s Forecast:</strong> High {weather["temp_max"]}°C / Low {weather["temp_min"]}°C <span style="cursor: help; color: #666;" title="Expected temperature range for today (from midnight to midnight). Use this to plan activities like transplanting or harvesting. High temperatures above 30°C can stress plants.">❔</span></p>'
-
+            weather_text += f'<p>📅 <strong>Today\'s Forecast:</strong> High {weather["temp_max"]}°C / Low {weather["temp_min"]}°C <span style="cursor: pointer; display: inline-block; margin-left: 5px; font-size: 14px; color: #666;" onclick="alert(\'Expected temperature range for today (from midnight to midnight). Use this to plan activities like transplanting or harvesting.\')">📘</span></p>'
+        
         if weather['rain_prob']:
-            weather_text += f'<p>🌧️ <strong>Rain Probability:</strong> {weather["rain_prob"]}% (Expected: {weather["rain_sum"]} mm) <span style="cursor: help; color: #666;" title="Chance of rain during the remaining hours today. {weather["rain_prob"]}% means it may rain. Expected rainfall: {weather["rain_sum"]}mm. Safe for spraying if under 2mm. Postpone spraying if expected rain exceeds 10mm.">❔</span></p>'
-
+            weather_text += f'<p>🌧️ <strong>Rain Probability:</strong> {weather["rain_prob"]}% (Expected: {weather["rain_sum"]} mm) <span style="cursor: pointer; display: inline-block; margin-left: 5px; font-size: 14px; color: #666;" onclick="alert(\'Chance of rain during the remaining hours today. {weather["rain_prob"]}% means it may rain. Expected rainfall: {weather["rain_sum"]}mm. Safe for spraying if under 2mm. Postpone spraying if expected rain exceeds 10mm.\')">📘</span></p>'
+        
         weather_text += f"""
             <hr>
             <p><strong>🎯 DISEASE RISK ASSESSMENT FOR {disease_name}:</strong><br>
             <span class="{risk_class}">{risk_msg}</span>
-            <span style="cursor: help; color: #666; margin-left: 5px;" title="Based on current weather conditions and the disease's known characteristics. High risk means conditions favor disease development. Take preventive action like applying fungicides or improving air circulation.">❔</span></p>
+            <span style="cursor: pointer; display: inline-block; margin-left: 5px; font-size: 14px; color: #666;" onclick="alert('Based on current weather conditions and the disease\'s known characteristics. High risk means conditions favor disease development. Take preventive action like applying fungicides or improving air circulation.')">📘</span></p>
         </div>
         """
         st.markdown(weather_text, unsafe_allow_html=True)
     else:
         st.info("🌤️ Unable to fetch weather data. Please check your internet connection.")
-
-    # ============================================================
-    # SECTION 2: KENYA MET WEATHER WARNINGS
-    # ============================================================
-    st.markdown("#### 🚨 KENYA MET WEATHER WARNINGS")
-    st.caption("Real-time alerts from Kenya Meteorological Department")
-
-    with st.spinner("🔄 Checking for active weather warnings..."):
-        met_warnings = fetch_live_kenya_met_warnings()
-
-    if met_warnings:
-        for warning in met_warnings:
-            with st.expander(f"⚠️ {warning['title']}"):
-                st.caption(f"Published: {warning['published']}")
-                st.write(warning['summary'])
-                if warning['link']:
-                    st.markdown(f"[View official alert]({warning['link']})")
-    else:
-        st.info("✅ No active weather warnings at this time.")
-        st.caption("ℹ️ Follow [@MeteoKenya](https://twitter.com/MeteoKenya) on X for real-time updates")
-
-    # ============================================================
-    # SECTION 3: REAL-TIME WEATHER ALERTS
-    # ============================================================
-    st.markdown("#### 📱 REAL-TIME WEATHER ALERTS")
-
-    st.info("""
-    **Follow the Kenya Meteorological Department on X (Twitter) for live updates**
-
-    The Kenya Meteorological Department (`@MeteoKenya`) uses X to issue **immediate** weather warnings, daily forecasts, and heavy rainfall advisories.
-
-    ✅ **Why follow?**
-    - Get severe weather alerts instantly (heavy rain, floods, strong winds)
-    - Receive daily and 5-day weather forecasts
-    - Stay informed about conditions affecting your farm
-
-    👉 **[Follow @MeteoKenya on X](https://twitter.com/MeteoKenya)** (No account needed. Just click to view)
-    """)
-
-    # ============================================================
-    # SECTION 4: LIVE AGRICULTURE NEWS
-    # ============================================================
-    st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
-    st.caption("Live updates from The Standard and Kenya News Agency")
-
-    with st.spinner("📰 Fetching latest agriculture news... Please wait"):
-        news_articles = fetch_live_agriculture_news()
-
-    if news_articles:
-        for article in news_articles:
-            # Check if this is a direct link (not a real article)
-            if article.get('date') == "Visit website" or article.get('source') == "🌱 Nation Africa":
-                st.markdown(f"🔗 **{article['source']}** : [{article['title']}]({article['url']})")
-                st.caption(article['summary'])
-            else:
-                with st.expander(f"📰 {article['title']}"):
-                    st.caption(f"Source: {article['source']} | {article['date']}")
-                    st.write(article['summary'])
-                    st.markdown(f"[Read full article]({article['url']})")
-    else:
-        st.info("📭 No recent news found. Please check your internet connection.")
-        st.markdown("""
-        **📌 Direct links to agriculture news:**
-        - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya)
-        - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
-        - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold)
-        """)
-
-    # ============================================================
-    # SECTION 5: WEATHER-BASED FARMING TIP
-    # ============================================================
-    #st.markdown("---")
-    st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
-
-    if weather:
-        rain_sum = weather.get('rain_sum', 0)
-        rain_prob = weather.get('rain_prob', 0)
-        temp = weather.get('temperature', 0)
-
-        if isinstance(temp, str):
-            try:
-                temp = float(temp)
-            except:
-                temp = 0
-
-        if rain_sum and rain_sum > 10:
-            st.warning("🌧️ **Heavy rain expected!** Postpone spraying. Protect young seedlings from waterlogging.")
-        elif rain_prob and rain_prob > 70:
-            st.info("🌧️ **Rain likely today.** Consider using rain-fast products if spraying is urgent.")
-        elif temp and temp > 30:
-            st.warning("🔥 **High temperatures.** Ensure adequate irrigation. Apply mulch to retain moisture.")
-        elif temp and temp < 15:
-            st.info("❄️ **Cool temperatures.** Delay transplanting sensitive crops.")
-        else:
-            st.success("🌱 **Optimal conditions.** Good time for spraying, fertilising, and field scouting.")
-    else:
-        st.info("🌱 Check local weather for optimal farming activities.")
-
-    # ============================================================
-    # SECTION 6: KALRO AGRICULTURAL UPDATES
-    # ============================================================
-    st.markdown("#### 🌾 KALRO AGRICULTURAL UPDATES")
-    st.caption("Latest from Kenya Agricultural and Livestock Research Organization")
-
-    with st.spinner("🔄 Fetching latest KALRO updates..."):
-        kalro_updates = fetch_live_kalro_updates()
-
-    for update in kalro_updates:
-        with st.expander(f"📢 {update['title']}"):
-            st.write(update['summary'])
-            st.markdown(f"[Read more on KALRO website]({update['url']})")
-
-    # ============================================================
-    # SECTION 7: RESOURCE DIRECTORY
-    # ============================================================
-    st.markdown("#### 🌾 RESOURCE DIRECTORY")
-    with st.expander("📚 Agricultural Resources for Kenyan Farmers", expanded=False):
-        st.markdown("""
-        **Live News & Weather:**
-        - [Kenya Meteorological Department](https://meteo.go.ke) - Official weather warnings
-        - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya) - Agriculture news
-        - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/) - Government news
-        - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold) - Weekly farming pullout
-
-        **Research & Advisory:**
-        - [KALRO](https://kalro.org) - Agricultural research
-        - [KEPHIS](https://www.kephis.org) - Seed certification
-        - [Ministry of Agriculture](https://kilimo.go.ke) - Government policies
-
-        **Follow on X (Twitter) for Instant Updates:**
-        - [@MeteoKenya](https://twitter.com/MeteoKenya) - Weather warnings
-        - [@KALROKenya](https://twitter.com/KALROKenya) - Research updates
-        - [@FarmKenya](https://twitter.com/FarmKenya) - Agriculture news
-        - [@SeedsOfGold](https://twitter.com/SeedsOfGold) - Farming features
-
-        **Farmer Support:**
-        - National Agricultural Extension Hotline: **0800 720 123**
-        """)
 
 def get_weather_advisory(weather_warnings, disease_name, location):
     """Generate a tailored advisory based on weather warnings and disease"""
