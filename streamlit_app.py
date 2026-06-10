@@ -519,6 +519,14 @@ if 'scroll_to_dropdown' not in st.session_state:
     st.session_state.scroll_to_dropdown = False
 if 'highlight_dropdown' not in st.session_state:
     st.session_state.highlight_dropdown = False
+# AI Summarization session states
+if 'use_ai_summaries' not in st.session_state:
+    st.session_state.use_ai_summaries = False
+if 'summarized_articles' not in st.session_state:
+    st.session_state.summarized_articles = None
+if 'summarization_timestamp' not in st.session_state:
+    st.session_state.summarization_timestamp = None
+
 
 # ============================================================
 # HELPER FUNCTION: Check Internet Connection (for mode switch suggestion)
@@ -3836,20 +3844,102 @@ def fetch_live_weather_forecast(location, disease_name, treatment_data=None):
     """Fetch live weather forecast from Open-Meteo API (already working)"""
     return get_weather_with_risk_assessment(location, disease_name, treatment_data)
 
+# ============================================================
+# AI NEWS SUMMARIZATION USING HUGGING FACE INFERENCE API
+# ============================================================
+
+@st.cache_data(ttl=3600)
+def summarize_article_with_api(text, hf_token):
+    """Summarize article using Hugging Face Inference API"""
+    import requests
+    
+    if not hf_token or len(text) < 100:
+        return None
+    
+    # Using BART model - good for summarization
+    API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
+    headers = {"Authorization": f"Bearer {hf_token}"}
+    
+    try:
+        # Truncate text to reasonable length
+        text = text[:1024]
+        
+        response = requests.post(
+            API_URL, 
+            headers=headers, 
+            json={
+                "inputs": text,
+                "parameters": {
+                    "max_length": 150,
+                    "min_length": 40,
+                    "do_sample": False
+                }
+            },
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if isinstance(result, list) and len(result) > 0:
+                return result[0].get('summary_text', None)
+        elif response.status_code == 503:
+            # Model is loading, wait and retry
+            time.sleep(2)
+            return summarize_article_with_api(text, hf_token)
+        else:
+            print(f"API Error: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        print(f"Summarization error: {e}")
+        return None
+
+def summarize_news_batch(articles, hf_token, progress_bar=True):
+    """Summarize a batch of news articles"""
+    if not hf_token:
+        return articles
+    
+    summarized = []
+    
+    if progress_bar:
+        progress = st.progress(0)
+    
+    for idx, article in enumerate(articles):
+        # Only summarize real articles (not direct links)
+        if article.get('date') != "Visit website" and article.get('source') != "🌱 Nation Africa":
+            summary = summarize_article_with_api(article.get('summary', ''), hf_token)
+            if summary:
+                article['ai_summary'] = summary
+                article['has_ai_summary'] = True
+            else:
+                article['has_ai_summary'] = False
+        else:
+            article['has_ai_summary'] = False
+        
+        summarized.append(article)
+        
+        if progress_bar:
+            progress.progress((idx + 1) / len(articles))
+    
+    if progress_bar:
+        progress.empty()
+    
+    return summarized
+
 def display_online_features(disease_name, crop_type, location, treatment_data=None):
     """Display online features including weather, disease risk assessment, and news"""
-    
+
     #st.markdown("---")
     st.markdown("### 📡 ONLINE MODE - LIVE UPDATES")
-    
+
     # ============================================================
     # SECTION 1: WEATHER & DISEASE RISK
     # ============================================================
     st.markdown("#### 🌤️ CURRENT WEATHER & DISEASE RISK")
-    
+
     # Clear tip for both desktop and mobile
     st.info("💡 **Tip:** On computers, hover over the ℹ️ icons. On phones, tap and hold the ℹ️ icons for detailed explanations.")
-    
+
     weather = get_weather_with_risk_assessment(location, disease_name, treatment_data)
 
     if weather:
@@ -3858,42 +3948,42 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
 
         # Use columns for better mobile layout
         col1, col2 = st.columns([1, 3])
-        
+
         with col1:
             st.markdown("**Current Weather**")
-        
+
         with col2:
             # Temperature with tooltip
             temp_value = weather['temperature']
             st.markdown(f"🌡️ **Temperature:** {temp_value}°C", help="Current air temperature. Ideal for most crops is 20-30°C. High temperatures (>30°C) cause heat stress, low temperatures (<15°C) slow growth.")
-            
+
             # Humidity with tooltip
             humidity_value = weather['humidity']
             st.markdown(f"💧 **Humidity:** {humidity_value}%", help="Relative humidity. High humidity (>80%) favors fungal diseases. Low humidity (<40%) favors pests like spider mites. Ideal range is 40-70%.")
-            
+
             # Rainfall with tooltip
             rain_value = weather['rain']
             st.markdown(f"☔ **Current Rainfall:** {rain_value} mm", help="Rainfall in the last hour. Less than 2mm is safe for spraying. More than 10mm can wash off chemicals.")
-            
+
             # Wind with tooltip
             wind_value = weather['wind']
             if wind_value != 'N/A':
                 st.markdown(f"🌬️ **Wind Speed:** {wind_value} km/h", help="Best for spraying: 5-15 km/h. High winds (>25 km/h) cause spray drift. Calm conditions (<5 km/h) may cause poor spray distribution.")
-            
+
             # Forecast with tooltip
             if weather['temp_max'] and weather['temp_min']:
                 st.markdown(f"📅 **Today's Forecast:** High {weather['temp_max']}°C / Low {weather['temp_min']}°C", help="Expected temperature range for today (from midnight to midnight). Use this to plan activities like transplanting or harvesting.")
-            
+
             # Rain Probability with tooltip
             if weather['rain_prob']:
                 st.markdown(f"🌧️ **Rain Probability:** {weather['rain_prob']}% (Expected: {weather['rain_sum']} mm)", help=f"Chance of rain during the remaining hours today. {weather['rain_prob']}% means it may rain. Expected rainfall: {weather['rain_sum']}mm. Safe for spraying if under 2mm. Postpone spraying if expected rain exceeds 10mm.")
-        
+
         # Disease risk assessment
         #st.markdown("---")
         st.markdown(f"**🎯 DISEASE RISK ASSESSMENT FOR {disease_name}:**")
         st.markdown(f"<span class=\"{risk_class}\">{risk_msg}</span>", unsafe_allow_html=True)
         st.caption("ℹ️ Risk assessment is based on current weather conditions and disease characteristics.", help="High risk means conditions favor disease development. Take preventive action like applying fungicides or improving air circulation.")
-        
+
     else:
         st.info("🌤️ Unable to fetch weather data. Please check your internet connection.")
 
@@ -3902,18 +3992,18 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # ============================================================
     #st.markdown("---")
     st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
-    
+
     if weather:
         rain_sum = weather.get('rain_sum', 0)
         rain_prob = weather.get('rain_prob', 0)
         temp = weather.get('temperature', 0)
-        
+
         if isinstance(temp, str):
             try:
                 temp = float(temp)
             except:
                 temp = 0
-        
+
         if rain_sum and rain_sum > 10:
             st.warning("🌧️ **Heavy rain expected!** Postpone spraying. Protect young seedlings from waterlogging.")
         elif rain_prob and rain_prob > 70:
@@ -3934,10 +4024,10 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     #st.markdown("---")
     st.markdown("#### 🚨 KENYA MET WEATHER WARNINGS")
     st.caption("Real-time alerts from Kenya Meteorological Department")
-    
+
     with st.spinner("🔄 Checking for active weather warnings..."):
         met_warnings = fetch_live_kenya_met_warnings()
-    
+
     if met_warnings:
         for warning in met_warnings:
             with st.expander(f"⚠️ {warning['title']}"):
@@ -3948,7 +4038,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     else:
         st.info("✅ No active weather warnings at this time.")
         st.caption("ℹ️ Follow [@MeteoKenya](https://twitter.com/MeteoKenya) on X for real-time updates")
-    
+
     # ============================================================
     # SECTION 4: REAL-TIME WEATHER ALERTS
     # ============================================================
@@ -3956,27 +4046,60 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
 
     st.info("""
     **Follow the Kenya Meteorological Department on X (Twitter) for live updates**
-    
+
     The Kenya Meteorological Department (`@MeteoKenya`) uses X to issue **immediate** weather warnings, daily forecasts, and heavy rainfall advisories.
-    
+
     ✅ **Why follow?**
     - Get severe weather alerts instantly (heavy rain, floods, strong winds)
     - Receive daily and 5-day weather forecasts
     - Stay informed about conditions affecting your farm
-    
+
     👉 **[Follow @MeteoKenya on X](https://twitter.com/MeteoKenya)** (No account needed. Just click to view)
     """)
-    
+
     # ============================================================
-    # SECTION 5: LIVE AGRICULTURE NEWS
+    # SECTION 5: LIVE AGRICULTURE NEWS (WITH AI SUMMARIZATION)
     # ============================================================
     st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
     st.caption("Live updates from The Standard and Kenya News Agency")
     
+    # AI Summarization toggle
+    col_toggle1, col_toggle2 = st.columns([3, 1])
+    with col_toggle2:
+        ai_toggle = st.toggle(
+            "🤖 AI Summary", 
+            value=st.session_state.use_ai_summaries,
+            help="Use AI to summarize articles for quicker reading. Uses Hugging Face Inference API."
+        )
+        
+        if ai_toggle != st.session_state.use_ai_summaries:
+            st.session_state.use_ai_summaries = ai_toggle
+            st.session_state.summarized_articles = None
+            st.rerun()
+    
+    # Fetch news
     with st.spinner("📰 Fetching latest agriculture news... Please wait"):
         news_articles = fetch_live_agriculture_news()
     
     if news_articles:
+        # Apply AI summarization if enabled
+        if st.session_state.use_ai_summaries:
+            # Check if we need to summarize or can use cached results
+            cache_valid = False
+            if st.session_state.summarized_articles and st.session_state.summarization_timestamp:
+                import time
+                # Cache valid for 1 hour
+                if time.time() - st.session_state.summarization_timestamp < 3600:
+                    cache_valid = True
+                    news_articles = st.session_state.summarized_articles
+            
+            if not cache_valid:
+                with st.spinner("🤖 Generating AI summaries... This may take 10-20 seconds."):
+                    news_articles = summarize_news_batch(news_articles, HF_TOKEN)
+                    st.session_state.summarized_articles = news_articles
+                    st.session_state.summarization_timestamp = time.time()
+        
+        # Display news articles
         for article in news_articles:
             # Check if this is a direct link (not a real article)
             if article.get('date') == "Visit website" or article.get('source') == "🌱 Nation Africa":
@@ -3985,7 +4108,17 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
             else:
                 with st.expander(f"📰 {article['title']}"):
                     st.caption(f"Source: {article['source']} | {article['date']}")
-                    st.write(article['summary'])
+                    
+                    # Show AI summary if available
+                    if article.get('ai_summary'):
+                        st.markdown("**🤖 AI Summary:**")
+                        st.success(article['ai_summary'])
+                        st.markdown("---")
+                        st.markdown("**📖 Full Summary:**")
+                        st.write(article['summary'])
+                    else:
+                        st.write(article['summary'])
+                    
                     st.markdown(f"[Read full article]({article['url']})")
     else:
         st.info("📭 No recent news found. Please check your internet connection.")
@@ -3995,6 +4128,10 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
         - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold)
         """)
+    
+    # Information about AI summarization
+    if st.session_state.use_ai_summaries:
+        st.caption("🤖 AI summaries are generated by Facebook's BART model to help you quickly understand the key points.")
 
     # ============================================================
     # SECTION 6: RESOURCE DIRECTORY
@@ -4006,18 +4143,18 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         - [The Standard - FarmKenya](https://www.standardmedia.co.ke/farmkenya) - Agriculture news
         - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/) - Government news
         - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold) - Weekly farming pullout
-        
+
         **Research & Advisory:**
         - [KALRO](https://kalro.org) - Agricultural research
         - [KEPHIS](https://www.kephis.org) - Seed certification
         - [Ministry of Agriculture](https://kilimo.go.ke) - Government policies
-        
+
         **Follow on X (Twitter) for Instant Updates:**
         - [@MeteoKenya](https://twitter.com/MeteoKenya) - Weather warnings
         - [@KALROKenya](https://twitter.com/KALROKenya) - Research updates
         - [@FarmKenya](https://twitter.com/FarmKenya) - Agriculture news
         - [@SeedsOfGold](https://twitter.com/SeedsOfGold) - Farming features
-        
+
         **Farmer Support:**
         - National Agricultural Extension Hotline: **0800 720 123**
         """)
@@ -6075,7 +6212,7 @@ def main():
                         #st.markdown("---")
                         st.markdown("""
                         <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
-                            <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana Kwa Maoni Yako! (Thank You Very Much For Your Feedback!)</strong></p>                            
+                            <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana Kwa Maoni Yako! (Thank You Very Much For Your Feedback!)</strong></p>
                             <p style="font-size: 12px; color: #888; margin-top: 10px;">🌾 Happy Farming! 🌾</p>
                         </div>
                         """, unsafe_allow_html=True)
@@ -6141,7 +6278,7 @@ def main():
                     st.markdown("---")
                     st.markdown("""
                     <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
-                        <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana Kwa Maoni Yako! (Thank You Very Much For Your Feedback!)</strong></p>                        
+                        <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana Kwa Maoni Yako! (Thank You Very Much For Your Feedback!)</strong></p>
                         <p style="font-size: 12px; color: #888; margin-top: 10px;">🌾 Happy Farming! 🌾</p>
                     </div>
                     """, unsafe_allow_html=True)
