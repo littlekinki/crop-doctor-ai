@@ -519,14 +519,6 @@ if 'scroll_to_dropdown' not in st.session_state:
     st.session_state.scroll_to_dropdown = False
 if 'highlight_dropdown' not in st.session_state:
     st.session_state.highlight_dropdown = False
-# AI Summarization session states
-if 'use_ai_summaries' not in st.session_state:
-    st.session_state.use_ai_summaries = False
-if 'summarized_articles' not in st.session_state:
-    st.session_state.summarized_articles = None
-if 'summarization_timestamp' not in st.session_state:
-    st.session_state.summarization_timestamp = None
-
 
 # ============================================================
 # HELPER FUNCTION: Check Internet Connection (for mode switch suggestion)
@@ -3844,164 +3836,6 @@ def fetch_live_weather_forecast(location, disease_name, treatment_data=None):
     """Fetch live weather forecast from Open-Meteo API (already working)"""
     return get_weather_with_risk_assessment(location, disease_name, treatment_data)
 
-# ============================================================
-# AI NEWS SUMMARIZATION USING HUGGING FACE INFERENCE API
-# ============================================================
-
-@st.cache_data(ttl=3600)
-def summarize_article_with_api(text, hf_token):
-    """Summarize article using Hugging Face Inference API"""
-    import requests
-    import time
-    
-    if not hf_token or len(text) < 100:
-        print(f"No token or text too short: token={bool(hf_token)}, len={len(text)}")
-        return None
-    
-    API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
-    headers = {"Authorization": f"Bearer {hf_token}"}
-    
-    # Truncate text
-    text = text[:1024]
-    print(f"Attempting to summarize text of length: {len(text)}")
-    
-    try:
-        response = requests.post(
-            API_URL, 
-            headers=headers, 
-            json={
-                "inputs": text,
-                "parameters": {
-                    "max_length": 150,
-                    "min_length": 40,
-                    "do_sample": False
-                }
-            },
-            timeout=60
-        )
-        
-        print(f"Response status code: {response.status_code}")
-        
-        if response.status_code == 200:
-            result = response.json()
-            print(f"Response: {result}")
-            if isinstance(result, list) and len(result) > 0:
-                return result[0].get('summary_text', None)
-        elif response.status_code == 503:
-            # Model is loading
-            print("Model is loading, waiting...")
-            time.sleep(5)
-            return summarize_article_with_api(text, hf_token)
-        else:
-            print(f"API Error Response: {response.text}")
-            return None
-            
-    except Exception as e:
-        print(f"Summarization error: {e}")
-        return None
-
-def extract_key_points(text, num_points=3):
-    """Extract key sentences as simple key points (no API needed)"""
-    import re
-    
-    if not text or len(text) < 100:
-        return []
-    
-    # Split into sentences
-    sentences = re.split(r'[.!?]+', text)
-    sentences = [s.strip() for s in sentences if len(s.strip()) > 40]
-    
-    # Remove very long sentences
-    sentences = [s for s in sentences if len(s) < 200]
-    
-    # Take first few key sentences
-    key_points = sentences[:num_points]
-    
-    return key_points
-
-def test_summarization_api():
-    """Test if the summarization API is working"""
-    if not HF_TOKEN:
-        st.error("❌ No HF_TOKEN found! Please set HF_TOKEN in Hugging Face Secrets.")
-        return
-    
-    test_text = "A youth group in Kenya has achieved better returns from selling roasted coffee through the value addition initiative. The group processes and packages coffee themselves instead of selling raw beans to middlemen. This has created jobs for young people in the area. The initiative has been so successful that other groups are now copying the model. Farmers are encouraged to consider value addition to increase their income from coffee farming."
-    
-    with st.spinner("Testing API connection..."):
-        try:
-            import requests
-            
-            API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
-            headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-            
-            response = requests.post(
-                API_URL,
-                headers=headers,
-                json={
-                    "inputs": test_text,
-                    "parameters": {
-                        "max_length": 100,
-                        "min_length": 30,
-                        "do_sample": False
-                    }
-                },
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                if isinstance(result, list) and len(result) > 0:
-                    summary = result[0].get('summary_text', '')
-                    st.success("✅ API Working!")
-                    st.write("**Original text (first 100 chars):**")
-                    st.write(test_text[:100] + "...")
-                    st.write("**AI Summary:**")
-                    st.write(summary)
-                else:
-                    st.error("❌ API returned unexpected response format")
-            elif response.status_code == 503:
-                st.warning("⏳ Model is loading. Please wait 10 seconds and try again.")
-            else:
-                st.error(f"❌ API Error: {response.status_code}")
-                st.write(f"Response: {response.text[:200]}")
-                
-        except Exception as e:
-            st.error(f"❌ Connection error: {e}")
-
-def summarize_news_batch(articles, hf_token):
-    """Summarize a batch of news articles using AI"""
-    if not hf_token:
-        return articles
-    
-    summarized = []
-    
-    # Optional progress bar
-    progress = st.progress(0)
-    status_text = st.empty()
-    
-    for idx, article in enumerate(articles):
-        status_text.text(f"Summarizing article {idx + 1} of {len(articles)}...")
-        
-        new_article = article.copy()
-        
-        # Only summarize real articles
-        if article.get('date') != "Visit website" and article.get('source') != "🌱 Nation Africa":
-            summary = summarize_article_with_api(article.get('summary', ''), hf_token)
-            if summary:
-                new_article['ai_summary'] = summary
-                new_article['has_ai_summary'] = True
-            else:
-                new_article['has_ai_summary'] = False
-        else:
-            new_article['has_ai_summary'] = False
-        
-        summarized.append(new_article)
-        progress.progress((idx + 1) / len(articles))
-    
-    progress.empty()
-    status_text.empty()
-    
-    return summarized
 def display_online_features(disease_name, crop_type, location, treatment_data=None):
     """Display online features including weather, disease risk assessment, and news"""
 
@@ -4134,66 +3968,25 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     """)
 
     # ============================================================
-    # SECTION 5: LIVE AGRICULTURE NEWS (WITH AI SUMMARIZATION)
+    # SECTION 5: LIVE AGRICULTURE NEWS
     # ============================================================
     st.markdown("#### 📰 LATEST AGRICULTURE NEWS")
     st.caption("Live updates from The Standard and Kenya News Agency")
-    
-    # Add a test button temporarily (remove after testing)
-    if st.button("🔧 Test AI Summarization", key="test_ai_btn"):
-        test_summarization_api()
-        st.rerun()
-    
-    # AI Summarization toggle
-    col_toggle1, col_toggle2 = st.columns([3, 1])
-    with col_toggle2:
-        ai_toggle = st.toggle(
-            "🤖 AI Summary", 
-            value=st.session_state.use_ai_summaries,
-            help="Use AI to create concise summaries of articles."
-        )
-        
-        if ai_toggle != st.session_state.use_ai_summaries:
-            st.session_state.use_ai_summaries = ai_toggle
-            st.session_state.summarized_articles = None
-            st.rerun()
-    
-    # Fetch news
-    with st.spinner("📰 Fetching latest agriculture news..."):
+
+    with st.spinner("📰 Fetching latest agriculture news... Please wait"):
         news_articles = fetch_live_agriculture_news()
-    
+
     if news_articles:
-        # Apply AI summarization if enabled
-        if st.session_state.use_ai_summaries:
-            if st.session_state.summarized_articles is None:
-                with st.spinner("🤖 Generating AI summaries... This may take 15-30 seconds."):
-                    st.session_state.summarized_articles = summarize_news_batch(news_articles, HF_TOKEN)
-                    st.session_state.summarization_timestamp = time.time()
-            
-            display_articles = st.session_state.summarized_articles
-        else:
-            display_articles = news_articles
-        
-        # Display news articles
-        for article in display_articles:
-            # Skip direct links
-            if article.get('date') == "Visit website":
-                continue
-            
-            with st.expander(f"📰 {article['title']}"):
-                st.caption(f"Source: {article['source']} | {article.get('date', 'Recent')}")
-                
-                # Show AI summary if available
-                if article.get('ai_summary'):
-                    st.markdown("**🤖 AI Summary (Quick Read):**")
-                    st.success(article['ai_summary'])
-                    st.markdown("---")
-                    st.markdown("**📖 Full Article Summary:**")
-                    st.write(article.get('summary', 'No summary available'))
-                else:
-                    st.write(article.get('summary', 'No summary available'))
-                
-                st.markdown(f"[Read full article]({article['url']})")
+        for article in news_articles:
+            # Check if this is a direct link (not a real article)
+            if article.get('date') == "Visit website" or article.get('source') == "🌱 Nation Africa":
+                st.markdown(f"🔗 **{article['source']}** : [{article['title']}]({article['url']})")
+                st.caption(article['summary'])
+            else:
+                with st.expander(f"📰 {article['title']}"):
+                    st.caption(f"Source: {article['source']} | {article['date']}")
+                    st.write(article['summary'])
+                    st.markdown(f"[Read full article]({article['url']})")
     else:
         st.info("📭 No recent news found. Please check your internet connection.")
         st.markdown("""
@@ -4202,10 +3995,6 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         - [Kenya News Agency - Agriculture](https://www.kenyanews.go.ke/agriculture/)
         - [Nation Africa - Seeds of Gold](https://nation.africa/kenya/business/seeds-of-gold)
         """)
-    
-    # Information about AI summarization
-    if st.session_state.use_ai_summaries:
-        st.caption("🤖 AI summaries are generated by Facebook's BART model to help you quickly understand articles.")
 
     # ============================================================
     # SECTION 6: RESOURCE DIRECTORY
