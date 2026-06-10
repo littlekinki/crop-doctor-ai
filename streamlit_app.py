@@ -4087,17 +4087,18 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
             # Check if we need to summarize or can use cached results
             cache_valid = False
             if st.session_state.summarized_articles and st.session_state.summarization_timestamp:
-                import time
+                import time as time_module  # FIXED: import locally with alias
                 # Cache valid for 1 hour
-                if time.time() - st.session_state.summarization_timestamp < 3600:
+                if time_module.time() - st.session_state.summarization_timestamp < 3600:
                     cache_valid = True
                     news_articles = st.session_state.summarized_articles
             
             if not cache_valid:
                 with st.spinner("🤖 Generating AI summaries... This may take 10-20 seconds."):
                     news_articles = summarize_news_batch(news_articles, HF_TOKEN)
+                    import time as time_module  # FIXED: import locally
                     st.session_state.summarized_articles = news_articles
-                    st.session_state.summarization_timestamp = time.time()
+                    st.session_state.summarization_timestamp = time_module.time()
         
         # Display news articles
         for article in news_articles:
