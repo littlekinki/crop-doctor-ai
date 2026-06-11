@@ -3923,7 +3923,7 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         elif temp and temp < 15:
             st.info("❄️ **Cool temperatures.** Delay transplanting sensitive crops.")
         else:
-            st.success("🌱 **Optimal conditions.** Good time for spraying, fertilizing, and field scouting.")
+            st.success("🌱 **Optimal conditions.** Good time for spraying, fertilising, and field scouting.")
     else:
         st.info("🌱 Check local weather for optimal farming activities.")
 
