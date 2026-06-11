@@ -4706,6 +4706,21 @@ def process_batch_images(uploaded_files, model, class_names, references, gradcam
             # Get local timestamp for this image
             local_timestamp = datetime.now(eat_timezone).strftime('%Y-%m-%d %H:%M:%S')
 
+            # ============================================================
+            # FIX: SAVE IMAGE TO HUGGING FACE DURING BATCH PROCESSING
+            # ============================================================
+            try:
+                # Save the image to Hugging Face dataset
+                save_user_image_for_training(
+                    image, 
+                    top_predictions[0]['class'], 
+                    top_predictions[0]['confidence'], 
+                    top_predictions
+                )
+                print(f"✅ Uploaded {uploaded_file.name} to Hugging Face")
+            except Exception as upload_error:
+                print(f"⚠️ Failed to upload {uploaded_file.name}: {upload_error}")
+
             results.append({
                 "filename": uploaded_file.name,
                 "image": image,
@@ -4713,7 +4728,7 @@ def process_batch_images(uploaded_files, model, class_names, references, gradcam
                 "top_predictions": top_predictions,
                 "primary_diagnosis": top_predictions[0]['class'],
                 "primary_confidence": top_predictions[0]['confidence'],
-                "treatment": treatment,  # Full treatment object
+                "treatment": treatment,
                 "management": treatment.get('management', 'Information not available'),
                 "chemical_control": treatment.get('chemical_control', 'Information not available'),
                 "category": treatment.get('category', 'General'),
@@ -4732,6 +4747,7 @@ def process_batch_images(uploaded_files, model, class_names, references, gradcam
             })
 
     return results
+
 
 def export_all_images_analysis(results):
     """Export a comprehensive analysis of all images in the batch"""
