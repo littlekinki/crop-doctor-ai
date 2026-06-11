@@ -4712,9 +4712,9 @@ def process_batch_images(uploaded_files, model, class_names, references, gradcam
             try:
                 # Save the image to Hugging Face dataset
                 save_user_image_for_training(
-                    image, 
-                    top_predictions[0]['class'], 
-                    top_predictions[0]['confidence'], 
+                    image,
+                    top_predictions[0]['class'],
+                    top_predictions[0]['confidence'],
                     top_predictions
                 )
                 print(f"✅ Uploaded {uploaded_file.name} to Hugging Face")
@@ -5964,7 +5964,7 @@ def main():
 
             else:  # Batch Processing Mode
                 st.caption("📁 Upload multiple images for batch analysis (ideal for research)")
-                st.info("💡 **Tip:** Batch processing is great for researchers, extension officers, and large farms. Upload multiple images at once. The more the images, the longer the analysis will take.")
+                st.info("💡 **Tip:** Batch processing is great for researchers, extension officers, and large farms. Upload multiple images at once. The more the images, the longer the analysis will take. A batch of 30 images takes about 2 minutes to process.")
 
                 batch_files = st.file_uploader(
                     "Select multiple images",
