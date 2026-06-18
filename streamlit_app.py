@@ -2,7 +2,7 @@
 Crop Doctor - Crop Disease Classification and Treatment Recommendation System
 Run: streamlit run streamlit_app.py
 
-Version: 1.3 - Added user upload saving for model improvement with privacy notice
+Version: 1.3 - Version: 1.3 - Added Grad-CAM bounding boxes, batch processing improvements, and farmer-friendly visual explanations
 Author: Daniel Arani Osuto
 Description: AI-powered crop disease diagnosis system with Grad-CAM visualization,
              treatment recommendations, and weather integration.
@@ -1318,42 +1318,46 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                 'location': location,
                 'location_source': location_source,
                 'lat': lat,
-                'lon': lon
+                'lon': lon,
+                'data_available': True
             }
         else:
+            # API call failed - return clear indicators that data is unavailable
             return {
                 'temperature': 'N/A',
                 'humidity': 'N/A',
-                'rain': 0,
+                'rain': None,  # Use None instead of 0 to indicate no data
                 'wind': 'N/A',
                 'temp_max': None,
                 'temp_min': None,
                 'rain_prob': None,
-                'rain_sum': 0,
+                'rain_sum': None,  # Use None instead of 0
                 'risk_msg': "Unable to fetch weather data. Please check your internet connection.",
                 'risk_class': "risk-low",
                 'location': location,
                 'location_source': "error",
                 'lat': lat,
-                'lon': lon
+                'lon': lon,
+                'data_available': False  # Add explicit flag
             }
     except Exception as e:
         print(f"Weather API error: {e}")
         return {
             'temperature': 'N/A',
             'humidity': 'N/A',
-            'rain': 0,
+            'rain': None,
             'wind': 'N/A',
             'temp_max': None,
             'temp_min': None,
             'rain_prob': None,
-            'rain_sum': 0,
+            'rain_sum': None,
             'risk_msg': f"Weather service temporarily unavailable. Please try again later.",
             'risk_class': "risk-low",
             'location': location,
             'location_source': "error",
             'lat': None,
-            'lon': None
+            'lon': None,
+            'data_available': False
         }
 
 
@@ -4416,45 +4420,34 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     SCIENTIFIC REFERENCES (IEEE Style) - Listed in order of first appearance:
     [1] Pesticide Safety Directorate, "Guidance on spraying in relation to weather conditions,"
         UK Health and Safety Executive, London, UK, 2010.
-        Available: https://www.hse.gov.uk/pesticides/topics/using-pesticides/spray-drift/using-outdoors/controlling-spray-drift.htm
-
     [2] E. S. Calvo, "Fenoxaprop-p-ethyl efficacy as a function of temperature and relative humidity,"
         Planta Daninha, vol. 36, 2018. doi: https://doi.org/10.1590/S0100-83582018360100090
-
     [3] A. L. Jones, "Influence of humidity on fungal disease development in vegetable crops,"
         Plant Disease, vol. 75, no. 8, pp. 782-789, 1991. doi: https://doi.org/10.1094/PD-75-0782
-
     [4] R. R. Granados et al., "Survival of plant pathogens and pests under low humidity conditions,"
         Annual Review of Phytopathology, vol. 59, pp. 239-264, 2021. doi: https://doi.org/10.1146/annurev-phyto-020620-102602
-
     [5] R. A. Leonard and J. R. Willian, "Influence of rainfall intensity and volume on pesticide wash-off from foliage,"
         Journal of Environmental Science and Health, Part B, vol. 19, no. 6, pp. 521-536, 1984. doi: https://doi.org/10.1080/03601238409372449
-
     [6] P. B. Bish, et al., "Investigating the meteorological effects on drift from a broadcast application of dicamba,"
         Weed Technology, vol. 37, no. 3, pp. 242-251, 2023. doi: https://doi.org/10.1017/wet.2023.28
-
     [7] NORAD, "Pesticide spray drift: A guide for commercial applicators,"
         Northwest Regional Agricultural Directory (NORAD), 1995.
-        Note: This historical document is not available online. Refer to [1] for equivalent guidance.
-
     [8] M. M. Dewan, et al., "Assessing meteorological variables and their impact on pesticide spraying in agricultural areas of Bangladesh,"
         Research Gate, Jan. 2023.
-        Available: https://www.researchgate.net/publication/376773195
     """
 
-    # Define weather references HTML for the expander with full DOIs and URLs
+    # Define weather references HTML for the expander
     weather_refs = [
-    '[1] Pesticide Safety Directorate, "Guidance on spraying in relation to weather conditions," UK Health and Safety Executive, London, UK, 2010.',
-    '[2] E. S. Calvo, "Fenoxaprop-p-ethyl efficacy as a function of temperature and relative humidity," Planta Daninha, vol. 36, 2018. doi: https://doi.org/10.1590/S0100-83582018360100090',
-    '[3] A. L. Jones, "Influence of humidity on fungal disease development in vegetable crops," Plant Disease, vol. 75, no. 8, pp. 782-789, 1991.',
-    '[4] R. R. Granados, et al., "Survival of plant pathogens and pests under low humidity conditions," Annual Review of Phytopathology, vol. 59, pp. 239-264, 2021.',
-    '[5] R. A. Leonard and J. R. Willian, "Influence of rainfall intensity and volume on pesticide wash-off from foliage," Journal of Environmental Science and Health, Part B, vol. 19, no. 6, pp. 521-536, 1984.',
-    '[6] P. B. Bish, et al., "Investigating the meteorological effects on drift from a broadcast application of dicamba," Weed Technology, vol. 37, no. 3, pp. 242-251, 2023.',
-    '[7] NORAD, "Pesticide spray drift: A guide for commercial applicators," Northwest Regional Agricultural Directory (NORAD), 1995.',
-    '[8] M. M. Dewan, et al., "Assessing meteorological variables and their impact on pesticide spraying in agricultural areas of Bangladesh," Research Gate, Jan. 2023.'
-]
+        '[1] Pesticide Safety Directorate, "Guidance on spraying in relation to weather conditions," UK Health and Safety Executive, London, UK, 2010.',
+        '[2] E. S. Calvo, "Fenoxaprop-p-ethyl efficacy as a function of temperature and relative humidity," Planta Daninha, vol. 36, 2018.',
+        '[3] A. L. Jones, "Influence of humidity on fungal disease development in vegetable crops," Plant Disease, vol. 75, no. 8, pp. 782-789, 1991.',
+        '[4] R. R. Granados, et al., "Survival of plant pathogens and pests under low humidity conditions," Annual Review of Phytopathology, vol. 59, pp. 239-264, 2021.',
+        '[5] R. A. Leonard and J. R. Willian, "Influence of rainfall intensity and volume on pesticide wash-off from foliage," Journal of Environmental Science and Health, Part B, vol. 19, no. 6, pp. 521-536, 1984.',
+        '[6] P. B. Bish, et al., "Investigating the meteorological effects on drift from a broadcast application of dicamba," Weed Technology, vol. 37, no. 3, pp. 242-251, 2023.',
+        '[7] NORAD, "Pesticide spray drift: A guide for commercial applicators," Northwest Regional Agricultural Directory (NORAD), 1995.',
+        '[8] M. M. Dewan, et al., "Assessing meteorological variables and their impact on pesticide spraying in agricultural areas of Bangladesh," Research Gate, Jan. 2023.'
+    ]
 
-    # Join with <br> tags
     weather_refs_html = "<br>".join(weather_refs)
 
     st.markdown("### 📡 ONLINE MODE - LIVE UPDATES")
@@ -4464,12 +4457,28 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
     # ============================================================
     st.markdown("#### 🌤️ CURRENT WEATHER & DISEASE RISK")
 
-    # Clear tip for both desktop and mobile
     st.info("💡 **Tip:** On computers, hover over the ℹ️ icons. On phones, tap and hold the ℹ️ icons for detailed explanations with scientific references.")
 
     weather = get_weather_with_risk_assessment(location, disease_name, treatment_data)
 
+    # Check if weather data is actually available
+    # Use the data_available flag if present, otherwise check values
+    weather_available = False
     if weather:
+        # Check explicit flag first
+        if weather.get('data_available') is True:
+            weather_available = True
+        else:
+            # Fallback: check if any meaningful data exists
+            temp_valid = weather.get('temperature') != 'N/A' and weather.get('temperature') is not None
+            humidity_valid = weather.get('humidity') != 'N/A' and weather.get('humidity') is not None
+            # IMPORTANT: rain None means no data, but rain 0 means no rain (valid data)
+            rain_valid = weather.get('rain') is not None
+            wind_valid = weather.get('wind') != 'N/A' and weather.get('wind') is not None
+
+            weather_available = temp_valid or humidity_valid or rain_valid or wind_valid
+
+    if weather and weather_available:
         risk_class = weather.get('risk_class', '')
         risk_msg = weather.get('risk_msg', '')
 
@@ -4480,38 +4489,49 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
             st.markdown("**Current Weather**")
 
         with col2:
-            # [1] UK HSE 2010 - Temperature ideal range and cold effects
-            # [2] Calvo 2018 - High temperature effects on pesticide efficacy
-            temp_value = weather['temperature']
-            st.markdown(f"🌡️ **Temperature:** {temp_value}°C",
-                       help=f"Current air temperature. Ideal for most crops is 20-30°C [1]. High temperatures (>30°C) cause heat stress and reduce pesticide efficacy [2]. Low temperatures (<15°C) slow growth [1].")
+            # Temperature
+            temp_value = weather.get('temperature')
+            if temp_value != 'N/A' and temp_value is not None:
+                st.markdown(f"🌡️ **Temperature:** {temp_value}°C",
+                           help=f"Current air temperature. Ideal for most crops is 20-30°C [1]. High temperatures (>30°C) cause heat stress and reduce pesticide efficacy [2]. Low temperatures (<15°C) slow growth [1].")
+            else:
+                st.markdown("🌡️ **Temperature:** Unavailable",
+                           help="Weather data could not be retrieved. Please check your internet connection.")
 
-            # [3] Jones 1991 - High humidity fungal risk
-            # [4] Granados et al. 2021 - Low humidity pest risk
-            humidity_value = weather['humidity']
-            st.markdown(f"💧 **Humidity:** {humidity_value}%",
-                       help=f"Relative humidity. High humidity (>80%) favours fungal diseases [3]. Low humidity (<40%) favours pests like spider mites and aphids [4]. Ideal range is 40-70% [1].")
+            # Humidity
+            humidity_value = weather.get('humidity')
+            if humidity_value != 'N/A' and humidity_value is not None:
+                st.markdown(f"💧 **Humidity:** {humidity_value}%",
+                           help=f"Relative humidity. High humidity (>80%) favours fungal diseases [3]. Low humidity (<40%) favours pests like spider mites and aphids [4]. Ideal range is 40-70% [1].")
+            else:
+                st.markdown("💧 **Humidity:** Unavailable",
+                           help="Weather data could not be retrieved. Please check your internet connection.")
 
-            # [5] Leonard & Willian 1984 - Rainfall wash-off thresholds
-            rain_value = weather['rain']
-            st.markdown(f"☔ **Current Rainfall:** {rain_value} mm",
-                       help=f"Rainfall in the last hour. Research shows 2-5 mm of rain washes off >50% of pesticide deposits [5]. Less than 2mm is safe for spraying. More than 10mm can wash off most chemicals [5].")
+            # Rainfall - CRITICAL FIX: Only show if rain is not None
+            rain_value = weather.get('rain')
+            if rain_value is not None:
+                st.markdown(f"☔ **Current Rainfall:** {rain_value} mm",
+                           help=f"Rainfall in the last hour. Research shows 2-5 mm of rain washes off >50% of pesticide deposits [5]. Less than 2mm is safe for spraying. More than 10mm can wash off most chemicals [5].")
+            else:
+                st.markdown("☔ **Current Rainfall:** Unavailable",
+                           help="Weather data could not be retrieved. Please check your internet connection.")
 
-            # [6] Bish et al. 2023 - Wind speed and inversions
-            # [7] NORAD 1995 - High wind prohibition
-            # [8] Dewan et al. 2023 - Meteorological variables overview
-            wind_value = weather['wind']
-            if wind_value != 'N/A':
+            # Wind Speed
+            wind_value = weather.get('wind')
+            if wind_value != 'N/A' and wind_value is not None:
                 st.markdown(f"🌬️ **Wind Speed:** {wind_value} km/h",
                            help=f"Best for spraying: 3-15 km/h [6]. High winds (>25 km/h) cause spray drift and are prohibited [7]. Calm conditions (<3 km/h) may indicate temperature inversions, where droplets can hang in the air for hours [6]. Wind is a critical meteorological variable affecting spray efficacy [8].")
+            else:
+                st.markdown("🌬️ **Wind Speed:** Unavailable",
+                           help="Weather data could not be retrieved. Please check your internet connection.")
 
-            # [1] UK HSE 2010 - Forecast planning
-            if weather['temp_max'] and weather['temp_min']:
+            # Forecast
+            if weather.get('temp_max') and weather.get('temp_min'):
                 st.markdown(f"📅 **Today's Forecast:** High {weather['temp_max']}°C / Low {weather['temp_min']}°C",
                            help=f"Expected temperature range for today (from midnight to midnight). Use this to plan activities like transplanting or harvesting [1].")
 
-            # [5] Leonard & Willian 1984 - Rain probability wash-off thresholds
-            if weather['rain_prob']:
+            # Rain Probability - CRITICAL FIX: Only show if rain_prob is not None
+            if weather.get('rain_prob') is not None:
                 st.markdown(f"🌧️ **Rain Probability:** {weather['rain_prob']}% (Expected: {weather['rain_sum']} mm)",
                            help=f"Chance of rain during the remaining hours today. {weather['rain_prob']}% means it may rain. Expected rainfall: {weather['rain_sum']}mm. Safe for spraying if under 2mm. Postpone spraying if expected rain exceeds 10mm [5].")
 
@@ -4520,16 +4540,27 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         st.markdown(f"<span class=\"{risk_class}\">{risk_msg}</span>", unsafe_allow_html=True)
         st.caption("ℹ️ Risk assessment is based on current weather conditions and disease characteristics.",
                   help="High risk means conditions favour disease development. Take preventive action like applying fungicides or improving air circulation.")
-
     else:
-        st.info("🌤️ Unable to fetch weather data. Please check your internet connection.")
+        # No weather data available
+        st.warning("🌤️ **Weather data is currently unavailable.** Please check your internet connection.")
+
+        # Show a more helpful message with retry option
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.info("💡 **Tip:** Try refreshing the weather or switch to OFFLINE MODE if you only need diagnosis and treatment information.")
+        with col2:
+            if st.button("🔄 Retry Weather", use_container_width=True):
+                # Clear cached weather and reload
+                st.session_state.weather_info = None
+                st.rerun()
 
     # ============================================================
     # SECTION 2: WEATHER-BASED FARMING TIP
     # ============================================================
     st.markdown("#### 💡 WEATHER-BASED FARMING TIP")
 
-    if weather:
+    # Only show farming tip if weather data is available
+    if weather_available:
         rain_sum = weather.get('rain_sum', 0)
         rain_prob = weather.get('rain_prob', 0)
         temp = weather.get('temperature', 0)
@@ -4551,20 +4582,17 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         else:
             st.success("🌱 **Optimal conditions.** Good time for spraying, fertilising, and field scouting.")
     else:
-        st.info("🌱 Check local weather for optimal farming activities.")
+        st.info("🌤️ **Weather data currently unavailable.** Please check your internet connection or click the 'Retry Weather' button above. Farming tip will appear once weather data is available.")
 
     # ============================================================
-    # SECTION 3: SCIENTIFIC REFERENCES (DISPLAYED BEFORE WEATHER WARNINGS)
+    # SECTION 3: SCIENTIFIC REFERENCES
     # ============================================================
 
-    # Call html_expander exactly like XAI Sources pattern
     html_expander(
         title="VIEW SCIENTIFIC REFERENCES FOR WEATHER THRESHOLDS (Click to Expand)",
         content_html=f'<div class="reference-text">{weather_refs_html}</div>',
         icon="🌤️"
     )
-
-    #st.markdown("---")
 
     # ============================================================
     # SECTION 4: KENYA MET WEATHER WARNINGS
@@ -4657,15 +4685,15 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
         '• National Agricultural Extension Hotline: <strong>0800 720 123</strong>'
     ]
 
-    # Join with <br> tags
     resources_html = "<br>".join(resources_list)
 
-    # Call html_expander exactly like XAI Sources pattern
     html_expander(
         title="VIEW AGRICULTURAL RESOURCES FOR KENYAN FARMERS (Click to Expand)",
         content_html=f'<div class="reference-text">{resources_html}</div>',
         icon="📚"
     )
+
+
 def display_weather_references():
     """Display weather threshold references for user transparency
 
@@ -5146,7 +5174,7 @@ def display_feedback_section(disease_name, confidence):
     # QUESTION 3: Grad-CAM Visual Evidence Validation (NEW)
     # ============================================================
     st.markdown("**3. Looking at the coloured overlay on the image, did the system focus on the correct areas?**")
-    st.caption("The overlay shows where the AI looked to make its decision. 🔴 Red areas had the most influence, 🔵 Blue areas had the least. If available, the red bounding box(es) show region(s) whose infulence on the diagnosis is >60%.")
+    st.caption("The overlay shows where the AI looked to make its decision. 🔴 Red areas had the most influence, 🔵 Blue areas had the least. If available, the red bounding box(es) show region(s) whose influence on the diagnosis is >60%.")
 
     col1, col2, col3 = st.columns(3)
 
