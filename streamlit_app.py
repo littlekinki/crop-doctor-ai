@@ -537,7 +537,7 @@ if 'current_alt_data' not in st.session_state:
 if 'current_showing_alternative' not in st.session_state:
     st.session_state.current_showing_alternative = None
 if 'location' not in st.session_state:
-    st.session_state.location = "Ekerenyo, Nyamira County, Kenya"
+    st.session_state.location = "Nyamatimbo Tea Buying Centre, Nyamira County, Kenya"
 if 'showing_common_chemicals' not in st.session_state:
     st.session_state.showing_common_chemicals = False
 if 'weather_info' not in st.session_state:
