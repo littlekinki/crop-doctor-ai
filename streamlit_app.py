@@ -2,7 +2,7 @@
 Crop Doctor - Crop Disease Classification and Treatment Recommendation System
 Run: streamlit run streamlit_app.py
 
-Version: 1.3 - Version: 1.3 - Added Grad-CAM bounding boxes, batch processing improvements, and farmer-friendly visual explanations
+Version: 1.3 - Added Grad-CAM bounding boxes, batch processing improvements, and farmer-friendly visual explanations
 Author: Daniel Arani Osuto
 Description: AI-powered crop disease diagnosis system with Grad-CAM visualization,
              treatment recommendations, and weather integration.
@@ -5021,7 +5021,7 @@ def display_top_location_dialog():
     st.caption("📝 Examples: Kisumu, Kenya | Eldoret, Uasin Gishu County, Kenya | Machakos, Kenya")
 
     current_loc_parts = st.session_state.location.split(',')
-    default_city = current_loc_parts[0].strip() if current_loc_parts else "Ekerenyo, Nyamira County"
+    default_city = current_loc_parts[0].strip() if current_loc_parts else "Nyamatimbo Tea Buying Centre, Nyamira County"
     default_region = current_loc_parts[1].strip() if len(current_loc_parts) > 1 else ""
     default_country = current_loc_parts[-1].strip() if current_loc_parts else "Kenya"
 
@@ -5073,7 +5073,7 @@ def display_top_manual_entry_dialog():
     st.caption("Examples: Kisumu, Kenya | Eldoret, Uasin Gishu County, Kenya | Machakos, Kenya")
 
     current_loc_parts = st.session_state.location.split(',')
-    default_city = current_loc_parts[0].strip() if len(current_loc_parts) > 0 else "Ekerenyo, Nyamira County"
+    default_city = current_loc_parts[0].strip() if len(current_loc_parts) > 0 else "Nyamatimbo Tea Buying Centre, Nyamira County"
     default_region = current_loc_parts[1].strip() if len(current_loc_parts) > 1 else ""
     default_country = current_loc_parts[-1].strip() if len(current_loc_parts) > 0 else "Kenya"
 
