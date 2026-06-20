@@ -6871,6 +6871,118 @@ def display_batch_results(results):
 
     st.caption("\u2139\uFE0F All timestamps are in East Africa Time (EAT, UTC+3)")
 
+def export_feedback_csv():
+    """Export all feedback as CSV and provide download"""
+    feedback_file = "farmer_feedback.json"
+
+    if not os.path.exists(feedback_file):
+        st.warning("No feedback data found.")
+        return
+
+    try:
+        import json
+        import csv
+        from datetime import datetime, timedelta, timezone as dt_timezone
+
+        with open(feedback_file, 'r') as f:
+            feedback = json.load(f)
+
+        if not feedback:
+            st.warning("No feedback entries found.")
+            return
+
+        # Create CSV in memory
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Write header
+        headers = ["Timestamp", "Disease", "Confidence", "Question", "Answer", "Comment", "Session ID"]
+        writer.writerow(headers)
+
+        # Write data
+        for entry in feedback:
+            writer.writerow([
+                entry.get('timestamp', ''),
+                entry.get('disease', ''),
+                entry.get('confidence', ''),
+                entry.get('question', ''),
+                entry.get('answer', ''),
+                entry.get('comment', ''),
+                entry.get('session_id', '')
+            ])
+
+        # Get local time for filename
+        eat_timezone = dt_timezone(timedelta(hours=3))
+        timestamp = datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')
+        filename = f"farmer_feedback_{timestamp}.csv"
+
+        # Provide download
+        st.download_button(
+            label="📥 Download CSV",
+            data=output.getvalue(),
+            file_name=filename,
+            mime="text/csv",
+            key="download_csv_feedback"
+        )
+
+        st.success(f"✅ Exported {len(feedback)} feedback entries to CSV")
+
+    except Exception as e:
+        st.error(f"Error exporting feedback: {e}")
+
+def export_feedback_json():
+    """Export all feedback as JSON and provide download"""
+    feedback_file = "farmer_feedback.json"
+
+    if not os.path.exists(feedback_file):
+        st.warning("No feedback data found.")
+        return
+
+    try:
+        import json
+        from datetime import datetime, timedelta, timezone as dt_timezone
+
+        with open(feedback_file, 'r') as f:
+            feedback = json.load(f)
+
+        if not feedback:
+            st.warning("No feedback entries found.")
+            return
+
+        # Get local time for filename
+        eat_timezone = dt_timezone(timedelta(hours=3))
+        timestamp = datetime.now(eat_timezone).strftime('%Y%m%d_%H%M%S')
+        filename = f"farmer_feedback_{timestamp}.json"
+
+        # Provide download
+        st.download_button(
+            label="📥 Download JSON",
+            data=json.dumps(feedback, indent=2),
+            file_name=filename,
+            mime="application/json",
+            key="download_json_feedback"
+        )
+
+        st.success(f"✅ Exported {len(feedback)} feedback entries to JSON")
+
+    except Exception as e:
+        st.error(f"Error exporting feedback: {e}")
+
+def clear_feedback_data():
+    """Clear all feedback data (use with caution)"""
+    try:
+        import json
+        feedback_file = "farmer_feedback.json"
+
+        # Clear local file
+        with open(feedback_file, 'w') as f:
+            json.dump([], f)
+
+        st.success("✅ All feedback data has been cleared from local storage.")
+        st.warning("⚠️ Note: This only clears local data. Hugging Face data remains.")
+
+    except Exception as e:
+        st.error(f"Error clearing feedback: {e}")
 
 # ============================================================
 # MAIN APP
@@ -6888,6 +7000,43 @@ def main():
             <div class="subtitle">Crop Disease Classification and Treatment Recommendation System</div>
         </div>
         """, unsafe_allow_html=True)
+
+        # ============================================================
+        # ADMIN PANEL (Hidden behind admin password)
+        # ============================================================
+        # Check for admin access
+        query_params = st.query_params
+        if query_params.get("admin") == "true":
+            st.markdown("### 🔐 Admin Panel")
+
+            # Password check
+            admin_password_input = st.text_input("Enter Admin Password:", type="password", key="admin_password_input")
+
+            if admin_password_input and admin_password_input == ADMIN_PASSWORD:
+                st.success("✅ Admin access granted!")
+
+                # Display admin options
+                st.markdown("---")
+                st.markdown("## 📊 Farmer Feedback Management")
+
+                # Option to view feedback
+                if st.button("📋 View All Feedback", use_container_width=True):
+                    display_feedback_summary()
+
+                # Option to download feedback as CSV
+                if st.button("📥 Download Feedback as CSV", use_container_width=True):
+                    export_feedback_csv()
+
+                # Option to download feedback as JSON
+                if st.button("📥 Download Feedback as JSON", use_container_width=True):
+                    export_feedback_json()
+
+                # Option to clear feedback
+                if st.button("🗑️ Clear All Feedback (Danger)", use_container_width=True):
+                    if st.checkbox("I understand this will permanently delete all feedback"):
+                        clear_feedback_data()
+            elif admin_password_input:
+                st.error("❌ Incorrect password. Please try again.")
 
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
