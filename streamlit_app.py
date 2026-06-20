@@ -5253,7 +5253,7 @@ def display_feedback_section(disease_name, confidence):
     with col1:
         if st.button("✅ Yes, definitely", width="stretch" , key="use_again_yes"):
             save_feedback(disease_name, confidence, "use_again", "yes")
-            st.success("✅ Thank you! We're honored to serve you.")
+            st.success("✅ Thank you! We're honoured to serve you.")
             time.sleep(1)
             st.rerun()
 
@@ -7177,7 +7177,7 @@ def main():
 
                 # SAFETY CHECK FOR EMPTY ALT DATA
                 if not st.session_state.current_alt_data:
-                    st.warning("⚠️ No diagnosis data found. Please analyze an image first.")
+                    st.warning("⚠️ No diagnosis data found. Please analyse an image first.")
                     st.session_state.show_results = False
                     st.rerun()
 
@@ -7241,13 +7241,13 @@ def main():
                         """, unsafe_allow_html=True)
 
                     else:
-                        st.warning(f"⚠️ Alternative {alt_idx} data not found. Please re-analyze the image.")
+                        st.warning(f"⚠️ Alternative {alt_idx} data not found. Please re-analyse the image.")
                         st.session_state.current_showing_alternative = None
                         st.rerun()
                 else:
                     # CHECK IF KEY 0 EXISTS BEFORE ACCESSING
                     if 0 not in st.session_state.current_alt_data:
-                        st.warning("⚠️ Primary diagnosis data not available. Please analyze an image again.")
+                        st.warning("⚠️ Primary diagnosis data not available. Please analyse an image again.")
                         st.session_state.show_results = False
                         st.rerun()
 
