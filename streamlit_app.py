@@ -1216,7 +1216,7 @@ def get_weather_with_risk_assessment(location, disease_name, treatment_data=None
                         elif temp_val < 15:  # [105] - <15°C slows growth
                             advice_parts.append(f"🌡️ Cool ({temp_val:.0f}°C): Slow crop growth. Delay sensitive operations.")
                         else:
-                            advice_parts.append(f"🌡️ Moderate temperature ({temp_val:.0f}°C) - favorable for crop growth.")
+                            advice_parts.append(f"🌡️ Moderate temperature ({temp_val:.0f}°C) - favourable for crop growth.")
                     except (ValueError, TypeError):
                         pass
 
@@ -3442,7 +3442,6 @@ def display_healthy_crop_assessment(predicted_class, confidence, treatment, refe
 # ============================================================
 # DISPLAY FUNCTIONS
 # ============================================================
-
 def display_heatmap_with_colorbar(original_img, heatmap_overlay, predicted_class, save_path=None, show_bounding_boxes=True):
     """Display heatmap with enhanced color bar and optional bounding boxes around high-influence regions"""
     col1, col2 = st.columns(2)
@@ -3489,10 +3488,11 @@ def display_heatmap_with_colorbar(original_img, heatmap_overlay, predicted_class
     ax.annotate('', xy=(1, -1.5), xytext=(0, -1.5), arrowprops=dict(arrowstyle='->', color='black', lw=2))
     ax.text(0.5, -1.8, 'Influence on Predictions', ha='center', va='top', fontsize=16, fontweight='bold', color='black')
 
-    # Add bounding box threshold indicator
+    # Add bounding box threshold indicator - FIXED
     if show_bounding_boxes:
-        ax.axvline(x=0.6, ymin=-2, ymax=0, color='red', linestyle='--', linewidth=2, transform=ax.transAxes)
-        ax.text(0.6, -2.2, 'Bounding box threshold (60%)', ha='center', va='top', fontsize=10, color='red', transform=ax.transAxes)
+        # Use data coordinates (0-100 range)
+        ax.axvline(x=0.6, ymin=-2, ymax=0, color='red', linestyle='--', linewidth=2)
+        ax.text(0.6, -2.2, 'Bounding box threshold (60%)', ha='center', va='top', fontsize=10, color='red')
 
     plt.tight_layout()
     st.pyplot(fig)
@@ -3818,7 +3818,7 @@ def display_xai_analysis(disease_data):
 </div>
 """, unsafe_allow_html=True)
 
-# Initialize boxes to an empty list to avoid UnboundLocalError
+    # Initialize boxes to an empty list to avoid UnboundLocalError
     boxes = []
     scores = []
 
@@ -3856,7 +3856,7 @@ def display_xai_analysis(disease_data):
                     overlay_with_boxes, boxes, scores = extract_bounding_boxes_from_heatmap(
                         raw_heatmap, heatmap_overlay, threshold=0.6, min_box_area=500
                     )
-                    if len(boxes) >0:
+                    if len(boxes) > 0:
                         caption_text = f"Visual overlay image showing graduated influence of areas that led the model to pick on:\n{predicted_class}. The redder the area, the higher the confidence of the AI that the area is afflicted by the {predicted_class}. See the colour bar and legend below. RED bounding boxes are currently HIDDEN."
                     else:
                         caption_text = f"Visual overlay image showing graduated influence of areas that led the model to pick on:\n{predicted_class}. The redder the area, the higher the confidence of the AI that the area is afflicted by the {predicted_class}. See the colour bar and legend below."
@@ -3886,6 +3886,7 @@ def display_xai_analysis(disease_data):
         ax.text(100, -0.4, 'HIGH', ha='center', va='top', fontsize=12, fontweight='bold', color='red')
         ax.text(50, -0.9, 'Confidence on Predictions', ha='center', va='top', fontsize=13, fontweight='bold', color='black')
 
+        # FIXED: Remove transform parameter
         if show_boxes and raw_heatmap is not None:
             ax.axvline(x=60, ymin=0, ymax=1, color='red', linestyle='--', linewidth=2)
             ax.text(60, 1.05, '← 60% (Bounding box threshold)', ha='left', va='bottom',
@@ -4114,7 +4115,6 @@ def display_xai_analysis(disease_data):
             content_html=f'<div class="reference-text">{references_html}</div>',
             icon="📚"
         )
-
 
 # ============================================================
 # NEWS AND WEATHER HELPERS FOR ONLINE MODE
