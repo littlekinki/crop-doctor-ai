@@ -6985,14 +6985,14 @@ def clear_feedback_data():
 
     except Exception as e:
         st.error(f"Error clearing feedback: {e}")
+
 def back_camera_with_capture_button():
     """
-    Wrapper for back_camera_input that adds a visible capture button.
-    Works on both mobile and desktop.
+    Custom camera with visible capture button - FIXED VERSION
+    Uses rear camera on mobile, webcam on desktop
     """
     import streamlit.components.v1 as components
 
-    # Use back_camera_input for the camera feed
     camera_html = """
     <div style="text-align: center; padding: 10px; max-width: 600px; margin: 0 auto;">
         <div style="position: relative; background: #000; border-radius: 12px; overflow: hidden; min-height: 300px;">
@@ -7012,6 +7012,7 @@ def back_camera_with_capture_button():
                 box-shadow: 0 4px 20px rgba(46, 125, 50, 0.5);
                 transition: all 0.3s ease;
                 min-width: 200px;
+                z-index: 1000;
             ">
                 📸 CAPTURE PHOTO
             </button>
@@ -7065,6 +7066,7 @@ def back_camera_with_capture_button():
 
             let stream = null;
             let isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            let photoCaptured = false;
 
             function updateStatus(msg, isError = false) {
                 status.innerHTML = msg;
@@ -7074,7 +7076,6 @@ def back_camera_with_capture_button():
             }
 
             function startCamera() {
-                // Try rear camera first on mobile, otherwise use any camera
                 const constraints = {
                     video: {
                         facingMode: isMobile ? 'environment' : 'user',
@@ -7096,7 +7097,6 @@ def back_camera_with_capture_button():
                     })
                     .catch(err => {
                         console.error('Camera error:', err);
-                        // Try fallback with any camera
                         navigator.mediaDevices.getUserMedia({ video: true })
                             .then(s => {
                                 stream = s;
@@ -7114,7 +7114,7 @@ def back_camera_with_capture_button():
             // Start camera
             startCamera();
 
-            // CAPTURE PHOTO BUTTON - Main functionality
+            // CAPTURE PHOTO BUTTON
             captureBtn.addEventListener('click', function() {
                 console.log('CAPTURE PHOTO button clicked!');
 
@@ -7136,12 +7136,13 @@ def back_camera_with_capture_button():
 
                     // Store the photo data
                     photoDataInput.value = imageData;
+                    photoCaptured = true;
 
                     // Show preview with the image
                     preview.innerHTML = `
                         <div style="margin-top: 10px; padding: 20px; background: #e8f5e9; border-radius: 12px; border: 3px solid #2E7D32;">
                             <p style="font-weight: 700; color: #2E7D32; margin-bottom: 10px; font-size: 18px;">✅ Photo Captured!</p>
-                            <img src="${imageData}" style="max-width: 100%; max-height: 350px; border-radius: 10px; border: 2px solid #2E7D32;">
+                            <img src="${imageData}" style="max-width: 100%; max-height: 300px; border-radius: 10px; border: 2px solid #2E7D32;">
                             <p style="margin-top: 15px; font-size: 18px; color: #1B5E20; font-weight: 600; background: #c8e6c9; padding: 15px; border-radius: 10px;">
                                 📸 Photo is ready!
                                 <br><strong>Scroll down and click "DIAGNOSE & RECOMMEND"</strong>
@@ -7151,19 +7152,40 @@ def back_camera_with_capture_button():
 
                     updateStatus('✅ Photo captured successfully! Scroll down and click "DIAGNOSE & RECOMMEND".');
 
-                    // Send the photo data to Streamlit via the text area
+                    // Send the photo data to Streamlit - MULTIPLE METHODS FOR RELIABILITY
                     setTimeout(function() {
-                        // Find the text area for camera photo data
+                        // Method 1: Find by ID
+                        const textArea = document.getElementById('camera_photo_data');
+                        if (textArea) {
+                            textArea.value = imageData;
+                            textArea.dispatchEvent(new Event('input', { bubbles: true }));
+                            console.log('Photo data sent via ID');
+                            return;
+                        }
+
+                        // Method 2: Find by data-testid
                         const textAreas = document.querySelectorAll('textarea');
                         for (let ta of textAreas) {
                             if (ta.id && ta.id.includes('camera_photo_data')) {
                                 ta.value = imageData;
                                 ta.dispatchEvent(new Event('input', { bubbles: true }));
-                                console.log('Photo data sent to text area:', ta.id);
-                                break;
+                                console.log('Photo data sent via ID search');
+                                return;
                             }
                         }
-                    }, 100);
+
+                        // Method 3: Find by placeholder or name
+                        for (let ta of textAreas) {
+                            if (ta.placeholder && ta.placeholder.includes('photo')) {
+                                ta.value = imageData;
+                                ta.dispatchEvent(new Event('input', { bubbles: true }));
+                                console.log('Photo data sent via placeholder search');
+                                return;
+                            }
+                        }
+
+                        console.log('No text area found for photo data');
+                    }, 500);
 
                 } catch (err) {
                     console.error('Capture error:', err);
@@ -7346,6 +7368,7 @@ def main():
                 # ============================================================
                 # CAMERA SECTION - Using streamlit_back_camera_input
                 # ============================================================
+
                 st.markdown("### 📸 Take Photo with Camera")
                 st.caption("📱 Uses rear camera on mobile devices | 💻 Uses webcam on desktop")
 
@@ -7368,7 +7391,7 @@ def main():
                     # Display the camera component with visible capture button
                     back_camera_with_capture_button()
 
-                    # Text area to receive the photo data
+                    # Text area to receive the photo data - CRITICAL: This ID is used by JavaScript
                     photo_data = st.text_area(
                         "Photo data (base64) - will appear automatically after capture",
                         key="camera_photo_data",
