@@ -15,3 +15,4 @@ pytz
 transformers
 torch
 accelerate
+streamlit_back_camera_input
