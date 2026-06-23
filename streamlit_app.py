@@ -597,6 +597,11 @@ if 'show_bounding_boxes' not in st.session_state:
     st.session_state.show_bounding_boxes = True
 if 'current_raw_heatmap' not in st.session_state:
     st.session_state.current_raw_heatmap = None
+# Add to session state initialization
+if 'device_type' not in st.session_state:
+    st.session_state.device_type = 'desktop'  # Default
+if 'selected_camera' not in st.session_state:
+    st.session_state.selected_camera = 'Auto Detect'
 
 # ============================================================
 # HELPER FUNCTION: Check Internet Connection (for mode switch suggestion)
@@ -6986,241 +6991,43 @@ def clear_feedback_data():
     except Exception as e:
         st.error(f"Error clearing feedback: {e}")
 
-def back_camera_with_capture_button():
-    """
-    Custom camera with visible capture button - FIXED VERSION
-    Uses rear camera on mobile, webcam on desktop
-    """
+
+def detect_device():
+    """Detect if user is on mobile or desktop using JavaScript"""
     import streamlit.components.v1 as components
 
-    camera_html = """
-    <div style="text-align: center; padding: 10px; max-width: 600px; margin: 0 auto;">
-        <div style="position: relative; background: #000; border-radius: 12px; overflow: hidden; min-height: 300px;">
-            <video id="video" autoplay playsinline style="width: 100%; height: auto; display: block;"></video>
-        </div>
-
-        <div style="margin-top: 15px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
-            <button id="captureBtn" style="
-                background: #2E7D32;
-                color: white;
-                padding: 18px 50px;
-                border-radius: 50px;
-                border: none;
-                font-size: 22px;
-                font-weight: 700;
-                cursor: pointer;
-                box-shadow: 0 4px 20px rgba(46, 125, 50, 0.5);
-                transition: all 0.3s ease;
-                min-width: 200px;
-                z-index: 1000;
-            ">
-                📸 CAPTURE PHOTO
-            </button>
-
-            <button id="closeBtn" style="
-                background: #d32f2f;
-                color: white;
-                padding: 15px 35px;
-                border-radius: 50px;
-                border: none;
-                font-size: 16px;
-                font-weight: 600;
-                cursor: pointer;
-                box-shadow: 0 4px 15px rgba(211, 47, 47, 0.4);
-                transition: all 0.3s ease;
-            ">
-                ❌ Close
-            </button>
-        </div>
-
-        <div id="status" style="
-            margin-top: 15px;
-            padding: 12px;
-            font-size: 15px;
-            background: #f5f5f5;
-            border-radius: 10px;
-            color: #333;
-            border-left: 4px solid #2E7D32;
-            min-height: 50px;
-        ">
-            📷 Click 'CAPTURE PHOTO' to take a picture
-        </div>
-
-        <div id="preview" style="margin-top: 15px;"></div>
-
-        <canvas id="canvas" style="display:none;"></canvas>
-        <input type="hidden" id="photoData" value="">
-    </div>
-
+    # JavaScript to detect device and store in session state
+    detection_script = """
     <script>
-        (function() {
-            console.log('Camera component loading...');
+        // Detect device type
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isTablet = /iPad|Android/i.test(navigator.userAgent) && !/Mobile/i.test(navigator.userAgent);
+        const deviceType = isMobile ? 'mobile' : (isTablet ? 'tablet' : 'desktop');
 
-            const video = document.getElementById('video');
-            const canvas = document.getElementById('canvas');
-            const status = document.getElementById('status');
-            const preview = document.getElementById('preview');
-            const captureBtn = document.getElementById('captureBtn');
-            const closeBtn = document.getElementById('closeBtn');
-            const photoDataInput = document.getElementById('photoData');
+        // Store in session storage
+        sessionStorage.setItem('deviceType', deviceType);
 
-            let stream = null;
-            let isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-            let photoCaptured = false;
-
-            function updateStatus(msg, isError = false) {
-                status.innerHTML = msg;
-                status.style.color = isError ? '#d32f2f' : '#2E7D32';
-                status.style.borderLeft = isError ? '4px solid #d32f2f' : '4px solid #2E7D32';
-                console.log('Status:', msg);
-            }
-
-            function startCamera() {
-                const constraints = {
-                    video: {
-                        facingMode: isMobile ? 'environment' : 'user',
-                        width: { ideal: 640 },
-                        height: { ideal: 480 }
-                    },
-                    audio: false
-                };
-
-                updateStatus('⏳ Starting camera...');
-                console.log('Starting camera with constraints:', constraints);
-
-                navigator.mediaDevices.getUserMedia(constraints)
-                    .then(s => {
-                        stream = s;
-                        video.srcObject = stream;
-                        updateStatus('✅ Camera ready - Click "CAPTURE PHOTO"');
-                        console.log('Camera started successfully');
-                    })
-                    .catch(err => {
-                        console.error('Camera error:', err);
-                        navigator.mediaDevices.getUserMedia({ video: true })
-                            .then(s => {
-                                stream = s;
-                                video.srcObject = stream;
-                                updateStatus('✅ Camera ready (fallback) - Click "CAPTURE PHOTO"');
-                                console.log('Camera started in fallback mode');
-                            })
-                            .catch(err2 => {
-                                console.error('Fallback camera error:', err2);
-                                updateStatus('❌ Camera error: ' + err2.message + '. Please check permissions.', true);
-                            });
-                    });
-            }
-
-            // Start camera
-            startCamera();
-
-            // CAPTURE PHOTO BUTTON
-            captureBtn.addEventListener('click', function() {
-                console.log('CAPTURE PHOTO button clicked!');
-
-                if (!stream) {
-                    updateStatus('❌ Camera not ready. Please refresh and try again.', true);
-                    return;
-                }
-
-                try {
-                    // Set canvas to video dimensions
-                    canvas.width = video.videoWidth || 640;
-                    canvas.height = video.videoHeight || 480;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                    // Get image data as JPEG
-                    const imageData = canvas.toDataURL('image/jpeg', 0.92);
-                    console.log('Photo captured, data length:', imageData.length);
-
-                    // Store the photo data
-                    photoDataInput.value = imageData;
-                    photoCaptured = true;
-
-                    // Show preview with the image
-                    preview.innerHTML = `
-                        <div style="margin-top: 10px; padding: 20px; background: #e8f5e9; border-radius: 12px; border: 3px solid #2E7D32;">
-                            <p style="font-weight: 700; color: #2E7D32; margin-bottom: 10px; font-size: 18px;">✅ Photo Captured!</p>
-                            <img src="${imageData}" style="max-width: 100%; max-height: 300px; border-radius: 10px; border: 2px solid #2E7D32;">
-                            <p style="margin-top: 15px; font-size: 18px; color: #1B5E20; font-weight: 600; background: #c8e6c9; padding: 15px; border-radius: 10px;">
-                                📸 Photo is ready!
-                                <br><strong>Scroll down and click "DIAGNOSE & RECOMMEND"</strong>
-                            </p>
-                        </div>
-                    `;
-
-                    updateStatus('✅ Photo captured successfully! Scroll down and click "DIAGNOSE & RECOMMEND".');
-
-                    // Send the photo data to Streamlit - MULTIPLE METHODS FOR RELIABILITY
-                    setTimeout(function() {
-                        // Method 1: Find by ID
-                        const textArea = document.getElementById('camera_photo_data');
-                        if (textArea) {
-                            textArea.value = imageData;
-                            textArea.dispatchEvent(new Event('input', { bubbles: true }));
-                            console.log('Photo data sent via ID');
-                            return;
-                        }
-
-                        // Method 2: Find by data-testid
-                        const textAreas = document.querySelectorAll('textarea');
-                        for (let ta of textAreas) {
-                            if (ta.id && ta.id.includes('camera_photo_data')) {
-                                ta.value = imageData;
-                                ta.dispatchEvent(new Event('input', { bubbles: true }));
-                                console.log('Photo data sent via ID search');
-                                return;
-                            }
-                        }
-
-                        // Method 3: Find by placeholder or name
-                        for (let ta of textAreas) {
-                            if (ta.placeholder && ta.placeholder.includes('photo')) {
-                                ta.value = imageData;
-                                ta.dispatchEvent(new Event('input', { bubbles: true }));
-                                console.log('Photo data sent via placeholder search');
-                                return;
-                            }
-                        }
-
-                        console.log('No text area found for photo data');
-                    }, 500);
-
-                } catch (err) {
-                    console.error('Capture error:', err);
-                    updateStatus('❌ Error capturing photo: ' + err.message, true);
-                }
-            });
-
-            // Close camera button
-            closeBtn.addEventListener('click', function() {
-                console.log('Close button clicked');
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                    stream = null;
-                }
-                video.srcObject = null;
-                updateStatus('📷 Camera closed. Click "Open Camera" to restart.');
-                preview.innerHTML = '';
-                setTimeout(function() {
-                    window.location.reload();
-                }, 500);
-            });
-
-            // Cleanup on page unload
-            window.addEventListener('beforeunload', function() {
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                }
-            });
-
-            console.log('Camera component initialization complete');
-        })();
+        // Send to Streamlit via URL parameter
+        const url = new URL(window.location);
+        url.searchParams.set('device', deviceType);
+        window.history.replaceState({}, '', url);
     </script>
     """
 
-    components.html(camera_html, height=650)
+    components.html(detection_script, height=0)
+
+    # Check if device type is in query params
+    query_params = st.query_params
+    if 'device' in query_params:
+        device = query_params['device']
+        st.session_state.device_type = device
+        return device
+
+    # Check session storage (fallback)
+    if 'device_type' not in st.session_state:
+        st.session_state.device_type = 'desktop'  # Default
+
+    return st.session_state.device_type
 
 # ============================================================
 # MAIN APP
@@ -7368,13 +7175,30 @@ def main():
                 # ============================================================
                 # CAMERA SECTION - Using streamlit_back_camera_input
                 # ============================================================
-
                 st.markdown("### 📸 Take Photo with Camera")
-                st.caption("📱 Uses rear camera on mobile devices | 💻 Uses webcam on desktop")
+
+                # Detect device type
+                device_type = detect_device()
+
+                # Show appropriate camera based on device
+                if device_type == 'mobile':
+                    st.caption("📱 Using rear camera on your mobile device")
+                else:
+                    st.caption("💻 Using webcam on your computer")
+
+                # Camera selection override (for testing)
+                camera_choice = st.radio(
+                    "Camera selection (for testing):",
+                    ["Auto Detect", "📱 Rear Camera (Mobile)", "💻 Webcam (Desktop)"],
+                    horizontal=True,
+                    key="camera_choice_override",
+                    index=0
+                )
 
                 # Open camera button
                 if st.button("📷 Open Camera", use_container_width=True, key="open_camera_btn"):
                     st.session_state.camera_active = True
+                    st.session_state.selected_camera = camera_choice
                     st.rerun()
 
                 # Camera active state
@@ -7383,67 +7207,45 @@ def main():
                     st.markdown("""
                     1. Allow camera access when prompted
                     2. Point at the crop/leaf
-                    3. Click the **📸 CAPTURE PHOTO** button (big green button below)
-                    4. Preview will appear showing your captured photo
-                    5. **Scroll down** and click **'DIAGNOSE & RECOMMEND'**
+                    3. Capture the photo using the controls below
+                    4. **Scroll down** and click **'DIAGNOSE & RECOMMEND'**
                     """)
 
-                    # Display the camera component with visible capture button
-                    back_camera_with_capture_button()
+                    try:
+                        selected = st.session_state.get('selected_camera', 'Auto Detect')
+                        camera_image = None
 
-                    # Text area to receive the photo data - CRITICAL: This ID is used by JavaScript
-                    photo_data = st.text_area(
-                        "Photo data (base64) - will appear automatically after capture",
-                        key="camera_photo_data",
-                        placeholder="📸 Take a photo using the camera above. It will appear here automatically.",
-                        label_visibility="collapsed",
-                        height=68
-                    )
+                        # Determine which camera to use
+                        use_rear_camera = False
+                        if selected == "Auto Detect":
+                            use_rear_camera = (device_type == 'mobile')
+                        elif selected == "📱 Rear Camera (Mobile)":
+                            use_rear_camera = True
+                        else:  # "💻 Webcam (Desktop)"
+                            use_rear_camera = False
 
-                    # If we have photo data, convert and display it
-                    if photo_data and photo_data.startswith('data:image'):
-                        try:
-                            import base64
-                            from PIL import Image
-                            import io
+                        if use_rear_camera:
+                            # Use rear camera for mobile
+                            st.info("📱 Using rear camera...")
+                            camera_image = back_camera_input(key="back_camera")
+                        else:
+                            # Use webcam for desktop
+                            st.info("💻 Using webcam...")
+                            camera_image = st.camera_input("📸 Take a photo", key="front_camera")
 
-                            # Extract base64 data
-                            base64_data = photo_data.split(',')[1]
-                            image_bytes = base64.b64decode(base64_data)
-                            image = Image.open(io.BytesIO(image_bytes))
-
-                            # Store in session state
-                            st.session_state.current_image = image
+                        if camera_image is not None:
+                            st.session_state.current_image = Image.open(camera_image)
                             st.session_state.batch_mode = False
                             st.session_state.batch_results = None
                             st.session_state.show_batch_results = False
                             st.session_state.camera_active = False
-
                             st.success("✅ Photo captured successfully!")
-                            st.image(image, caption="Captured Photo", use_container_width=True)
+                            st.image(st.session_state.current_image, caption="Captured Photo", use_container_width=True)
                             st.rerun()
-                        except Exception as e:
-                            st.error(f"Error processing photo: {e}")
 
-                    # Fallback: file uploader if camera fails
-                    st.markdown("---")
-                    st.markdown("### 📁 Or upload manually")
-                    st.caption("If the camera doesn't work, upload a photo manually")
-                    uploaded_camera_file = st.file_uploader(
-                        "Upload a photo manually",
-                        type=['jpg', 'jpeg', 'png'],
-                        key="camera_uploader_fallback",
-                        label_visibility="collapsed"
-                    )
-
-                    if uploaded_camera_file:
-                        st.session_state.current_image = Image.open(uploaded_camera_file)
-                        st.session_state.batch_mode = False
-                        st.session_state.batch_results = None
-                        st.session_state.show_batch_results = False
-                        st.session_state.camera_active = False
-                        st.success(f"✅ Photo uploaded successfully!")
-                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Camera error: {e}")
+                        st.info("💡 Try using the file uploader below instead.")
 
                     # Close camera button
                     if st.button("❌ Close Camera", use_container_width=True, key="close_camera_btn"):
