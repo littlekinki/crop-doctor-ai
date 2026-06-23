@@ -12,6 +12,7 @@ import streamlit as st
 import streamlit_analytics2 as streamlit_analytics
 import streamlit.components.v1 as components
 from streamlit_geolocation import streamlit_geolocation
+from streamlit_back_camera_input import back_camera_input
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
@@ -3448,7 +3449,7 @@ def display_heatmap_with_colorbar(original_img, heatmap_overlay, predicted_class
     col1, col2 = st.columns(2)
 
     with col1:
-        st.image(original_img, caption="Original Image", width="stretch")
+        st.image(original_img, caption="Original Image", use_container_width=True)
 
     with col2:
         if show_bounding_boxes:
@@ -3460,7 +3461,7 @@ def display_heatmap_with_colorbar(original_img, heatmap_overlay, predicted_class
                 )
                 st.image(img_with_boxes,
                         caption=f"Visual overlay with bounding boxes (threshold: >60% influence)\n{predicted_class}",
-                        width="stretch")
+                        use_container_width=True)
 
                 # Display bounding box statistics
                 if boxes:
@@ -3469,9 +3470,9 @@ def display_heatmap_with_colorbar(original_img, heatmap_overlay, predicted_class
                 else:
                     st.caption("📍 No high-influence regions above 60% threshold. The model found evidence distributed across the image.")
             else:
-                st.image(heatmap_overlay, caption=f"Visual overlay image showing areas that led the model to select:\n{predicted_class}. The redder the area, the higher the confidence of the AI that the area is afflicted by the {predicted_class}.", width="stretch")
+                st.image(heatmap_overlay, caption=f"Visual overlay image showing areas that led the model to select:\n{predicted_class}. The redder the area, the higher the confidence of the AI that the area is afflicted by the {predicted_class}.", use_container_width=True)
         else:
-            st.image(heatmap_overlay, caption=f"Visual overlay image showing areas that led the model to select:\n{predicted_class}. The redder the area, the higher the confidence of the AI that the area is afflicted by the {predicted_class}.", width="stretch")
+            st.image(heatmap_overlay, caption=f"Visual overlay image showing areas that led the model to select:\n{predicted_class}. The redder the area, the higher the confidence of the AI that the area is afflicted by the {predicted_class}.", use_container_width=True)
 
     # Display heatmap with colorbar
     fig, ax = plt.subplots(figsize=(10, 1))
@@ -3837,11 +3838,11 @@ def display_xai_analysis(disease_data):
                 if boxes and len(boxes) == 1:
                     st.image(overlay_with_boxes,
                             caption=f"The coloured overlay shows how the AI was influenced. The RED box highlights the exact image area that most influenced the diagnosis of {predicted_class}. It represents a region whose area is at least 1% of the image size and the AI was over 60% confident about the diagnosis of {predicted_class}. The percentage inside or above the box shows the AI's confidence that THIS SPECIFIC AREA shows the disease. Higher percentage = stronger evidence.",
-                            width="stretch")
+                            use_container_width=True)
                 elif boxes and len(boxes) > 1:
                     st.image(overlay_with_boxes,
                             caption=f"The coloured overlay shows how the AI was influenced. The {len(boxes)} RED boxes highlight the exact image areas that most influenced the diagnosis of {predicted_class}. Each RED box represents a region whose area is at least 1% of the image size and the AI was over 60% confident about the diagnosis of {predicted_class}. The percentage inside or above each box shows the AI's confidence that THIS SPECIFIC AREA shows the disease. Higher percentage = stronger evidence.",
-                            width="stretch")
+                            use_container_width=True)
                 else:
                     st.image(overlay_with_boxes,
                             caption=f"Visual Overlay Image (No RED boxes as there is no single region whose area is at least 1% of the image size where the AI is more than 60% confident about the diagnosis of {predicted_class}.) \nThe disease evidence is spread across the image rather than concentrated in one spot.",
@@ -3910,7 +3911,7 @@ def display_xai_analysis(disease_data):
                 button_text = "🔴 Show Bounding Boxes"
                 button_help = "Click to display red boxes around high-confidence regions (>60%)"
 
-            if st.button(button_text, key="toggle_boxes_xai", width="stretch", help=button_help):
+            if st.button(button_text, key="toggle_boxes_xai", use_container_width=True, help=button_help):
                 st.session_state.show_bounding_boxes = not show_boxes
                 st.rerun()
         with col_toggle3:
@@ -4894,7 +4895,7 @@ def display_options_menu(top_predictions, references, location, class_names, cur
 
     for i in range(1, min(total_options + 1, 11)):
         with cols[i-1]:
-            if st.button(f"{i}", key=f"menu_btn_{i}", width="stretch"):
+            if st.button(f"{i}", key=f"menu_btn_{i}", use_container_width=True):
                 if i == exit_option:
                     st.session_state.show_results = False
                     st.session_state.current_image = None
@@ -4944,13 +4945,13 @@ def display_options_menu(top_predictions, references, location, class_names, cur
             )
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("✅ Set", width="stretch", key="set_k_btn"):
+                if st.button("✅ Set", use_container_width=True, key="set_k_btn"):
                     st.session_state.current_top_k = new_k
                     st.session_state.show_results = False
                     st.session_state.show_k_dialog = False
                     st.rerun()
             with col2:
-                if st.button("❌ Cancel", width="stretch", key="cancel_k_btn"):
+                if st.button("❌ Cancel", use_container_width=True, key="cancel_k_btn"):
                     st.session_state.show_k_dialog = False
                     st.rerun()
 
@@ -4958,7 +4959,7 @@ def display_options_menu(top_predictions, references, location, class_names, cur
     if st.session_state.get('showing_common_chemicals', False) and st.session_state.common_chemicals_data:
         st.markdown("---")
         show_common_chemicals_for_top_k(st.session_state.common_chemicals_data, references)
-        if st.button("✖ Close Common Chemicals", width="stretch", key="close_chemicals_btn"):
+        if st.button("✖ Close Common Chemicals", use_container_width=True, key="close_chemicals_btn"):
             st.session_state.showing_common_chemicals = False
             st.session_state.common_chemicals_data = None
             st.rerun()
@@ -4988,7 +4989,8 @@ def display_privacy_notice():
         # Use two columns for a cleaner button
         col1, col2, col3 = st.columns([1, 1, 4])
         with col1:
-            if st.button("✓ Got it", key="dismiss_privacy_notice", width='stretch'):
+            # FIXED: Removed width='stretch'
+            if st.button("✓ Got it", key="dismiss_privacy_notice"):
                 st.session_state.privacy_notice_dismissed = True
                 st.rerun()
         st.markdown("---")
@@ -4997,11 +4999,11 @@ def display_top_location_buttons():
     """Display Change Location and Refresh buttons"""
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("📍 Change Location", width="stretch" ):
+        if st.button("📍 Change Location", use_container_width=True ):
             st.session_state.show_top_location_dialog = True
             st.rerun()
     with col2:
-        if st.button("🔄 Refresh Weather", width="stretch" ):
+        if st.button("🔄 Refresh Weather", use_container_width=True ):
             st.session_state.weather_info = None
             st.success("✅ Weather data refreshed!")
             time.sleep(0.5)
@@ -5034,7 +5036,7 @@ def display_top_location_dialog():
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("💾 Save Location", width="stretch" ):
+        if st.button("💾 Save Location", use_container_width=True ):
             if new_city:
                 location = f"{new_city}, {new_country}" if not new_region else f"{new_city}, {new_region}, {new_country}"
                 st.session_state.location = location
@@ -5045,7 +5047,7 @@ def display_top_location_dialog():
             else:
                 st.error("Please enter at least a city/town.")
     with col2:
-        if st.button("❌ Cancel", width="stretch" ):
+        if st.button("❌ Cancel", use_container_width=True ):
             st.session_state.show_top_location_dialog = False
             st.rerun()
 
@@ -5088,7 +5090,7 @@ def display_top_manual_entry_dialog():
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("💾 Save Location", width="stretch" , key="top_save_btn"):
+        if st.button("💾 Save Location", use_container_width=True , key="top_save_btn"):
             if new_city:
                 if new_region:
                     st.session_state.location = f"{new_city}, {new_region}, {new_country}"
@@ -5104,7 +5106,7 @@ def display_top_manual_entry_dialog():
             else:
                 st.error("Please enter at least a city/town.")
     with col2:
-        if st.button("❌ Cancel", width="stretch" , key="top_cancel_manual_btn"):
+        if st.button("❌ Cancel", use_container_width=True , key="top_cancel_manual_btn"):
             st.session_state.show_top_manual_entry = False
             st.rerun()
 
@@ -5124,21 +5126,21 @@ def display_feedback_section(disease_name, confidence):
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("❌ Never seen it", width="stretch" , key="seen_never"):
+        if st.button("❌ Never seen it", use_container_width=True , key="seen_never"):
             save_feedback(disease_name, confidence, "seen_before", "never")
             st.success("✅ Thank you! This helps us track new disease outbreaks.")
             time.sleep(1)
             st.rerun()
 
     with col2:
-        if st.button("⚠️ Seen it a few times", width="stretch" , key="seen_few"):
+        if st.button("⚠️ Seen it a few times", use_container_width=True , key="seen_few"):
             save_feedback(disease_name, confidence, "seen_before", "few_times")
             st.success("✅ Thank you for the information!")
             time.sleep(1)
             st.rerun()
 
     with col3:
-        if st.button("🔄 Seen it many times", width="stretch" , key="seen_many"):
+        if st.button("🔄 Seen it many times", use_container_width=True , key="seen_many"):
             save_feedback(disease_name, confidence, "seen_before", "many_times")
             st.success("✅ Thank you for the information!")
             time.sleep(1)
@@ -5150,21 +5152,21 @@ def display_feedback_section(disease_name, confidence):
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("✅ Easily available", width="stretch" , key="available_yes"):
+        if st.button("✅ Easily available", use_container_width=True , key="available_yes"):
             save_feedback(disease_name, confidence, "products_available", "easily")
             st.success("✅ Good to know! Thank you.")
             time.sleep(1)
             st.rerun()
 
     with col2:
-        if st.button("⚠️ Some are available", width="stretch" , key="available_some"):
+        if st.button("⚠️ Some are available", use_container_width=True , key="available_some"):
             save_feedback(disease_name, confidence, "products_available", "some")
             st.success("✅ Thank you! We'll note this for your region.")
             time.sleep(1)
             st.rerun()
 
     with col3:
-        if st.button("❌ None available", width="stretch" , key="available_no"):
+        if st.button("❌ None available", use_container_width=True , key="available_no"):
             save_feedback(disease_name, confidence, "products_available", "none")
             st.warning("⚠️ Thank you for letting us know. We'll work on alternative recommendations for your area.")
             time.sleep(1)
@@ -5179,21 +5181,21 @@ def display_feedback_section(disease_name, confidence):
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("✅ Yes, focused on the problem areas", width="stretch" , key="gradcam_yes"):
+        if st.button("✅ Yes, focused on the problem areas", use_container_width=True , key="gradcam_yes"):
             save_feedback(disease_name, confidence, "gradcam_accuracy", "yes_correct_focus")
             st.success("✅ Thank you! This confirms the AI is looking at the right places.")
             time.sleep(1)
             st.rerun()
 
     with col2:
-        if st.button("🤔 Partially correct", width="stretch" , key="gradcam_partial"):
+        if st.button("🤔 Partially correct", use_container_width=True , key="gradcam_partial"):
             save_feedback(disease_name, confidence, "gradcam_accuracy", "partial_focus")
             st.success("✅ Thank you! This helps us improve the AI's attention.")
             time.sleep(1)
             st.rerun()
 
     with col3:
-        if st.button("❌ No, focused on wrong areas", width="stretch" , key="gradcam_no"):
+        if st.button("❌ No, focused on wrong areas", use_container_width=True , key="gradcam_no"):
             save_feedback(disease_name, confidence, "gradcam_accuracy", "wrong_focus")
             st.warning("⚠️ Thank you for letting us know. This helps us retrain the model to focus on the right symptoms.")
             time.sleep(1)
@@ -5208,7 +5210,7 @@ def display_feedback_section(disease_name, confidence):
                                       placeholder="Describe what you saw in the coloured overlay image...",
                                       key="gradcam_feedback_area")
 
-        if st.button("📤 Submit coloured overlay image Feedback", width="stretch" ):
+        if st.button("📤 Submit coloured overlay image Feedback", use_container_width=True ):
             if gradcam_feedback:
                 save_feedback(disease_name, confidence, "gradcam_comments", gradcam_feedback, None)
                 st.success("✅ Thank you for the detailed feedback!")
@@ -5224,7 +5226,7 @@ def display_feedback_section(disease_name, confidence):
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("✅ Very helpful", width="stretch" , key="helpful_very"):
+        if st.button("✅ Very helpful", use_container_width=True , key="helpful_very"):
             save_feedback(disease_name, confidence, "system_helpful", "very_helpful")
             st.success("✅ Thank you! We're glad Crop Doctor could help you.")
             st.balloons()
@@ -5232,14 +5234,14 @@ def display_feedback_section(disease_name, confidence):
             st.rerun()
 
     with col2:
-        if st.button("🤔 Somewhat helpful", width="stretch" , key="helpful_somewhat"):
+        if st.button("🤔 Somewhat helpful", use_container_width=True , key="helpful_somewhat"):
             save_feedback(disease_name, confidence, "system_helpful", "somewhat_helpful")
             st.success("✅ Thank you! Please share what could be improved in the comments.")
             time.sleep(1)
             st.rerun()
 
     with col3:
-        if st.button("❌ Not helpful", width="stretch" , key="helpful_not"):
+        if st.button("❌ Not helpful", use_container_width=True , key="helpful_not"):
             save_feedback(disease_name, confidence, "system_helpful", "not_helpful")
             st.warning("⚠️ We're sorry to hear that. Your feedback helps us improve.")
             time.sleep(1)
@@ -5251,21 +5253,21 @@ def display_feedback_section(disease_name, confidence):
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("✅ Yes, definitely", width="stretch" , key="use_again_yes"):
+        if st.button("✅ Yes, definitely", use_container_width=True , key="use_again_yes"):
             save_feedback(disease_name, confidence, "use_again", "yes")
             st.success("✅ Thank you! We're honoured to serve you.")
             time.sleep(1)
             st.rerun()
 
     with col2:
-        if st.button("🤔 Maybe", width="stretch" , key="use_again_maybe"):
+        if st.button("🤔 Maybe", use_container_width=True , key="use_again_maybe"):
             save_feedback(disease_name, confidence, "use_again", "maybe")
             st.success("✅ Thank you! Is there something we could improve?")
             time.sleep(1)
             st.rerun()
 
     with col3:
-        if st.button("❌ Probably not", width="stretch" , key="use_again_no"):
+        if st.button("❌ Probably not", use_container_width=True , key="use_again_no"):
             save_feedback(disease_name, confidence, "use_again", "no")
             st.warning("⚠️ We're sorry to hear that. Your feedback helps us improve.")
             time.sleep(1)
@@ -5282,7 +5284,7 @@ def display_feedback_section(disease_name, confidence):
 
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("📤 Submit Comments", width="stretch" ):
+            if st.button("📤 Submit Comments", use_container_width=True ):
                 if general_feedback:
                     save_feedback(disease_name, confidence, "general_comments", general_feedback, None)
                     st.success("✅ Thank you for your suggestions!")
@@ -5292,7 +5294,7 @@ def display_feedback_section(disease_name, confidence):
                 else:
                     st.warning("Please enter your comments before submitting.")
         with col2:
-            if st.button("❌ Cancel", width="stretch" ):
+            if st.button("❌ Cancel", use_container_width=True ):
                 st.rerun()
 
     st.caption("💡 Your feedback is anonymous and helps us serve Kenyan farmers better.")
@@ -5978,12 +5980,12 @@ def display_batch_results(results):
             "Confidence": f"{confidence_value*100:.1f}%",
             "Category": clean_category(r['category']),
         })
-    st.dataframe(summary_data, width="stretch")
+    st.dataframe(summary_data, use_container_width=True)
 
     # Export buttons
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("\U0001F4CA Export Summary CSV", width="stretch"):
+        if st.button("\U0001F4CA Export Summary CSV", use_container_width=True):
             csv_data = []
             for r in successful:
                 conf_val = float(r['primary_confidence']) if hasattr(r['primary_confidence'], 'item') else r['primary_confidence']
@@ -6011,7 +6013,7 @@ def display_batch_results(results):
                 pass
 
     with col2:
-        if st.button("\U0001F4D1 Export Comprehensive Report", width="stretch"):
+        if st.button("\U0001F4D1 Export Comprehensive Report", use_container_width=True):
             generate_comprehensive_batch_report(successful, batch_timestamp)
 
     st.markdown("---")
@@ -6258,11 +6260,11 @@ def display_batch_results(results):
                 if boxes and len(boxes) == 1:
                     st.image(overlay_with_boxes,
                             caption=f"The coloured overlay shows how the AI was influenced. The RED box highlights the exact image area that most influenced the diagnosis of {predicted_class}. It represents a region whose area is at least 1% of the image size and the AI was over 60% confident about the diagnosis of {predicted_class}. The percentage inside or above the box shows the AI's confidence that THIS SPECIFIC AREA shows the disease. Higher percentage = stronger evidence.",
-                            width="stretch")
+                            use_container_width=True)
                 elif boxes and len(boxes) > 1:
                     st.image(overlay_with_boxes,
                             caption=f"The coloured overlay shows how the AI was influenced. The {len(boxes)} RED boxes highlight the exact image areas that most influenced the diagnosis of {predicted_class}. Each RED box represents a region whose area is at least 1% of the image size and the AI was over 60% confident about the diagnosis of {predicted_class}. The percentage inside or above each box shows the AI's confidence that THIS SPECIFIC AREA shows the disease. Higher percentage = stronger evidence.",
-                            width="stretch")
+                            use_container_width=True)
                 else:
                     st.image(overlay_with_boxes,
                             caption=f"Visual Overlay Image (No RED boxes as there is no single region whose area is more than 1% of the image size and where AI has more than 60% confidence about the diagnosis.) \nThe disease evidence is spread across the image rather than concentrated in one spot.",
@@ -6330,7 +6332,7 @@ def display_batch_results(results):
                 button_text = "🔴 Show Bounding Boxes"
                 button_help = "Click to display red boxes around high-confidence regions (>60%)"
 
-            if st.button(button_text, key="toggle_boxes_batch", width="stretch", help=button_help):
+            if st.button(button_text, key="toggle_boxes_batch", use_container_width=True, help=button_help):
                 st.session_state.show_bounding_boxes = not show_boxes
                 st.rerun()
         with col_toggle3:
@@ -6667,7 +6669,7 @@ def display_batch_results(results):
         # Export and Share buttons
         col_exp1, col_exp2 = st.columns(2)
         with col_exp1:
-            if st.button("📄 Export Report for This Image", width="stretch"):
+            if st.button("📄 Export Report for This Image", use_container_width=True):
                 single_report_data = {
                     'class': predicted_class,
                     'confidence': confidence_value
@@ -6727,7 +6729,7 @@ def display_batch_results(results):
 
     for i in range(1, min(total_options + 1, 11)):
         with cols[i-1]:
-            if st.button(f"{i}", key=f"batch_menu_btn_{i}", width="stretch"):
+            if st.button(f"{i}", key=f"batch_menu_btn_{i}", use_container_width=True):
                 if i == total_options:
                     st.session_state.show_batch_results = False
                     st.session_state.batch_results = None
@@ -6758,7 +6760,7 @@ def display_batch_results(results):
             pred_conf = float(pred['confidence']) if hasattr(pred['confidence'], 'item') else pred['confidence']
             all_top_preds.append({'class': pred['class'], 'confidence': pred_conf})
         show_common_chemicals_for_top_k(all_top_preds, get_references())
-        if st.button("✖ Close", width="stretch", key="close_common_chemicals_batch"):
+        if st.button("✖ Close", use_container_width=True, key="close_common_chemicals_batch"):
             st.session_state.show_common_chemicals_batch = False
             st.rerun()
 
@@ -7004,34 +7006,23 @@ def main():
         # ============================================================
         # ADMIN PANEL (Hidden behind admin password)
         # ============================================================
-        # Check for admin access
         query_params = st.query_params
         if query_params.get("admin") == "true":
             st.markdown("### 🔐 Admin Panel")
 
-            # Password check
             admin_password_input = st.text_input("Enter Admin Password:", type="password", key="admin_password_input")
 
             if admin_password_input and admin_password_input == ADMIN_PASSWORD:
                 st.success("✅ Admin access granted!")
-
-                # Display admin options
                 st.markdown("---")
                 st.markdown("## 📊 Farmer Feedback Management")
 
-                # Option to view feedback
                 if st.button("📋 View All Feedback", use_container_width=True):
                     display_feedback_summary()
-
-                # Option to download feedback as CSV
                 if st.button("📥 Download Feedback as CSV", use_container_width=True):
                     export_feedback_csv()
-
-                # Option to download feedback as JSON
                 if st.button("📥 Download Feedback as JSON", use_container_width=True):
                     export_feedback_json()
-
-                # Option to clear feedback
                 if st.button("🗑️ Clear All Feedback (Danger)", use_container_width=True):
                     if st.checkbox("I understand this will permanently delete all feedback"):
                         clear_feedback_data()
@@ -7040,12 +7031,10 @@ def main():
 
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            # Help button
-            if st.button("❓ Help / How to use the system", width="stretch" ):
+            if st.button("❓ Help / How to use the system", use_container_width=True):
                 st.session_state.show_help = not st.session_state.show_help
 
-            # Classes button
-            if st.button("📋 List of Supported Classes", width="stretch" ):
+            if st.button("📋 List of Supported Classes", use_container_width=True):
                 st.session_state.show_classes = not st.session_state.show_classes
 
             selected_mode = st.radio(
@@ -7061,26 +7050,18 @@ def main():
 
             if st.session_state.mode == "online":
                 st.markdown(f'<span class="mode-badge mode-online">🌐 ONLINE MODE - Weather & News Enabled | Location: {st.session_state.location}</span>', unsafe_allow_html=True)
-
-                # Top bar location buttons
                 display_top_location_buttons()
             else:
                 st.markdown('<span class="mode-badge mode-offline">📱 OFFLINE MODE - Diagnosis and Verified Treatments Only</span>', unsafe_allow_html=True)
 
         st.markdown("---")
 
-        # ============================================================
-        # TOP BAR LOCATION DIALOGS
-        # ============================================================
         if st.session_state.get('show_top_location_dialog', False):
             display_top_location_dialog()
 
         if st.session_state.get('show_top_manual_entry', False):
             display_top_manual_entry_dialog()
 
-        # ============================================================
-        # HANDLE GPS RETRIEVAL (shared between both)
-        # ============================================================
         if st.session_state.get('request_gps', False):
             with st.spinner("📍 Getting GPS location. Please allow location access..."):
                 try:
@@ -7114,14 +7095,12 @@ def main():
                     st.error(f"GPS error: {e}")
                     st.session_state.request_gps = False
 
-        # Show classes list if requested
         if st.session_state.show_classes:
             model_temp, class_names_temp = load_model_and_classes()
             if class_names_temp:
                 display_classes_list(class_names_temp)
             st.markdown("---")
 
-        # Show help if requested
         if st.session_state.show_help:
             display_help()
             st.markdown("---")
@@ -7140,9 +7119,6 @@ def main():
             st.markdown("### 📸 Upload Crop Image")
             st.caption("📸 Take a clear photo of the affected leaves or fruits for best results")
 
-            # ============================================================
-            # PROCESSING MODE SELECTION (SINGLE vs BATCH)
-            # ============================================================
             processing_mode = st.radio(
                 "Select Processing Mode:",
                 ["Single Image", "Batch Processing (Multiple Images)"],
@@ -7153,19 +7129,71 @@ def main():
             if processing_mode == "Single Image":
                 st.caption("Upload one image at a time for detailed analysis")
 
-                if st.button("📷 Take Photo", width="stretch" ):
-                    st.session_state.camera_active = True
+                # ============================================================
+                # CAMERA SECTION - Using streamlit_back_camera_input
+                # ============================================================
+                st.markdown("### 📸 Take Photo with Camera")
+                st.caption("📱 Uses rear camera on mobile devices | 💻 Uses webcam on desktop")
 
-                if st.session_state.camera_active:
-                    camera_image = st.camera_input("Take a photo", key="camera")
-                    if camera_image:
-                        st.session_state.current_image = Image.open(camera_image)
+                # Camera selection for users
+                camera_choice = st.radio(
+                    "Select camera type:",
+                    ["📱 Rear Camera (Mobile)", "💻 Front Camera / Webcam"],
+                    horizontal=True,
+                    key="camera_choice"
+                )
+
+                if st.button("📷 Open Camera", use_container_width=True, key="open_camera_btn"):
+                    st.session_state.camera_active = True
+                    st.session_state.camera_type = camera_choice
+                    st.rerun()
+
+                if st.session_state.get('camera_active', False):
+                    st.info("📸 **Instructions:**")
+                    st.markdown("""
+                    1. Allow camera access when prompted
+                    2. Point at the crop/leaf
+                    3. Click the **Capture** button that appears below
+                    4. Click **'Use Photo'** to confirm
+                    5. The photo will appear below
+                    6. **Scroll down** and click **'DIAGNOSE & RECOMMEND'**
+                    """)
+
+                    try:
+                        camera_type = st.session_state.get('camera_type', '📱 Rear Camera (Mobile)')
+
+                        if camera_type == "📱 Rear Camera (Mobile)":
+                            # Use rear camera - the component automatically shows a capture button
+                            camera_image = back_camera_input(key="back_camera")
+                        else:
+                            # Use regular camera input (front/webcam)
+                            camera_image = st.camera_input("📸 Take a photo with webcam", key="front_camera")
+
+                        if camera_image is not None:
+                            st.session_state.current_image = Image.open(camera_image)
+                            st.session_state.batch_mode = False
+                            st.session_state.batch_results = None
+                            st.session_state.show_batch_results = False
+                            st.session_state.camera_active = False
+                            st.success("✅ Photo captured successfully!")
+                            st.image(st.session_state.current_image, caption="Captured Photo", use_container_width=True)
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Camera error: {e}")
+                        st.info("💡 Try using the file uploader below instead.")
+
+                    if st.button("❌ Close Camera", use_container_width=True, key="close_camera_btn"):
                         st.session_state.camera_active = False
-                        st.session_state.batch_mode = False
                         st.rerun()
 
+                    st.markdown("---")
+
+                # ============================================================
+                # FILE UPLOADER SECTION - Always visible
+                # ============================================================
+                st.markdown("### 📁 Or Upload from Gallery")
                 uploaded_file = st.file_uploader(
-                    "Or choose from gallery",
+                    "Choose an image from your device",
                     type=['jpg', 'jpeg', 'png'],
                     key="uploader"
                 )
@@ -7174,11 +7202,17 @@ def main():
                     st.session_state.batch_mode = False
                     st.session_state.batch_results = None
                     st.session_state.show_batch_results = False
+                    st.session_state.camera_active = False
+
+                # ============================================================
+                # DIAGNOSE BUTTON - ALWAYS VISIBLE
+                # ============================================================
+                st.markdown("---")
 
                 if st.session_state.current_image is not None:
-                    st.image(st.session_state.current_image, caption="Selected Image", width="stretch")
+                    st.image(st.session_state.current_image, caption="Selected Image", use_container_width=True)
 
-                    if st.button("🔬 DIAGNOSE & RECOMMEND", type="primary", width="stretch"):
+                    if st.button("🔬 DIAGNOSE & RECOMMEND", type="primary", use_container_width=True):
                         with st.spinner("Analysing crop disease..."):
                             image = st.session_state.current_image
                             if image.mode != 'RGB':
@@ -7206,23 +7240,17 @@ def main():
                             st.session_state.common_chemicals_data = None
                             st.session_state.batch_mode = False
                             st.session_state.show_batch_results = False
+                            st.session_state.camera_active = False
 
-                            # Clear previous alt data
                             st.session_state.current_alt_data = {}
 
-                            # Save image for training (primary diagnosis only)
                             save_user_image_for_training(image, top_predictions[0]['class'], top_predictions[0]['confidence'], top_predictions)
 
-                            # Generate Grad-CAM for ALL predictions
                             for alt_idx, pred in enumerate(top_predictions):
-                                # Generate raw heatmap (values 0-1)
                                 raw_heatmap = gradcam.generate_heatmap(img_array, pred['idx'])
-
-                                # Generate coloured overlay for display
                                 overlay = gradcam.overlay_heatmap(raw_heatmap, st.session_state.current_original_img)
                                 treatment = get_full_treatment(pred['class'], references)
 
-                                # Determine crop type
                                 if 'maize' in pred['class'].lower():
                                     crop_type = "Maize"
                                 elif 'beans' in pred['class'].lower():
@@ -7230,19 +7258,17 @@ def main():
                                 else:
                                     crop_type = "Tomato"
 
-                                # Save heatmap overlay
                                 save_filename = f"gradcam_{pred['class'].replace(' ', '_').replace('/', '_')}_alt{alt_idx}.png"
                                 save_path = os.path.join(os.getcwd(), save_filename)
                                 cv2.imwrite(save_path, cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
 
-                                # Store in session state - CRITICAL for alternatives
                                 st.session_state.current_alt_data[alt_idx] = {
                                     'class': pred['class'],
                                     'confidence': pred['confidence'],
                                     'idx': pred['idx'],
                                     'treatment': treatment,
                                     'heatmap_overlay': overlay,
-                                    'raw_heatmap': raw_heatmap,  # Store raw heatmap for bounding boxes
+                                    'raw_heatmap': raw_heatmap,
                                     'references': references,
                                     'original_img': st.session_state.current_original_img,
                                     'crop_type': crop_type,
@@ -7250,10 +7276,9 @@ def main():
                                     'save_filename': save_filename
                                 }
 
-                                # Debug print
-                                print(f"Stored alt_idx {alt_idx}: {pred['class']}")
-
                             st.rerun()
+                else:
+                    st.info("👈 Upload an image or take a photo, then click 'DIAGNOSE & RECOMMEND'")
 
             else:  # Batch Processing Mode
                 st.caption("📁 Upload multiple images for batch analysis (ideal for research)")
@@ -7269,23 +7294,21 @@ def main():
                 if batch_files:
                     st.markdown(f"**Selected {len(batch_files)} images**")
 
-                    # Preview thumbnails
                     st.markdown("#### 📸 Image Preview")
                     preview_cols = st.columns(min(5, len(batch_files)))
                     for idx, file in enumerate(batch_files[:5]):
                         with preview_cols[idx]:
                             img = Image.open(file)
                             img.thumbnail((100, 100))
-                            st.image(img, caption=file.name[:15], width="stretch")
+                            st.image(img, caption=file.name[:15], use_container_width=True)
 
                     if len(batch_files) > 5:
                         st.caption(f"... and {len(batch_files) - 5} more images")
 
-                    # Warning for large batches
                     if len(batch_files) > 30:
                         st.warning("⚠️ Large batch detected. Processing may take several minutes. Please be patient.")
 
-                    if st.button("🔬 PROCESS BATCH", type="primary", width="stretch" ):
+                    if st.button("🔬 PROCESS BATCH", type="primary", use_container_width=True):
                         with st.spinner(f"Processing {len(batch_files)} images... This may take a few minutes."):
                             results = process_batch_images(batch_files, model, class_names, references, gradcam)
                             st.session_state.batch_results = results
@@ -7298,33 +7321,26 @@ def main():
                     st.info("👈 Select one or more images to begin batch processing")
 
         with right_col:
-            # ============================================================
-            # BATCH RESULTS DISPLAY
-            # ============================================================
             if st.session_state.get('show_batch_results', False) and st.session_state.get('batch_results'):
                 display_batch_results(st.session_state.batch_results)
 
                 col1_clear, col2_clear = st.columns(2)
                 with col1_clear:
-                    if st.button("✖ Clear Batch Results", width="stretch" ):
+                    if st.button("✖ Clear Batch Results", use_container_width=True):
                         st.session_state.show_batch_results = False
                         st.session_state.batch_results = None
                         st.session_state.batch_mode = False
                         st.rerun()
                 with col2_clear:
-                    if st.button("🔄 New Batch", width="stretch" ):
+                    if st.button("🔄 New Batch", use_container_width=True):
                         st.session_state.show_batch_results = False
                         st.session_state.batch_results = None
                         st.session_state.batch_mode = False
                         st.rerun()
 
-            # ============================================================
-            # SINGLE IMAGE RESULTS DISPLAY
-            # ============================================================
             elif st.session_state.show_results and st.session_state.current_top_predictions:
                 top_predictions = st.session_state.current_top_predictions
 
-                # SAFETY CHECK FOR EMPTY ALT DATA
                 if not st.session_state.current_alt_data:
                     st.warning("⚠️ No diagnosis data found. Please analyse an image first.")
                     st.session_state.show_results = False
@@ -7345,14 +7361,12 @@ def main():
                         display_top_predictions(top_predictions)
                         display_xai_analysis(disease_data)
 
-                        # Only show treatment recommendation for diseased crops
                         if not disease_data['treatment'].get('is_healthy', False):
                             display_treatment_recommendation(disease_data['treatment'], references, disease_data['confidence'])
 
-                        # Export Report Button and WhatsApp Share
                         col1_export, col2_export, col3_whatsapp = st.columns(3)
                         with col1_export:
-                            if st.button("📄 Export Report", width="stretch" , key="export_alt"):
+                            if st.button("📄 Export Report", use_container_width=True, key="export_alt"):
                                 report = generate_export_report(disease_data, disease_data['treatment'], references, None)
                                 from datetime import datetime, timedelta, timezone as dt_timezone
                                 eat_timezone = dt_timezone(timedelta(hours=3))
@@ -7370,18 +7384,12 @@ def main():
                         with col3_whatsapp:
                             display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
-                        # OPTIONS MENU
                         display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
 
-                        # INVITATION MESSAGE
-                        #st.markdown("---")
                         st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
 
-                        # FEEDBACK SECTION
                         display_feedback_section(current_disease, current_confidence)
 
-                        # THANK YOU MESSAGE
-                        #st.markdown("---")
                         st.markdown("""
                         <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
                             <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana Kwa Maoni Yako! (Thank You Very Much For Your Feedback!)</strong></p>
@@ -7394,7 +7402,6 @@ def main():
                         st.session_state.current_showing_alternative = None
                         st.rerun()
                 else:
-                    # CHECK IF KEY 0 EXISTS BEFORE ACCESSING
                     if 0 not in st.session_state.current_alt_data:
                         st.warning("⚠️ Primary diagnosis data not available. Please analyse an image again.")
                         st.session_state.show_results = False
@@ -7411,14 +7418,12 @@ def main():
                     display_top_predictions(top_predictions)
                     display_xai_analysis(primary_data)
 
-                    # Only show treatment recommendation for diseased crops
                     if not primary_data['treatment'].get('is_healthy', False):
                         display_treatment_recommendation(primary_data['treatment'], references, primary_data['confidence'])
 
-                    # Export Report Button and WhatsApp Share
                     col1_export, col2_export, col3_whatsapp = st.columns(3)
                     with col1_export:
-                        if st.button("📄 Export Report", width="stretch" , key="export_primary"):
+                        if st.button("📄 Export Report", use_container_width=True, key="export_primary"):
                             report = generate_export_report(primary_data, primary_data['treatment'], references, None)
                             from datetime import datetime, timedelta, timezone as dt_timezone
                             eat_timezone = dt_timezone(timedelta(hours=3))
@@ -7436,17 +7441,13 @@ def main():
                     with col3_whatsapp:
                         display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
-                    # OPTIONS MENU
                     display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
 
-                    # INVITATION MESSAGE
                     st.markdown("---")
                     st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
 
-                    # FEEDBACK SECTION
                     display_feedback_section(current_disease, current_confidence)
 
-                    # THANK YOU MESSAGE
                     st.markdown("---")
                     st.markdown("""
                     <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
