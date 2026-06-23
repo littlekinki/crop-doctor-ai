@@ -7186,7 +7186,8 @@ def main():
                 # ============================================================
                 # CAMERA SECTION - Using streamlit_back_camera_input with clear instructions
                 # ============================================================
-                st.markdown("### 📸 Take Photo with Camera")
+
+                st.markdown("##### 📸 Take Photo with Camera")
 
                 # Detect device type
                 device_type = detect_device()
@@ -7194,7 +7195,7 @@ def main():
                 # Show appropriate camera based on device
                 if device_type == 'mobile':
                     st.caption("📱 Using rear camera on your mobile device")
-                    st.info("💡 **Important:** On mobile, simply **TAP on the camera video area** to capture the photo. There is no separate capture button.")
+                    st.info("💡 **Tip:** Tap on the camera video area to capture the photo")
                 else:
                     st.caption("💻 Using webcam on your computer")
 
@@ -7215,7 +7216,6 @@ def main():
 
                 # Camera active state
                 if st.session_state.get('camera_active', False):
-
                     try:
                         selected = st.session_state.get('selected_camera', 'Auto Detect')
                         camera_image = None
@@ -7226,20 +7226,11 @@ def main():
                             use_rear_camera = (device_type == 'mobile')
                         elif selected == "📱 Rear Camera (Mobile)":
                             use_rear_camera = True
-                        else:  # "💻 Webcam (Desktop)"
+                        else:
                             use_rear_camera = False
 
                         if use_rear_camera:
-                            # Use rear camera for mobile - TAP on video to capture
-                            st.info("📱 **Instructions:**")
-                            st.markdown("""
-                            1. Point your phone's rear camera at the crop/leaf
-                            2. **👆 TAP on the live camera video area** to capture the photo
-                            3. A preview will appear below
-                            4. **Scroll down** and click **'DIAGNOSE & RECOMMEND'**
-                            """)
-
-                            # Wrap camera in a container to prevent layout issues
+                            st.info("📱 **Instructions:** Tap on the camera video area to capture")
                             with st.container():
                                 camera_image = back_camera_input(key="back_camera")
 
@@ -7254,15 +7245,7 @@ def main():
                                 st.rerun()
 
                         else:
-                            # Use webcam for desktop - has built-in capture button
-                            st.info("💻 **Instructions:**")
-                            st.markdown("""
-                            1. Point your webcam at the crop/leaf
-                            2. Click the **📸 Take Photo** button below
-                            3. Click **'Use Photo'** to confirm
-                            4. **Scroll down** and click **'DIAGNOSE & RECOMMEND'**
-                            """)
-
+                            st.info("💻 **Instructions:** Click the 'Take Photo' button below")
                             camera_image = st.camera_input("📸 Take a photo", key="front_camera")
 
                             if camera_image is not None:
@@ -7284,43 +7267,27 @@ def main():
                         st.session_state.camera_active = False
                         st.rerun()
 
-                    # Fallback: file uploader if camera fails
-                    st.markdown("---")
-                    st.markdown("### 📁 Or upload manually")
-                    st.caption("If the camera doesn't work, upload a photo manually")
-                    uploaded_camera_file = st.file_uploader(
-                        "Upload a photo manually",
-                        type=['jpg', 'jpeg', 'png'],
-                        key="camera_uploader_fallback",
-                        label_visibility="collapsed"
-                    )
-
-                    if uploaded_camera_file:
-                        st.session_state.current_image = Image.open(uploaded_camera_file)
-                        st.session_state.batch_mode = False
-                        st.session_state.batch_results = None
-                        st.session_state.show_batch_results = False
-                        st.session_state.camera_active = False
-                        st.success(f"✅ Photo uploaded successfully!")
-                        st.rerun()
-
-                    st.markdown("---")
+                    #st.markdown("---")
 
                 # ============================================================
-                # FILE UPLOADER SECTION - Always visible
+                # FILE UPLOADER SECTION - Clean and intuitive
                 # ============================================================
-                st.markdown("### 📁 Or Upload from Gallery")
+                st.markdown("##### 📁 Upload from Gallery")
+
+                # Clean file uploader with helpful hint
                 uploaded_file = st.file_uploader(
-                    "Choose an image from your device",
+                    "Choose an image from your device (or drag and drop)",
                     type=['jpg', 'jpeg', 'png'],
                     key="uploader"
                 )
+
                 if uploaded_file:
                     st.session_state.current_image = Image.open(uploaded_file)
                     st.session_state.batch_mode = False
                     st.session_state.batch_results = None
                     st.session_state.show_batch_results = False
                     st.session_state.camera_active = False
+                    st.success(f"✅ Image uploaded: {uploaded_file.name}")
 
                 # ============================================================
                 # DIAGNOSE BUTTON - ALWAYS VISIBLE
