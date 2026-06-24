@@ -3509,7 +3509,7 @@ def display_heatmap_with_colorbar(original_img, heatmap_overlay, predicted_class
 
     # Add bounding box threshold indicator
     if show_bounding_boxes:
-        ax.axvline(x=0.6, ymin=-2, ymax=0, color='red', linestyle='--', linewidth=2, transform=ax.transAxes)
+        ax.axvline(x=0.6, ymin=-2, ymax=0, color='red', linestyle='--', linewidth=2)
         ax.text(0.6, -2.2, 'Bounding box threshold (60%)', ha='center', va='top', fontsize=10, color='red', transform=ax.transAxes)
 
     plt.tight_layout()
@@ -4548,10 +4548,24 @@ def display_online_features(disease_name, crop_type, location, treatment_data=No
                 st.markdown(f"📅 **Today's Forecast:** High {weather['temp_max']}°C / Low {weather['temp_min']}°C",
                            help=f"Expected temperature range for today (from midnight to midnight). Use this to plan activities like transplanting or harvesting [1].")
 
-            # Rain Probability - CRITICAL FIX: Only show if rain_prob is not None
+            # Rain Probability - Only show if rain_prob is not None
             if weather.get('rain_prob') is not None:
-                st.markdown(f"🌧️ **Rain Probability:** {weather['rain_prob']}% (Expected: {weather['rain_sum']} mm)",
-                           help=f"Chance of rain during the remaining hours today. {weather['rain_prob']}% means it may rain. Expected rainfall: {weather['rain_sum']}mm. Safe for spraying if under 2mm. Postpone spraying if expected rain exceeds 10mm [5].")
+                rain_prob = weather['rain_prob']
+                rain_sum = weather.get('rain_sum', 0)
+
+                # Build the tooltip with scientific reference
+                if rain_prob > 20 and rain_sum == 0:
+                    tooltip_text = f"Chance of rain during the remaining hours today: {rain_prob}%. Expected rainfall: 0.0mm. Light showers (<0.5mm) are possible. Research shows 2-5 mm of rain washes off >50% of pesticide deposits [5]. Less than 2mm is safe for spraying. More than 10mm can wash off most chemicals [5]."
+                    caption_text = "🌤️ Chance of light showers/drizzle (<0.5mm) - won't significantly affect spraying"
+                elif rain_prob > 50 and rain_sum < 2:
+                    tooltip_text = f"Chance of rain during the remaining hours today: {rain_prob}%. Expected rainfall: {rain_sum}mm. Light rain (<2mm) may not wash off pesticides. Research shows 2-5 mm of rain washes off >50% of pesticide deposits [5]."
+                    caption_text = "⚠️ Light rain possible - monitor conditions"
+                else:
+                    tooltip_text = f"Chance of rain during the remaining hours today: {rain_prob}%. Expected rainfall: {rain_sum}mm. Research shows 2-5 mm of rain washes off >50% of pesticide deposits [5]. Less than 2mm is safe for spraying. More than 10mm can wash off most chemicals [5]."
+                    caption_text = f"ℹ️ {rain_prob}% chance, {rain_sum}mm expected - Hover for details"
+
+                st.markdown(f"🌧️ **Rain Probability:** {rain_prob}% (Expected: {rain_sum} mm)", help=tooltip_text)
+                st.caption(caption_text)
 
         # Disease risk assessment
         st.markdown(f"**🎯 DISEASE RISK ASSESSMENT FOR {disease_name}:**")
@@ -5319,21 +5333,12 @@ def display_feedback_section(disease_name, confidence):
 def extract_bounding_boxes_from_heatmap(heatmap, overlay_image, threshold=0.6, min_box_area=500):
     """
     Extract bounding boxes from Grad-CAM heatmap and draw RED boxes on the overlay image.
-    Labels are placed ABOVE the box when space allows, INSIDE when near top edge.
-    Text size has been reduced to prevent overflow into adjacent boxes.
-
-    Parameters:
-    - heatmap: numpy array (2D) from Grad-CAM (values 0-1)
-    - overlay_image: numpy array (RGB) - the coloured Grad-CAM overlay image
-    - threshold: float (0-1) - minimum heatmap value to consider (default 0.6 captures red/orange regions)
-    - min_box_area: int - minimum pixel area for a bounding box (filters out tiny regions)
-
-    Returns:
-    - overlay_with_boxes: numpy array (RGB) with RED bounding boxes drawn on the overlay
-    - boxes: list of (x, y, w, h) tuples for each bounding box
-    - scores: list of confidence scores for each box
+    Line thickness scales dynamically with image size:
+    - Up to 500px: thickness 2
+    - 500-1000px: linearly scales from 2 to 4
+    - 1000-2000px: linearly scales from 4 to 8
+    - Beyond 2000px: doubles every 1000px (8, 16, 32, 64, ...)
     """
-
     # Make a copy of the overlay image to draw boxes on
     overlay_with_boxes = overlay_image.copy()
 
@@ -5379,26 +5384,68 @@ def extract_bounding_boxes_from_heatmap(heatmap, overlay_image, threshold=0.6, m
             boxes.append((x, y, box_w, box_h))
             scores.append(score)
 
-    # Draw RED bounding boxes on the BGR image
-    red_colour_bgr = (0, 0, 255)
+    # ============================================================
+    # ALTERNATIVE: Strict Doubling Every 1000px After 2000px
+    # ============================================================
+    img_max_dim = max(h, w)
 
-    # Font settings - REDUCED SIZE for better fit
+    if img_max_dim <= 500:
+        line_thickness = 2
+        font_scale = 0.45
+        padding = 2
+    elif img_max_dim <= 1000:
+        # Linear interpolation between 500 and 1000
+        scale = (img_max_dim - 500) / 500  # 0 to 1
+        line_thickness = int(2 + scale * 2)  # 2 to 4
+        font_scale = 0.45 + scale * 0.15  # 0.45 to 0.6
+        padding = 2 + int(scale * 2)  # 2 to 4
+    elif img_max_dim <= 2000:
+        # Linear interpolation between 1000 and 2000
+        scale = (img_max_dim - 1000) / 1000  # 0 to 1
+        line_thickness = int(4 + scale * 4)  # 4 to 8
+        font_scale = 0.6 + scale * 0.4  # 0.6 to 1.0
+        padding = 4 + int(scale * 4)  # 4 to 8
+    else:
+        # For images > 2000px, double every 1000px
+        # At 2000px: thickness=8, font_scale=1.0, padding=8
+        # At 3000px: thickness=16, font_scale=2.0, padding=16
+        # At 4000px: thickness=32, font_scale=4.0, padding=32
+        # At 5000px: thickness=64, font_scale=8.0, padding=64
+        base_thickness = 8
+        base_font_scale = 1.0
+        base_padding = 8
+
+        # Calculate how many 1000px increments beyond 2000px
+        increments = (img_max_dim - 2000) / 1000
+
+        # Double the values for each increment
+        growth_factor = 2 ** increments
+
+        line_thickness = int(base_thickness * growth_factor)
+        font_scale = base_font_scale * growth_factor
+        padding = int(base_padding * growth_factor)
+
+    # Ensure minimum values
+    line_thickness = max(2, line_thickness)
+    font_scale = max(0.45, font_scale)
+    padding = max(2, padding)
+
+    # Font settings
     font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 0.45   # Reduced from 0.6
-    thickness = 1       # Reduced from 2
-    padding = 2         # Smaller padding
+    thickness = line_thickness
 
+    # Draw RED bounding boxes with dynamic thickness
     for i, (x, y, box_w, box_h) in enumerate(boxes):
         score = scores[i]
 
-        # Draw rectangle with thickness 2
-        cv2.rectangle(overlay_bgr, (x, y), (x + box_w, y + box_h), red_colour_bgr, 2)
+        # Draw rectangle with dynamic thickness
+        cv2.rectangle(overlay_bgr, (x, y), (x + box_w, y + box_h), (0, 0, 255), line_thickness)
 
         # Prepare label
         label = f"{score*100:.0f}%"
         label_size = cv2.getTextSize(label, font, font_scale, thickness)[0]
 
-        # Position label above the box or inside if at top edge (original logic)
+        # Position label above the box or inside if at top edge
         if y - 10 > label_size[1]:
             # Place label ABOVE the box
             label_y = y - padding
@@ -5406,17 +5453,17 @@ def extract_bounding_boxes_from_heatmap(heatmap, overlay_image, threshold=0.6, m
             cv2.rectangle(overlay_bgr,
                          (x, label_y - label_size[1] - padding * 2),
                          (x + label_size[0] + padding * 2, label_y + padding),
-                         red_colour_bgr, -1)
+                         (0, 0, 255), -1)
             cv2.putText(overlay_bgr, label, (x + padding, label_y - padding),
                        font, font_scale, (255, 255, 255), thickness)
         else:
             # Place label INSIDE the box at the top
             label_y = y + label_size[1] + padding
-            # Draw background for label inside box (smaller to fit)
+            # Draw background for label inside box
             cv2.rectangle(overlay_bgr,
                          (x + padding, y + padding),
                          (x + label_size[0] + padding * 2, y + label_size[1] + padding * 2),
-                         red_colour_bgr, -1)
+                         (0, 0, 255), -1)
             cv2.putText(overlay_bgr, label, (x + padding * 2, label_y),
                        font, font_scale, (255, 255, 255), thickness)
 
@@ -5424,7 +5471,6 @@ def extract_bounding_boxes_from_heatmap(heatmap, overlay_image, threshold=0.6, m
     overlay_rgb = cv2.cvtColor(overlay_bgr, cv2.COLOR_BGR2RGB)
 
     return overlay_rgb, boxes, scores
-
 
 def overlay_heatmap_with_bounding_boxes(heatmap, original_img, alpha=0.4, threshold=0.6):
     """
@@ -7367,7 +7413,7 @@ def main():
 
             else:  # Batch Processing Mode
                 st.caption("📁 Upload multiple images for batch analysis (ideal for research)")
-                st.info("💡 **Tip:** Batch processing is great for researchers, extension officers, and large farms. Upload multiple images at once. The more the images, the longer the analysis will take. A batch of 30 images takes about 2 minutes to process.")
+                st.info("💡 **Tip:** Batch processing is great for researchers, extension officers, and large farms. Upload multiple images at once. The more the images, the longer the analysis will take. A batch of 30 (size 240 by 240) images takes about 2 minutes to process.")
 
                 batch_files = st.file_uploader(
                     "Select multiple images",
