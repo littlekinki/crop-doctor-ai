@@ -1923,13 +1923,20 @@ i) Wettable Sulphur (e.g., Kumulus DF from BASF East Africa Ltd [13]). Use 2-3g/
         }
 
     # ==================== TOMATO HEALTHY FRUIT ====================
-    elif 'tomato healthy fruit' in name_lower:
+    elif 'tomato healthy fruit' in name_lower or ('tomato' in name_lower and 'healthy' in name_lower and 'fruit' in name_lower):
         return {
-            "disease_name": "Healthy Tomato Fruit",
+            "disease_name": "Tomato Healthy Fruit",
             "category": "🌿 HEALTHY CROP",
             "causal_agent": "No disease detected",
             "is_healthy": True,
-            "causes_characteristics": f"""Fruits are firm, evenly coloured (red, yellow, or orange depending on variety), free from blemishes, cracks, spots, rot, or pest damage. The fruit surface is smooth and glossy.
+            "causes_characteristics": f"""{_bold('Key Characteristics of a healthy tomato fruit:')}
+
+1. Appearance: Fruits are firm, evenly coloured (red, yellow, or orange depending on variety), and free from blemishes.
+2. Surface: The fruit surface is smooth and glossy without cracks, spots, or rot.
+3. Shape: Fruits are well-formed with the characteristic shape of the variety (round, plum, beefsteak, etc.).
+4. Size: Fruits are appropriately sized for the variety, indicating good nutrition and water availability.
+5. Stem Attachment: The calyx (stem end) is green and fresh, with no signs of decay or damage.
+6. No Pests or Diseases: No visible signs of pest damage, fungal spots, or bacterial lesions.
 
 {_bold('No disease detected.')}""",
             "management": "Continue regular management practices including proper irrigation, fertilization, and pest monitoring.",
@@ -1939,14 +1946,22 @@ i) Wettable Sulphur (e.g., Kumulus DF from BASF East Africa Ltd [13]). Use 2-3g/
             "chemical_refs_original": []
         }
 
+
     # ==================== TOMATO HEALTHY LEAF ====================
-    elif 'tomato healthy leaf' in name_lower or 'tomato healthy crop leaf' in name_lower:
+    elif 'tomato healthy leaf' in name_lower or ('tomato' in name_lower and 'healthy' in name_lower and 'leaf' in name_lower):
         return {
-            "disease_name": "Healthy Tomato Leaf",
+            "disease_name": "Tomato Healthy Leaf",
             "category": "🌿 HEALTHY CROP",
             "causal_agent": "No disease detected",
             "is_healthy": True,
-            "causes_characteristics": f"""Leaves are vibrant green, free from discolouration (yellowing/browning), spots, lesions, wilting, or signs of pests or diseases. Leaflets are well-formed without curling or distortion.
+            "causes_characteristics": f"""{_bold('Key Characteristics of a healthy tomato leaf:')}
+
+1. Colour: Leaves are vibrant green, indicating healthy chlorophyll levels and good nutrition.
+2. Shape: Leaflets are well-formed without curling, cupping, or distortion.
+3. Surface: The leaf surface is smooth and clean, free from spots, lesions, or discolouration.
+4. No Wilting: Leaves are turgid and hold their shape, indicating good water availability.
+5. No Pests or Diseases: No visible signs of pest damage (holes, stippling, webbing) or diseases (spots, blight, mildew).
+6. Growth: Leaves are properly spaced along the stem with healthy growth patterns.
 
 {_bold('No disease detected.')}""",
             "management": "Continue regular management practices.",
@@ -3361,7 +3376,14 @@ def display_healthy_crop_assessment(predicted_class, confidence, treatment, refe
 
     # Display heatmap if available
     if heatmap_overlay is not None and original_img is not None:
-        display_heatmap_with_colorbar(original_img, heatmap_overlay, predicted_class, save_path)
+        # Pass the current state of show_bounding_boxes from session state
+        display_heatmap_with_colorbar(
+            original_img,
+            heatmap_overlay,
+            predicted_class,
+            save_path,
+            show_bounding_boxes=st.session_state.get('show_bounding_boxes', True)
+        )
 
     # SECTION 8: GRAD-CAM LEGEND
     st.markdown("""
@@ -3462,60 +3484,241 @@ def display_healthy_crop_assessment(predicted_class, confidence, treatment, refe
 # ============================================================
 
 def display_heatmap_with_colorbar(original_img, heatmap_overlay, predicted_class, save_path=None, show_bounding_boxes=True):
-    """Display heatmap with enhanced color bar and optional bounding boxes around high-influence regions"""
+    """Display heatmap with enhanced color bar and optional bounding boxes around high-influence regions
+    Updated to match batch processing mode caption text
+    """
+    # Initialize boxes
+    boxes = []
+    scores = []
+
+    # Get raw heatmap from session state - try multiple sources
+    raw_heatmap = st.session_state.get('current_raw_heatmap', None)
+
+    # If not in session state, try to get from the current_alt_data
+    if raw_heatmap is None and 'current_alt_data' in st.session_state:
+        for alt_idx, data in st.session_state.current_alt_data.items():
+            if data.get('class') == predicted_class and data.get('raw_heatmap') is not None:
+                raw_heatmap = data['raw_heatmap']
+                # Also store in session state for future use
+                st.session_state.current_raw_heatmap = raw_heatmap
+                break
+
+    # If raw_heatmap is available, compute boxes (always compute regardless of show state)
+    if raw_heatmap is not None:
+        overlay_with_boxes, boxes, scores = extract_bounding_boxes_from_heatmap(
+            raw_heatmap, heatmap_overlay, threshold=0.6, min_box_area=500
+        )
+        # Store the overlay with boxes for potential display
+        heatmap_with_boxes = overlay_with_boxes
+    else:
+        heatmap_with_boxes = heatmap_overlay
+
+    # Display two columns
     col1, col2 = st.columns(2)
 
     with col1:
         st.image(original_img, caption="Original Image", use_container_width=True)
 
     with col2:
-        if show_bounding_boxes:
-            # Generate bounding boxes around high-influence regions
-            if 'current_raw_heatmap' in st.session_state and st.session_state.current_raw_heatmap is not None:
-                raw_heatmap = st.session_state.current_raw_heatmap
-                img_with_boxes, boxes, scores = extract_bounding_boxes_from_heatmap(
-                    raw_heatmap, original_img, threshold=0.6, min_box_area=500
-                )
-                st.image(img_with_boxes,
-                        caption=f"Visual overlay with bounding boxes (threshold: >60% influence)\n{predicted_class}",
+        # Determine which image to display based on show_bounding_boxes
+        if show_bounding_boxes and raw_heatmap is not None and boxes and len(boxes) > 0:
+            # Show the overlay WITH boxes
+            if len(boxes) == 1:
+                st.image(heatmap_with_boxes,
+                        caption=f"The coloured overlay shows how the AI was influenced. The RED box highlights the exact image area that most influenced the diagnosis of {predicted_class}. It represents a region whose area is at least 1% of the image size and the AI was over 60% confident about the diagnosis of {predicted_class}. The percentage inside or above the box shows the AI's confidence that THIS SPECIFIC AREA shows the {predicted_class}. Higher percentage = stronger evidence.",
                         use_container_width=True)
-
-                # Display bounding box statistics
-                if boxes:
-                    st.caption(f"📍 Found {len(boxes)} high-influence region(s) contributing to this diagnosis. "
-                              f"Red boxes indicate >80% influence, orange 70-80%, yellow 60-70% [9].")
-                else:
-                    st.caption("📍 No high-influence regions above 60% threshold. The model found evidence distributed across the image.")
             else:
-                st.image(heatmap_overlay, caption=f"Visual overlay image showing areas that led the model to select:\n{predicted_class}. The redder the area, the higher the confidence of the AI that the area is afflicted by the {predicted_class}.", use_container_width=True)
+                st.image(heatmap_with_boxes,
+                        caption=f"The coloured overlay shows how the AI was influenced. The {len(boxes)} RED boxes highlight the exact image areas that most influenced the diagnosis of {predicted_class}. Each RED box represents a region whose area is at least 1% of the image size and the AI was over 60% confident about the diagnosis of {predicted_class}. The percentage inside or above each box shows the AI's confidence that THIS SPECIFIC AREA shows the disease. Higher percentage = stronger evidence.",
+                        use_container_width=True)
+        elif show_bounding_boxes and raw_heatmap is not None and boxes and len(boxes) == 0:
+            # Show the overlay WITHOUT boxes (no boxes found)
+            st.image(heatmap_overlay,
+                    caption=f"Visual Overlay Image (No RED boxes as there is no single region whose area is at least 1% of the image size where the AI is more than 60% confident about the diagnosis of {predicted_class}.) \nThe disease evidence is spread across the image rather than concentrated in one spot.",
+                    use_container_width=True)
         else:
-            st.image(heatmap_overlay, caption=f"Visual overlay image showing areas that led the model to select:\n{predicted_class}. The redder the area, the higher the confidence of the AI that the area is afflicted by the {predicted_class}.", use_container_width=True)
+            # Boxes are hidden or not available - show regular overlay
+            if raw_heatmap is not None and boxes and len(boxes) > 0:
+                caption_text = f"Visual overlay image showing graduated influence of areas that led the model to pick on:\n{predicted_class}. The redder the area, the higher the confidence of the AI that the area is associated with the {predicted_class}. See the colour bar and legend below. RED bounding boxes are currently HIDDEN."
+            elif raw_heatmap is not None:
+                caption_text = f"Visual overlay image showing graduated influence of areas that led the model to pick on:\n{predicted_class}. The redder the area, the higher the confidence of the AI that the area is associated with the {predicted_class}. See the colour bar and legend below. (No RED boxes found for this image)"
+            else:
+                caption_text = f"Visual overlay image showing graduated influence of areas that led the model to pick on:\n{predicted_class}. The redder the area, the higher the confidence of the AI that the area is associated with the {predicted_class}. See the colour bar and legend below. (Bounding boxes not available for this analysis)"
 
-    # Display heatmap with colorbar
-    fig, ax = plt.subplots(figsize=(10, 1))
+            st.image(heatmap_overlay, caption=caption_text, use_container_width=True)
+
+    # Display colorbar
+    fig, ax = plt.subplots(figsize=(10, 1.2))
     fig.patch.set_visible(False)
-    ax.axis('off')
+
     gradient = np.linspace(0, 1, 256).reshape(1, -1)
     spectrum_colors = ['blue', 'cyan', 'green', 'yellow', 'orange', 'red']
     spectrum_cmap = LinearSegmentedColormap.from_list('spectrum', spectrum_colors, N=256)
-    ax.imshow(gradient, aspect='auto', cmap=spectrum_cmap, extent=[0, 1, 0, 1])
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.text(0, -0.8, 'LOW', ha='center', va='top', fontsize=14, fontweight='bold', color='blue')
-    ax.text(0.5, -0.8, 'MEDIUM', ha='center', va='top', fontsize=14, fontweight='bold', color='green')
-    ax.text(1, -0.8, 'HIGH', ha='center', va='top', fontsize=14, fontweight='bold', color='red')
-    ax.annotate('', xy=(1, -1.5), xytext=(0, -1.5), arrowprops=dict(arrowstyle='->', color='black', lw=2))
-    ax.text(0.5, -1.8, 'Influence on Predictions', ha='center', va='top', fontsize=16, fontweight='bold', color='black')
+    ax.imshow(gradient, aspect='auto', cmap=spectrum_cmap, extent=[0, 100, 0, 1])
 
-    # Add bounding box threshold indicator
-    if show_bounding_boxes:
-        ax.axvline(x=0.6, ymin=-2, ymax=0, color='red', linestyle='--', linewidth=2)
-        ax.text(0.6, -2.2, 'Bounding box threshold (60%)', ha='center', va='top', fontsize=10, color='red', transform=ax.transAxes)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    ax.text(0, -0.4, 'LOW', ha='center', va='top', fontsize=12, fontweight='bold', color='blue')
+    ax.text(50, -0.4, 'MEDIUM', ha='center', va='top', fontsize=12, fontweight='bold', color='green')
+    ax.text(100, -0.4, 'HIGH', ha='center', va='top', fontsize=12, fontweight='bold', color='red')
+    ax.text(50, -0.9, 'Confidence on Predictions', ha='center', va='top', fontsize=13, fontweight='bold', color='black')
+
+    if show_bounding_boxes and raw_heatmap is not None:
+        ax.axvline(x=60, ymin=0, ymax=1, color='red', linestyle='--', linewidth=2)
+        ax.text(60, 1.05, '← 60% (Bounding box threshold)', ha='left', va='bottom',
+               fontsize=9, color='red', fontweight='bold')
 
     plt.tight_layout()
     st.pyplot(fig)
     plt.close()
 
+    # ============================================================
+    # TOGGLE BUTTON FOR BOUNDING BOXES
+    # ============================================================
+
+    col_toggle1, col_toggle2, col_toggle3 = st.columns([2, 2, 2])
+    with col_toggle1:
+        pass
+    with col_toggle2:
+        # Get the current state from session state to ensure consistency
+        current_state = st.session_state.get('show_bounding_boxes', True)
+
+        if current_state:
+            button_text = "🔴 Hide Bounding Boxes"
+            button_help = "Click to remove the red boxes from the overlay image"
+        else:
+            button_text = "🔴 Show Bounding Boxes"
+            button_help = "Click to display red boxes around high-confidence regions (>60%)"
+
+        # Use a single global key for all toggle buttons
+        if st.button(button_text, key="toggle_bounding_boxes_global", use_container_width=True, help=button_help):
+            st.session_state.show_bounding_boxes = not current_state
+            st.rerun()
+    with col_toggle3:
+        pass
+
+    if current_state:
+        st.success("✅ **Bounding boxes are currently VISIBLE.** The red boxes show high-confidence regions (>60%).")
+    else:
+        st.info("🔲 **Bounding boxes are currently HIDDEN.** Click 'Show Bounding Boxes' to see the high-confidence regions.")
+
+    # ============================================================
+    # STATISTICS AND EXPLANATION - MATCHES BATCH MODE
+    # ============================================================
+
+    if show_bounding_boxes and raw_heatmap is not None and boxes and len(boxes) > 0:
+        # Case 1: Bounding boxes found
+        sorted_boxes = sorted(zip(boxes, scores), key=lambda x: x[1], reverse=True)
+
+        percentage_items = []
+        for idx, (box, score) in enumerate(sorted_boxes, 1):
+            percentage_items.append(f"  Box {idx}: {score*100:.0f}%")
+        percentages_text = "<br>".join(percentage_items)
+
+        high_count = len([s for s in scores if s >= 0.8])
+        med_count = len([s for s in scores if 0.7 <= s < 0.8])
+        low_count = len([s for s in scores if 0.6 <= s < 0.7])
+
+        breakdown_parts = []
+        if high_count > 0:
+            breakdown_parts.append(f"🔴 {high_count} region(s) with >80% confidence")
+        if med_count > 0:
+            breakdown_parts.append(f"🟠 {med_count} region(s) with 70-80% confidence")
+        if low_count > 0:
+            breakdown_parts.append(f"🟡 {low_count} region(s) with 60-70% confidence")
+        breakdown_text = " | ".join(breakdown_parts)
+
+        num_boxes = len(sorted_boxes)
+
+        if num_boxes == 1:
+            stats_content = [
+                f"📍 1 high-confidence region identified.",
+                "",
+                f"The RED box on the overlay image shows the exact image area that most strongly influenced the diagnosis of {predicted_class}.",
+                "",
+                f"📊 **Model Confidence:** {sorted_boxes[0][1]*100:.0f}%",
+                "",
+                f"📈 **Confidence category:** 🔴 >80% confidence.",
+                "",
+                "💡 **What this percentage means:**",
+                f"The AI is {sorted_boxes[0][1]*100:.0f}% confident that the area inside the RED box shows signs of {predicted_class}.",
+                "",
+                "✅ **Higher percentages = Stronger evidence** that the disease is present in that specific area."
+            ]
+        else:
+            stats_content = [
+                f"📍 {len(boxes)} high-confidence regions identified.",
+                "",
+                f"These RED boxes on the overlay image show the exact image areas that most strongly influenced the diagnosis of {predicted_class}.",
+                "",
+                "📊 **Confidence breakdown (highest to lowest):**",
+                percentages_text,
+                "",
+                f"📈 **Confidence categories:** {breakdown_text}.",
+                "",
+                "💡 **What these percentages mean:**",
+                "Each percentage tells you how confident the AI is that the area inside THAT SPECIFIC BOX shows signs of the disease.",
+                "",
+                "📌 **Important:** These percentages are independent of each other. They do NOT add up to 100%. Each box has its own confidence score.",
+                "",
+                f"🔍 **For example:** The AI is {sorted_boxes[0][1]*100:.0f}% confident the area in Box 1 shows {predicted_class}. It is {sorted_boxes[-1][1]*100:.0f}% confident the area in Box {num_boxes} shows the same disease. Each box is assessed separately.",
+                "",
+                "✅ **Higher percentages = Stronger evidence** that the disease is present in that specific area."
+            ]
+
+        stats_html = "<br>".join(stats_content)
+
+        html_expander(
+            title="VIEW DETAILED ANALYSIS OF MODEL'S FOCUS AREAS (Click to Expand)",
+            content_html=f'<div class="reference-text">{stats_html}</div>',
+            icon="📊"
+        )
+
+    elif show_bounding_boxes and raw_heatmap is not None and boxes and len(boxes) == 0:
+        # No boxes found - diffuse disease explanation
+        stats_content = [
+            f"📍 No RED boxes were drawn for this image.",
+            "",
+            "📦 **Why no boxes?** A RED box is only drawn when there is a contiguous region that is:",
+            "   • At least 1% of the total image size, AND",
+            "   • Has a confidence score >60%",
+            "",
+            "🔍 **What this means:**",
+            f"{predicted_class} may have diffuse symptoms - the disease evidence is spread across the image rather than concentrated in one large spot. The model recognises the overall pattern of damage across the whole image, even though no single region meets the size threshold for a box.",
+            "",
+            "💡 Think of it like this: You can recognise a forest from a distance (high global confidence) without being able to point to a single tree that defines it (local bounding boxes).",
+            "",
+            "📌 **Note:** The coloured overlay still shows the confidence pattern. Warmer colours (red/orange/yellow) indicate areas where the AI had more confidence about the diagnosis, even if they don't meet the size threshold for a box."
+        ]
+
+        stats_html = "<br>".join(stats_content)
+
+        html_expander(
+            title="VIEW DETAILED ANALYSIS OF MODEL'S FOCUS AREAS (Click to Expand)",
+            content_html=f'<div class="reference-text">{stats_html}</div>',
+            icon="📊"
+        )
+
+    elif not show_bounding_boxes:
+        stats_content = [
+            "🔲 Bounding boxes are currently HIDDEN.",
+            "",
+            "Click 'Show Bounding Boxes' above to see the red boxes on the overlay image."
+        ]
+
+        stats_html = "<br>".join(stats_content)
+
+        html_expander(
+            title="VIEW DETAILED ANALYSIS OF MODEL'S FOCUS AREAS (Click to Expand)",
+            content_html=f'<div class="reference-text">{stats_html}</div>',
+            icon="📊"
+        )
+
+    if raw_heatmap is None:
+        st.info("💡 **Note:** Bounding boxes are not available for this analysis. The standard heatmap overlay is shown instead.")
 
 def display_top_predictions(top_predictions):
     """Display top predictions - each in its own curved box"""
@@ -3795,7 +3998,7 @@ def display_xai_analysis(disease_data):
 </div>
 """, unsafe_allow_html=True)
 
-    # SECTION 3: DISEASE TYPE
+    # SECTION 3: DISEASE TYPE - Use treatment data directly
     st.markdown(f"""
 <div class="section-card">
 <h3>🏷️ DISEASE TYPE</h3>
@@ -3803,7 +4006,7 @@ def display_xai_analysis(disease_data):
 </div>
 """, unsafe_allow_html=True)
 
-    # SECTION 4: CAUSAL AGENT
+    # SECTION 4: CAUSAL AGENT - Use treatment data directly
     st.markdown(f"""
 <div class="section-card">
 <h3>🦠 CAUSAL AGENT</h3>
@@ -3836,247 +4039,18 @@ def display_xai_analysis(disease_data):
 </div>
 """, unsafe_allow_html=True)
 
-# Initialize boxes to an empty list to avoid UnboundLocalError
-    boxes = []
-    scores = []
-
     if heatmap_overlay is not None and original_img is not None:
+        # Get current state from session state
         show_boxes = st.session_state.get('show_bounding_boxes', True)
 
-        if show_boxes and raw_heatmap is not None:
-            overlay_with_boxes, boxes, scores = extract_bounding_boxes_from_heatmap(
-                raw_heatmap, heatmap_overlay, threshold=0.6, min_box_area=500
-            )
-
-            col_orig, col_overlay = st.columns(2)
-            with col_orig:
-                st.image(original_img, caption="Original Image", use_container_width=True)
-            with col_overlay:
-                if boxes and len(boxes) == 1:
-                    st.image(overlay_with_boxes,
-                            caption=f"The coloured overlay shows how the AI was influenced. The RED box highlights the exact image area that most influenced the diagnosis of {predicted_class}. It represents a region whose area is at least 1% of the image size and the AI was over 60% confident about the diagnosis of {predicted_class}. The percentage inside or above the box shows the AI's confidence that THIS SPECIFIC AREA shows the disease. Higher percentage = stronger evidence.",
-                            use_container_width=True)
-                elif boxes and len(boxes) > 1:
-                    st.image(overlay_with_boxes,
-                            caption=f"The coloured overlay shows how the AI was influenced. The {len(boxes)} RED boxes highlight the exact image areas that most influenced the diagnosis of {predicted_class}. Each RED box represents a region whose area is at least 1% of the image size and the AI was over 60% confident about the diagnosis of {predicted_class}. The percentage inside or above each box shows the AI's confidence that THIS SPECIFIC AREA shows the disease. Higher percentage = stronger evidence.",
-                            use_container_width=True)
-                else:
-                    st.image(overlay_with_boxes,
-                            caption=f"Visual Overlay Image (No RED boxes as there is no single region whose area is at least 1% of the image size where the AI is more than 60% confident about the diagnosis of {predicted_class}.) \nThe disease evidence is spread across the image rather than concentrated in one spot.",
-                            use_container_width=True)
-        else:
-            col_orig, col_overlay = st.columns(2)
-            with col_orig:
-                st.image(original_img, caption="Original Image", use_container_width=True)
-            with col_overlay:
-                if not show_boxes:
-                    # ALWAYS compute boxes if raw_heatmap is available
-                    overlay_with_boxes, boxes, scores = extract_bounding_boxes_from_heatmap(
-                        raw_heatmap, heatmap_overlay, threshold=0.6, min_box_area=500
-                    )
-                    if len(boxes) >0:
-                        caption_text = f"Visual overlay image showing graduated influence of areas that led the model to pick on:\n{predicted_class}. The redder the area, the higher the confidence of the AI that the area is afflicted by the {predicted_class}. See the colour bar and legend below. RED bounding boxes are currently HIDDEN."
-                    else:
-                        caption_text = f"Visual overlay image showing graduated influence of areas that led the model to pick on:\n{predicted_class}. The redder the area, the higher the confidence of the AI that the area is afflicted by the {predicted_class}. See the colour bar and legend below."
-                else:
-                    caption_text = f"Visual overlay image showing graduated influence of areas that led the model to pick on:\n{predicted_class}. The redder the area, the higher the confidence of the AI that the area is afflicted by the {predicted_class}. See the colour bar and legend below. (Bounding boxes not available for this analysis)"
-                st.image(heatmap_overlay, caption=caption_text, use_container_width=True)
-
-        # ============================================================
-        # COLOUR BAR
-        # ============================================================
-
-        fig, ax = plt.subplots(figsize=(10, 1.2))
-        fig.patch.set_visible(False)
-
-        gradient = np.linspace(0, 1, 256).reshape(1, -1)
-        spectrum_colors = ['blue', 'cyan', 'green', 'yellow', 'orange', 'red']
-        spectrum_cmap = LinearSegmentedColormap.from_list('spectrum', spectrum_colors, N=256)
-        ax.imshow(gradient, aspect='auto', cmap=spectrum_cmap, extent=[0, 100, 0, 1])
-
-        ax.set_xticks([])
-        ax.set_yticks([])
-        for spine in ax.spines.values():
-            spine.set_visible(False)
-
-        ax.text(0, -0.4, 'LOW', ha='center', va='top', fontsize=12, fontweight='bold', color='blue')
-        ax.text(50, -0.4, 'MEDIUM', ha='center', va='top', fontsize=12, fontweight='bold', color='green')
-        ax.text(100, -0.4, 'HIGH', ha='center', va='top', fontsize=12, fontweight='bold', color='red')
-        ax.text(50, -0.9, 'Confidence on Predictions', ha='center', va='top', fontsize=13, fontweight='bold', color='black')
-
-        if show_boxes and raw_heatmap is not None:
-            ax.axvline(x=60, ymin=0, ymax=1, color='red', linestyle='--', linewidth=2)
-            ax.text(60, 1.05, '← 60% (Bounding box threshold)', ha='left', va='bottom',
-                   fontsize=9, color='red', fontweight='bold')
-
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
-
-        # ============================================================
-        # TOGGLE BUTTON FOR BOUNDING BOXES
-        # ============================================================
-
-        col_toggle1, col_toggle2, col_toggle3 = st.columns([2, 2, 2])
-        with col_toggle1:
-            pass
-        with col_toggle2:
-            if show_boxes:
-                button_text = "🔴 Hide Bounding Boxes"
-                button_help = "Click to remove the red boxes from the overlay image"
-            else:
-                button_text = "🔴 Show Bounding Boxes"
-                button_help = "Click to display red boxes around high-confidence regions (>60%)"
-
-            if st.button(button_text, key="toggle_boxes_xai", use_container_width=True, help=button_help):
-                st.session_state.show_bounding_boxes = not show_boxes
-                st.rerun()
-        with col_toggle3:
-            pass
-
-        if show_boxes:
-            st.success("✅ **Bounding boxes are currently VISIBLE.** The red boxes show high-confidence regions (>60%).")
-        else:
-            st.info("🔲 **Bounding boxes are currently HIDDEN.** Click 'Show Bounding Boxes' to see the high-confidence regions.")
-
-        # ============================================================
-        # STATISTICS AND EXPLANATION - WITH ADAPTIVE TEXT
-        # ============================================================
-
-        if show_boxes and raw_heatmap is not None and boxes and len(boxes) > 0:
-            # Case 1: Bounding boxes found
-
-            # Sort boxes by score (largest to smallest)
-            sorted_boxes = sorted(zip(boxes, scores), key=lambda x: x[1], reverse=True)
-
-            # Build percentage list with box numbers
-            percentage_items = []
-            for idx, (box, score) in enumerate(sorted_boxes, 1):
-                percentage_items.append(f"  Box {idx}: {score*100:.0f}%")
-            percentages_text = "<br>".join(percentage_items)
-
-            # Build confidence breakdown text
-            high_count = len([s for s in scores if s >= 0.8])
-            med_count = len([s for s in scores if 0.7 <= s < 0.8])
-            low_count = len([s for s in scores if 0.6 <= s < 0.7])
-
-            breakdown_parts = []
-            if high_count > 0:
-                breakdown_parts.append(f"🔴 {high_count} region(s) with >80% confidence")
-            if med_count > 0:
-                breakdown_parts.append(f"🟠 {med_count} region(s) with 70-80% confidence")
-            if low_count > 0:
-                breakdown_parts.append(f"🟡 {low_count} region(s) with 60-70% confidence")
-            breakdown_text = " | ".join(breakdown_parts)
-
-            # Build dynamic example and explanation based on number of boxes
-            num_boxes = len(sorted_boxes)
-
-            if num_boxes == 1:
-                # SINGLE BOX - Simplified explanation
-                stats_content = [
-                    f"📍 1 high-confidence region identified.",
-                    "",
-                    f"The RED box on the overlay image shows the exact image area that most strongly influenced the diagnosis of {predicted_class}.",
-                    "",
-                    f"📊 **Model Confidence:** {sorted_boxes[0][1]*100:.0f}%",
-                    "",
-                    f"📈 **Confidence category:** 🔴 >80% confidence.",
-                    "",
-                    "💡 **What this percentage means:**",
-                    f"The AI is {sorted_boxes[0][1]*100:.0f}% confident that the area inside the RED box shows signs of {predicted_class}.",
-                    "",
-                    "✅ **Higher percentages = Stronger evidence** that the disease is present in that specific area."
-                ]
-            else:
-                # MULTIPLE BOXES - Full explanation
-                stats_content = [
-                    f"📍 {len(boxes)} high-confidence regions identified.",
-                    "",
-                    f"These RED boxes on the overlay image show the exact image areas that most strongly influenced the diagnosis of {predicted_class}.",
-                    "",
-                    "📊 **Confidence breakdown (highest to lowest):**",
-                    percentages_text,
-                    "",
-                    f"📈 **Confidence categories:** {breakdown_text}.",
-                    "",
-                    "💡 **What these percentages mean:**",
-                    "Each percentage tells you how confident the AI is that the area inside THAT SPECIFIC BOX shows signs of the disease.",
-                    "",
-                    "📌 **Important:** These percentages are independent of each other. They do NOT add up to 100%. Each box has its own confidence score.",
-                    "",
-                    f"🔍 **For example:** The AI is {sorted_boxes[0][1]*100:.0f}% confident the area in Box 1 shows {predicted_class}. It is {sorted_boxes[-1][1]*100:.0f}% confident the area in Box {num_boxes} shows the same disease. Each box is assessed separately.",
-                    "",
-                    "✅ **Higher percentages = Stronger evidence** that the disease is present in that specific area."
-                ]
-
-            stats_html = "<br>".join(stats_content)
-
-            html_expander(
-                title="VIEW DETAILED ANALYSIS OF MODEL'S FOCUS AREAS (Click to Expand)",
-                content_html=f'<div class="reference-text">{stats_html}</div>',
-                icon="📊"
-            )
-
-        elif show_boxes and raw_heatmap is not None and confidence >= 0.7:
-            # Case 2: No bounding boxes but high confidence - diffuse disease explanation
-            stats_content = [
-                f"📍 No RED boxes were drawn for this image.",
-                "",
-                "📦 **Why no boxes?** A RED box is only drawn when there is a contiguous region that is:",
-                "   • At least 1% of the total image size, AND",
-                "   • Has a confidence score >60%",
-                "",
-                f"📊 **Global Confidence:** {confidence*100:.1f}%",
-                "",
-                "🔍 **What this means:**",
-                f"{predicted_class} often has diffuse symptoms - the disease evidence is spread across the image rather than concentrated in one large spot. The model recognises the overall pattern of damage across the whole image, even though no single region meets the size threshold for a box.",
-                "",
-                "💡 Think of it like this: You can recognise a forest from a distance (high global confidence) without being able to point to a single tree that defines it (local bounding boxes).",
-                "",
-                "📌 **Note:** The coloured overlay still shows the confidence pattern. Warmer colours (red/orange/yellow) indicate areas where the AI had more confidence about the diagnosis, even if they don't meet the size threshold for a box."
-            ]
-
-            stats_html = "<br>".join(stats_content)
-
-            html_expander(
-                title="VIEW DETAILED ANALYSIS OF MODEL'S FOCUS AREAS (Click to Expand)",
-                content_html=f'<div class="reference-text">{stats_html}</div>',
-                icon="📊"
-            )
-
-        elif not show_boxes:
-            stats_content = [
-                "🔲 Bounding boxes are currently HIDDEN.",
-                "",
-                "Click 'Show Bounding Boxes' above to see the red boxes on the overlay image."
-            ]
-
-            stats_html = "<br>".join(stats_content)
-
-            html_expander(
-                title="VIEW DETAILED ANALYSIS OF MODEL'S FOCUS AREAS (Click to Expand)",
-                content_html=f'<div class="reference-text">{stats_html}</div>',
-                icon="📊"
-            )
-
-        else:
-            stats_content = [
-                "📍 No high-confidence regions above 60% threshold.",
-                "",
-                "The disease evidence is distributed across the image rather than concentrated in specific spots. The heatmap colours show the overall confidence pattern."
-            ]
-
-            stats_html = "<br>".join(stats_content)
-
-            html_expander(
-                title="VIEW DETAILED ANALYSIS OF MODEL'S FOCUS AREAS (Click to Expand)",
-                content_html=f'<div class="reference-text">{stats_html}</div>',
-                icon="📊"
-            )
-
-        if raw_heatmap is None:
-            st.info("💡 **Note:** Bounding boxes are not available for this analysis. The standard heatmap overlay is shown instead.")
+        # Call display_heatmap_with_colorbar with the current state
+        display_heatmap_with_colorbar(
+            original_img,
+            heatmap_overlay,
+            predicted_class,
+            save_path,
+            show_bounding_boxes=show_boxes
+        )
     else:
         st.warning("⚠️ Visual evidence not available for this diagnosis.")
 
@@ -4132,7 +4106,6 @@ def display_xai_analysis(disease_data):
             content_html=f'<div class="reference-text">{references_html}</div>',
             icon="📚"
         )
-
 
 # ============================================================
 # NEWS AND WEATHER HELPERS FOR ONLINE MODE
@@ -6322,7 +6295,7 @@ def display_batch_results(results):
             with col_overlay:
                 if boxes and len(boxes) == 1:
                     st.image(overlay_with_boxes,
-                            caption=f"The coloured overlay shows how the AI was influenced. The RED box highlights the exact image area that most influenced the diagnosis of {predicted_class}. It represents a region whose area is at least 1% of the image size and the AI was over 60% confident about the diagnosis of {predicted_class}. The percentage inside or above the box shows the AI's confidence that THIS SPECIFIC AREA shows the disease. Higher percentage = stronger evidence.",
+                            caption=f"The coloured overlay shows how the AI was influenced. The RED box highlights the exact image area that most influenced the diagnosis of {predicted_class}. It represents a region whose area is at least 1% of the image size and the AI was over 60% confident about the diagnosis of {predicted_class}. The percentage inside or above the box shows the AI's confidence that THIS SPECIFIC AREA shows the {predicted_class}. Higher percentage = stronger evidence.",
                             use_container_width=True)
                 elif boxes and len(boxes) > 1:
                     st.image(overlay_with_boxes,
@@ -7106,23 +7079,34 @@ def main():
         # ============================================================
         # ADMIN PANEL (Hidden behind admin password)
         # ============================================================
+        # Check for admin access
         query_params = st.query_params
         if query_params.get("admin") == "true":
             st.markdown("### 🔐 Admin Panel")
 
+            # Password check
             admin_password_input = st.text_input("Enter Admin Password:", type="password", key="admin_password_input")
 
             if admin_password_input and admin_password_input == ADMIN_PASSWORD:
                 st.success("✅ Admin access granted!")
+
+                # Display admin options
                 st.markdown("---")
                 st.markdown("## 📊 Farmer Feedback Management")
 
+                # Option to view feedback
                 if st.button("📋 View All Feedback", use_container_width=True):
                     display_feedback_summary()
+
+                # Option to download feedback as CSV
                 if st.button("📥 Download Feedback as CSV", use_container_width=True):
                     export_feedback_csv()
+
+                # Option to download feedback as JSON
                 if st.button("📥 Download Feedback as JSON", use_container_width=True):
                     export_feedback_json()
+
+                # Option to clear feedback
                 if st.button("🗑️ Clear All Feedback (Danger)", use_container_width=True):
                     if st.checkbox("I understand this will permanently delete all feedback"):
                         clear_feedback_data()
@@ -7131,10 +7115,12 @@ def main():
 
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("❓ Help / How to use the system", use_container_width=True):
+            # Help button
+            if st.button("❓ Help / How to use the system", use_container_width=True ):
                 st.session_state.show_help = not st.session_state.show_help
 
-            if st.button("📋 List of Supported Classes", use_container_width=True):
+            # Classes button
+            if st.button("📋 List of Supported Classes", use_container_width=True ):
                 st.session_state.show_classes = not st.session_state.show_classes
 
             selected_mode = st.radio(
@@ -7150,18 +7136,26 @@ def main():
 
             if st.session_state.mode == "online":
                 st.markdown(f'<span class="mode-badge mode-online">🌐 ONLINE MODE - Weather & News Enabled | Location: {st.session_state.location}</span>', unsafe_allow_html=True)
+
+                # Top bar location buttons
                 display_top_location_buttons()
             else:
                 st.markdown('<span class="mode-badge mode-offline">📱 OFFLINE MODE - Diagnosis and Verified Treatments Only</span>', unsafe_allow_html=True)
 
         st.markdown("---")
 
+        # ============================================================
+        # TOP BAR LOCATION DIALOGS
+        # ============================================================
         if st.session_state.get('show_top_location_dialog', False):
             display_top_location_dialog()
 
         if st.session_state.get('show_top_manual_entry', False):
             display_top_manual_entry_dialog()
 
+        # ============================================================
+        # HANDLE GPS RETRIEVAL (shared between both)
+        # ============================================================
         if st.session_state.get('request_gps', False):
             with st.spinner("📍 Getting GPS location. Please allow location access..."):
                 try:
@@ -7195,12 +7189,14 @@ def main():
                     st.error(f"GPS error: {e}")
                     st.session_state.request_gps = False
 
+        # Show classes list if requested
         if st.session_state.show_classes:
             model_temp, class_names_temp = load_model_and_classes()
             if class_names_temp:
                 display_classes_list(class_names_temp)
             st.markdown("---")
 
+        # Show help if requested
         if st.session_state.show_help:
             display_help()
             st.markdown("---")
@@ -7219,6 +7215,9 @@ def main():
             st.markdown("### 📸 Upload Crop Image")
             st.caption("📸 Take a clear photo of the affected leaves or fruits for best results")
 
+            # ============================================================
+            # PROCESSING MODE SELECTION (SINGLE vs BATCH)
+            # ============================================================
             processing_mode = st.radio(
                 "Select Processing Mode:",
                 ["Single Image", "Batch Processing (Multiple Images)"],
@@ -7229,116 +7228,27 @@ def main():
             if processing_mode == "Single Image":
                 st.caption("Upload one image at a time for detailed analysis")
 
-                # ============================================================
-                # CAMERA SECTION - Using streamlit_back_camera_input with clear instructions
-                # ============================================================
-
-                st.markdown("##### 📸 Take Photo with Camera")
-
-                # Detect device type
-                device_type = detect_device()
-
-                # Show appropriate camera based on device
-                if device_type == 'mobile':
-                    st.caption("📱 Using rear camera on your mobile device")
-                    st.info("💡 **Tip:** Tap on the camera video area to capture the photo")
-                else:
-                    st.caption("💻 Using webcam on your computer")
-
-                # Camera selection override (for testing)
-                camera_choice = st.radio(
-                    "Camera selection:",
-                    ["Auto Detect", "📱 Rear Camera (Mobile)", "💻 Webcam (Desktop)"],
-                    horizontal=True,
-                    key="camera_choice_override",
-                    index=0
-                )
-
-                # Open camera button
-                if st.button("📷 Open Camera", use_container_width=True, key="open_camera_btn"):
+                if st.button("📷 Take Photo", use_container_width=True ):
                     st.session_state.camera_active = True
-                    st.session_state.selected_camera = camera_choice
-                    st.rerun()
 
-                # Camera active state
-                if st.session_state.get('camera_active', False):
-                    try:
-                        selected = st.session_state.get('selected_camera', 'Auto Detect')
-                        camera_image = None
-
-                        # Determine which camera to use
-                        use_rear_camera = False
-                        if selected == "Auto Detect":
-                            use_rear_camera = (device_type == 'mobile')
-                        elif selected == "📱 Rear Camera (Mobile)":
-                            use_rear_camera = True
-                        else:
-                            use_rear_camera = False
-
-                        if use_rear_camera:
-                            st.info("📱 **Instructions:** Tap on the camera video area to capture")
-                            with st.container():
-                                camera_image = back_camera_input(key="back_camera")
-
-                            if camera_image is not None:
-                                st.session_state.current_image = Image.open(camera_image)
-                                st.session_state.batch_mode = False
-                                st.session_state.batch_results = None
-                                st.session_state.show_batch_results = False
-                                st.session_state.camera_active = False
-                                st.success("✅ Photo captured successfully!")
-                                st.image(st.session_state.current_image, caption="Captured Photo", use_container_width=True)
-                                st.rerun()
-
-                        else:
-                            st.info("💻 **Instructions:** Click the 'Take Photo' button below")
-                            camera_image = st.camera_input("📸 Take a photo", key="front_camera")
-
-                            if camera_image is not None:
-                                st.session_state.current_image = Image.open(camera_image)
-                                st.session_state.batch_mode = False
-                                st.session_state.batch_results = None
-                                st.session_state.show_batch_results = False
-                                st.session_state.camera_active = False
-                                st.success("✅ Photo captured successfully!")
-                                st.image(st.session_state.current_image, caption="Captured Photo", use_container_width=True)
-                                st.rerun()
-
-                    except Exception as e:
-                        st.error(f"Camera error: {e}")
-                        st.info("💡 Try using the file uploader below instead.")
-
-                    # Close camera button
-                    if st.button("❌ Close Camera", use_container_width=True, key="close_camera_btn"):
+                if st.session_state.camera_active:
+                    camera_image = st.camera_input("Take a photo", key="camera")
+                    if camera_image:
+                        st.session_state.current_image = Image.open(camera_image)
                         st.session_state.camera_active = False
+                        st.session_state.batch_mode = False
                         st.rerun()
 
-                    #st.markdown("---")
-
-                # ============================================================
-                # FILE UPLOADER SECTION - Clean and intuitive
-                # ============================================================
-                st.markdown("##### 📁 Upload from Gallery")
-
-                # Clean file uploader with helpful hint
                 uploaded_file = st.file_uploader(
-                    "Choose an image from your device (or drag and drop)",
-                    type=['jpg', 'jpeg', 'png'],
+                    "Or choose from gallery",
+                    type=['jpg', 'jpeg', 'png', 'bmp', 'tiff', 'tif', 'webp', 'gif', 'ico', 'svg'],
                     key="uploader"
                 )
-
                 if uploaded_file:
                     st.session_state.current_image = Image.open(uploaded_file)
                     st.session_state.batch_mode = False
                     st.session_state.batch_results = None
                     st.session_state.show_batch_results = False
-                    st.session_state.camera_active = False
-                    st.success(f"✅ Image uploaded: {uploaded_file.name}")
-
-                # ============================================================
-                # DIAGNOSE BUTTON - ALWAYS VISIBLE
-                # ============================================================
-                st.markdown("---")
 
                 if st.session_state.current_image is not None:
                     st.image(st.session_state.current_image, caption="Selected Image", use_container_width=True)
@@ -7371,17 +7281,27 @@ def main():
                             st.session_state.common_chemicals_data = None
                             st.session_state.batch_mode = False
                             st.session_state.show_batch_results = False
-                            st.session_state.camera_active = False
 
+                            # Clear previous alt data
                             st.session_state.current_alt_data = {}
 
+                            # Save image for training (primary diagnosis only)
                             save_user_image_for_training(image, top_predictions[0]['class'], top_predictions[0]['confidence'], top_predictions)
 
+                            # Generate Grad-CAM for ALL predictions
                             for alt_idx, pred in enumerate(top_predictions):
+                                # Generate raw heatmap (values 0-1)
                                 raw_heatmap = gradcam.generate_heatmap(img_array, pred['idx'])
+
+                                # STORE RAW HEATMAP IN SESSION STATE for primary diagnosis (alt_idx=0)
+                                if alt_idx == 0:
+                                    st.session_state.current_raw_heatmap = raw_heatmap
+
+                                # Generate coloured overlay for display
                                 overlay = gradcam.overlay_heatmap(raw_heatmap, st.session_state.current_original_img)
                                 treatment = get_full_treatment(pred['class'], references)
 
+                                # Determine crop type
                                 if 'maize' in pred['class'].lower():
                                     crop_type = "Maize"
                                 elif 'beans' in pred['class'].lower():
@@ -7389,17 +7309,19 @@ def main():
                                 else:
                                     crop_type = "Tomato"
 
+                                # Save heatmap overlay
                                 save_filename = f"gradcam_{pred['class'].replace(' ', '_').replace('/', '_')}_alt{alt_idx}.png"
                                 save_path = os.path.join(os.getcwd(), save_filename)
                                 cv2.imwrite(save_path, cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
 
+                                # Store in session state - CRITICAL for alternatives
                                 st.session_state.current_alt_data[alt_idx] = {
                                     'class': pred['class'],
                                     'confidence': pred['confidence'],
                                     'idx': pred['idx'],
                                     'treatment': treatment,
                                     'heatmap_overlay': overlay,
-                                    'raw_heatmap': raw_heatmap,
+                                    'raw_heatmap': raw_heatmap,  # Store raw heatmap for bounding boxes
                                     'references': references,
                                     'original_img': st.session_state.current_original_img,
                                     'crop_type': crop_type,
@@ -7407,17 +7329,18 @@ def main():
                                     'save_filename': save_filename
                                 }
 
+                                # Debug print
+                                print(f"Stored alt_idx {alt_idx}: {pred['class']}, raw_heatmap shape: {raw_heatmap.shape if raw_heatmap is not None else 'None'}")
+
                             st.rerun()
-                else:
-                    st.info("👈 Upload an image or take a photo, then click 'DIAGNOSE & RECOMMEND'")
 
             else:  # Batch Processing Mode
                 st.caption("📁 Upload multiple images for batch analysis (ideal for research)")
-                st.info("💡 **Tip:** Batch processing is great for researchers, extension officers, and large farms. Upload multiple images at once. The more the images, the longer the analysis will take. A batch of 30 (size 240 by 240) images takes about 2 minutes to process.")
+                st.info("💡 **Tip:** Batch processing is great for researchers, extension officers, and large farms. Upload multiple images at once. The more the images, the longer the analysis will take. A batch of 30 colour images, each of size (224 x 224), takes about 2 minutes to process.")
 
                 batch_files = st.file_uploader(
                     "Select multiple images",
-                    type=['jpg', 'jpeg', 'png'],
+                    type=['jpg', 'jpeg', 'png', 'bmp', 'tiff', 'tif', 'webp', 'gif', 'ico', 'svg'],
                     accept_multiple_files=True,
                     key="batch_uploader"
                 )
@@ -7425,6 +7348,7 @@ def main():
                 if batch_files:
                     st.markdown(f"**Selected {len(batch_files)} images**")
 
+                    # Preview thumbnails
                     st.markdown("#### 📸 Image Preview")
                     preview_cols = st.columns(min(5, len(batch_files)))
                     for idx, file in enumerate(batch_files[:5]):
@@ -7436,10 +7360,11 @@ def main():
                     if len(batch_files) > 5:
                         st.caption(f"... and {len(batch_files) - 5} more images")
 
+                    # Warning for large batches
                     if len(batch_files) > 30:
                         st.warning("⚠️ Large batch detected. Processing may take several minutes. Please be patient.")
 
-                    if st.button("🔬 PROCESS BATCH", type="primary", use_container_width=True):
+                    if st.button("🔬 PROCESS BATCH", type="primary", use_container_width=True ):
                         with st.spinner(f"Processing {len(batch_files)} images... This may take a few minutes."):
                             results = process_batch_images(batch_files, model, class_names, references, gradcam)
                             st.session_state.batch_results = results
@@ -7452,26 +7377,33 @@ def main():
                     st.info("👈 Select one or more images to begin batch processing")
 
         with right_col:
+            # ============================================================
+            # BATCH RESULTS DISPLAY
+            # ============================================================
             if st.session_state.get('show_batch_results', False) and st.session_state.get('batch_results'):
                 display_batch_results(st.session_state.batch_results)
 
                 col1_clear, col2_clear = st.columns(2)
                 with col1_clear:
-                    if st.button("✖ Clear Batch Results", use_container_width=True):
+                    if st.button("✖ Clear Batch Results", use_container_width=True ):
                         st.session_state.show_batch_results = False
                         st.session_state.batch_results = None
                         st.session_state.batch_mode = False
                         st.rerun()
                 with col2_clear:
-                    if st.button("🔄 New Batch", use_container_width=True):
+                    if st.button("🔄 New Batch", use_container_width=True ):
                         st.session_state.show_batch_results = False
                         st.session_state.batch_results = None
                         st.session_state.batch_mode = False
                         st.rerun()
 
+            # ============================================================
+            # SINGLE IMAGE RESULTS DISPLAY
+            # ============================================================
             elif st.session_state.show_results and st.session_state.current_top_predictions:
                 top_predictions = st.session_state.current_top_predictions
 
+                # SAFETY CHECK FOR EMPTY ALT DATA
                 if not st.session_state.current_alt_data:
                     st.warning("⚠️ No diagnosis data found. Please analyse an image first.")
                     st.session_state.show_results = False
@@ -7492,12 +7424,14 @@ def main():
                         display_top_predictions(top_predictions)
                         display_xai_analysis(disease_data)
 
+                        # Only show treatment recommendation for diseased crops
                         if not disease_data['treatment'].get('is_healthy', False):
                             display_treatment_recommendation(disease_data['treatment'], references, disease_data['confidence'])
 
+                        # Export Report Button and WhatsApp Share
                         col1_export, col2_export, col3_whatsapp = st.columns(3)
                         with col1_export:
-                            if st.button("📄 Export Report", use_container_width=True, key="export_alt"):
+                            if st.button("📄 Export Report", use_container_width=True , key="export_alt"):
                                 report = generate_export_report(disease_data, disease_data['treatment'], references, None)
                                 from datetime import datetime, timedelta, timezone as dt_timezone
                                 eat_timezone = dt_timezone(timedelta(hours=3))
@@ -7515,12 +7449,18 @@ def main():
                         with col3_whatsapp:
                             display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
+                        # OPTIONS MENU
                         display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
 
+                        # INVITATION MESSAGE
+                        #st.markdown("---")
                         st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
 
+                        # FEEDBACK SECTION
                         display_feedback_section(current_disease, current_confidence)
 
+                        # THANK YOU MESSAGE
+                        #st.markdown("---")
                         st.markdown("""
                         <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
                             <p style="font-size: 16px; margin-bottom: 5px;">🙏 <strong>Asante Sana Kwa Maoni Yako! (Thank You Very Much For Your Feedback!)</strong></p>
@@ -7533,6 +7473,7 @@ def main():
                         st.session_state.current_showing_alternative = None
                         st.rerun()
                 else:
+                    # CHECK IF KEY 0 EXISTS BEFORE ACCESSING
                     if 0 not in st.session_state.current_alt_data:
                         st.warning("⚠️ Primary diagnosis data not available. Please analyse an image again.")
                         st.session_state.show_results = False
@@ -7549,12 +7490,14 @@ def main():
                     display_top_predictions(top_predictions)
                     display_xai_analysis(primary_data)
 
+                    # Only show treatment recommendation for diseased crops
                     if not primary_data['treatment'].get('is_healthy', False):
                         display_treatment_recommendation(primary_data['treatment'], references, primary_data['confidence'])
 
+                    # Export Report Button and WhatsApp Share
                     col1_export, col2_export, col3_whatsapp = st.columns(3)
                     with col1_export:
-                        if st.button("📄 Export Report", use_container_width=True, key="export_primary"):
+                        if st.button("📄 Export Report", use_container_width=True , key="export_primary"):
                             report = generate_export_report(primary_data, primary_data['treatment'], references, None)
                             from datetime import datetime, timedelta, timezone as dt_timezone
                             eat_timezone = dt_timezone(timedelta(hours=3))
@@ -7572,13 +7515,17 @@ def main():
                     with col3_whatsapp:
                         display_whatsapp_share_button(current_disease, current_confidence, st.session_state.location)
 
+                    # OPTIONS MENU
                     display_options_menu(top_predictions, references, st.session_state.location, class_names, current_disease, current_crop_type, current_treatment)
 
+                    # INVITATION MESSAGE
                     st.markdown("---")
                     st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
 
+                    # FEEDBACK SECTION
                     display_feedback_section(current_disease, current_confidence)
 
+                    # THANK YOU MESSAGE
                     st.markdown("---")
                     st.markdown("""
                     <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px;">
