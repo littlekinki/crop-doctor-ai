@@ -5301,7 +5301,7 @@ def display_feedback_section(disease_name, confidence):
             if st.button("❌ Cancel", use_container_width=True ):
                 st.rerun()
 
-    st.caption("💡 Your feedback is anonymous and helps us serve Kenyan farmers better.")
+    st.caption("💡 Your feedback is anonymous and helps us serve farmers better.")
 
 def extract_bounding_boxes_from_heatmap(heatmap, overlay_image, threshold=0.6, min_box_area=500):
     """
@@ -6894,7 +6894,7 @@ def display_batch_results(results):
     # ============================================================
     # FEEDBACK SECTION
     # ============================================================
-    st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
+    st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers will help improve Crop Doctor for all farmers.")
     display_feedback_section(predicted_class, confidence_value)
 
     # ============================================================
@@ -7454,7 +7454,7 @@ def main():
 
                         # INVITATION MESSAGE
                         #st.markdown("---")
-                        st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
+                        st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers will help improve Crop Doctor for all farmers.")
 
                         # FEEDBACK SECTION
                         display_feedback_section(current_disease, current_confidence)
@@ -7520,7 +7520,7 @@ def main():
 
                     # INVITATION MESSAGE
                     st.markdown("---")
-                    st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers help improve Crop Doctor for all Kenyan farmers.")
+                    st.info("💡 **We value your feedback!** After exploring all the features above, please share your experience with us. Your answers will help improve Crop Doctor for all farmers.")
 
                     # FEEDBACK SECTION
                     display_feedback_section(current_disease, current_confidence)
