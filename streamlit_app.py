@@ -4245,15 +4245,6 @@ def fetch_live_kenya_met_warnings():
 def fetch_live_agriculture_news():
     """Fetch live agriculture news from reliable Kenyan sources"""
     try:
-        # Cache news for 15 minutes
-        cache_key = 'news_cache'
-        cache_time_key = 'news_time'
-
-        current_time = time.time()
-        if cache_key in st.session_state and cache_time_key in st.session_state:
-            if current_time - st.session_state[cache_time_key] < 900:
-                return st.session_state[cache_key]
-
         articles = []
 
         # ============================================================
@@ -4278,29 +4269,38 @@ def fetch_live_agriculture_news():
             print(f"❌ Standard error: {e}")
 
         # ============================================================
-        # SOURCE 2: Kenya News Agency (WORKING)
+        # SOURCE 2: KNA - Try multiple URL formats
         # ============================================================
-        try:
-            kna_feed = feedparser.parse("https://www.kenyanews.go.ke/agriculture/feed/")
-            count = 0
-            for entry in kna_feed.entries:
-                if count >= 5:
-                    break
-                articles.append({
-                    "title": entry.title,
-                    "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
-                    "url": entry.link,
-                    "source": "📰 Kenya News Agency",
-                    "date": entry.get("published", "Recent")
-                })
-                count += 1
-            print(f"✅ KNA: {count} articles")
-        except Exception as e:
-            print(f"❌ KNA error: {e}")
+        kna_urls = [
+            "https://www.kenyanews.go.ke/category/agri/feed/",
+            "https://www.kenyanews.go.ke/feed/",
+            "https://www.kenyanews.go.ke/category/agriculture/feed/"
+        ]
+
+        for url in kna_urls:
+            try:
+                kna_feed = feedparser.parse(url)
+                if kna_feed.entries:
+                    count = 0
+                    for entry in kna_feed.entries:
+                        if count >= 5:
+                            break
+                        articles.append({
+                            "title": entry.title,
+                            "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
+                            "url": entry.link,
+                            "source": "📰 Kenya News Agency",
+                            "date": entry.get("published", "Recent")
+                        })
+                        count += 1
+                    print(f"✅ KNA ({url}): {count} articles")
+                    break  # Stop if this URL worked
+            except Exception as e:
+                print(f"❌ KNA ({url}) error: {e}")
+                continue
 
         # ============================================================
-        # SOURCE 3: Nation Africa - Seeds of Gold (Direct Link Only)
-        # Note: No RSS feed available, so we add a direct link
+        # SOURCE 3: Nation Africa - Seeds of Gold
         # ============================================================
         articles.append({
             "title": "Nation Africa - Seeds of Gold",
@@ -4310,38 +4310,12 @@ def fetch_live_agriculture_news():
             "date": "Visit website"
         })
 
-        # ============================================================
-        # SOURCE 4: The EastAfrican (RSS with agriculture filter)
-        # ============================================================
-        try:
-            eastafrican_feed = feedparser.parse("https://www.theeastafrican.co.ke/rss")
-            count = 0
-            for entry in eastafrican_feed.entries:
-                if count >= 3:
-                    break
-                title_lower = entry.title.lower()
-                if any(word in title_lower for word in ['farm', 'agriculture', 'crop', 'harvest', 'food']):
-                    articles.append({
-                        "title": entry.title,
-                        "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
-                        "url": entry.link,
-                        "source": "🌍 The EastAfrican",
-                        "date": entry.get("published", "Recent")
-                    })
-                    count += 1
-            print(f"✅ EastAfrican: {count} articles")
-        except Exception as e:
-            print(f"❌ EastAfrican error: {e}")
-
-        # Cache the results
-        st.session_state[cache_key] = articles
-        st.session_state[cache_time_key] = current_time
-
-        print(f"📊 TOTAL articles: {len(articles)}")
+        # Cache and return
         return articles
     except Exception as e:
         print(f"❌ News fetch error: {e}")
         return []
+
 
 def fetch_live_kalro_updates():
     """Fetch latest updates from KALRO website"""
