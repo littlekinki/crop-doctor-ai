@@ -4245,6 +4245,15 @@ def fetch_live_kenya_met_warnings():
 def fetch_live_agriculture_news():
     """Fetch live agriculture news from reliable Kenyan sources"""
     try:
+        # Cache news for 15 minutes
+        cache_key = 'news_cache'
+        cache_time_key = 'news_time'
+
+        current_time = time.time()
+        if cache_key in st.session_state and cache_time_key in st.session_state:
+            if current_time - st.session_state[cache_time_key] < 900:
+                return st.session_state[cache_key]
+
         articles = []
 
         # ============================================================
@@ -4269,14 +4278,28 @@ def fetch_live_agriculture_news():
             print(f"❌ Standard error: {e}")
 
         # ============================================================
-        # SOURCE 2: KNA - Try multiple URL formats
+        # SOURCE 2: KNA - Try multiple URL formats with agriculture filtering
         # ============================================================
+        # Keywords to filter agriculture-related articles
+        agri_keywords = [
+            'farm', 'farming', 'agriculture', 'agricultural', 'crop', 'crops',
+            'harvest', 'harvesting', 'plant', 'planting', 'seed', 'seeds',
+            'fertilizer', 'fertiliser', 'pesticide', 'herbicide', 'fungicide',
+            'livestock', 'cattle', 'goat', 'sheep', 'poultry', 'chicken',
+            'maize', 'corn', 'beans', 'tomato', 'potato', 'vegetable', 'fruit',
+            'irrigation', 'drip', 'sprinkler', 'water', 'rainfall', 'drought',
+            'soil', 'compost', 'manure', 'organic', 'greenhouse', 'tunnel',
+            'agro', 'agri', 'horticulture', 'floriculture', 'dairy', 'milk',
+            'extension', 'farmer', 'agrovet', 'veterinary', 'kephis', 'kalro'
+        ]
+
         kna_urls = [
             "https://www.kenyanews.go.ke/category/agri/feed/",
             "https://www.kenyanews.go.ke/feed/",
             "https://www.kenyanews.go.ke/category/agriculture/feed/"
         ]
 
+        kna_articles = []
         for url in kna_urls:
             try:
                 kna_feed = feedparser.parse(url)
@@ -4285,22 +4308,55 @@ def fetch_live_agriculture_news():
                     for entry in kna_feed.entries:
                         if count >= 5:
                             break
-                        articles.append({
-                            "title": entry.title,
-                            "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
-                            "url": entry.link,
-                            "source": "📰 Kenya News Agency",
-                            "date": entry.get("published", "Recent")
-                        })
-                        count += 1
-                    print(f"✅ KNA ({url}): {count} articles")
-                    break  # Stop if this URL worked
+                        # Check if article is agriculture-related
+                        title_lower = entry.title.lower()
+                        summary_lower = entry.summary.lower() if hasattr(entry, 'summary') else ''
+
+                        is_agriculture = any(
+                            keyword in title_lower or keyword in summary_lower
+                            for keyword in agri_keywords
+                        )
+
+                        if is_agriculture:
+                            kna_articles.append({
+                                "title": entry.title,
+                                "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
+                                "url": entry.link,
+                                "source": "📰 Kenya News Agency",
+                                "date": entry.get("published", "Recent")
+                            })
+                            count += 1
+
+                    if kna_articles:
+                        articles.extend(kna_articles)
+                        print(f"✅ KNA ({url}): {len(kna_articles)} agriculture articles")
+                        break  # Stop if this URL worked and returned articles
+                    else:
+                        print(f"⚠️ KNA ({url}): No agriculture articles found")
             except Exception as e:
                 print(f"❌ KNA ({url}) error: {e}")
                 continue
 
         # ============================================================
-        # SOURCE 3: Nation Africa - Seeds of Gold
+        # SOURCE 3: KALRO Updates (Scraping fallback)
+        # ============================================================
+        try:
+            kalro_articles = fetch_live_kalro_updates()
+            if kalro_articles:
+                for article in kalro_articles:
+                    articles.append({
+                        "title": article.get("title", "KALRO Update"),
+                        "summary": article.get("summary", "Click to read more"),
+                        "url": article.get("url", "https://kalro.org"),
+                        "source": "🔬 KALRO",
+                        "date": "Recent"
+                    })
+                print(f"✅ KALRO: {len(kalro_articles)} articles")
+        except Exception as e:
+            print(f"❌ KALRO error: {e}")
+
+        # ============================================================
+        # SOURCE 4: Nation Africa - Seeds of Gold (Direct Link)
         # ============================================================
         articles.append({
             "title": "Nation Africa - Seeds of Gold",
@@ -4310,12 +4366,55 @@ def fetch_live_agriculture_news():
             "date": "Visit website"
         })
 
-        # Cache and return
-        return articles
+        # ============================================================
+        # SOURCE 5: The EastAfrican - Agriculture filter
+        # ============================================================
+        try:
+            eastafrican_feed = feedparser.parse("https://www.theeastafrican.co.ke/rss")
+            count = 0
+            for entry in eastafrican_feed.entries:
+                if count >= 3:
+                    break
+                title_lower = entry.title.lower()
+                summary_lower = entry.summary.lower() if hasattr(entry, 'summary') else ''
+
+                if any(keyword in title_lower or keyword in summary_lower for keyword in agri_keywords):
+                    articles.append({
+                        "title": entry.title,
+                        "summary": entry.summary[:300] + "..." if len(entry.summary) > 300 else entry.summary,
+                        "url": entry.link,
+                        "source": "🌍 The EastAfrican",
+                        "date": entry.get("published", "Recent")
+                    })
+                    count += 1
+            print(f"✅ EastAfrican: {count} agriculture articles")
+        except Exception as e:
+            print(f"❌ EastAfrican error: {e}")
+
+        # ============================================================
+        # Limit total articles and remove duplicates
+        # ============================================================
+        # Remove duplicates based on title
+        seen_titles = set()
+        unique_articles = []
+        for article in articles:
+            title_key = article['title'].lower().strip()
+            if title_key not in seen_titles:
+                seen_titles.add(title_key)
+                unique_articles.append(article)
+
+        # Limit to 15 articles total
+        unique_articles = unique_articles[:15]
+
+        # Cache the results
+        st.session_state[cache_key] = unique_articles
+        st.session_state[cache_time_key] = current_time
+
+        print(f"📊 TOTAL agriculture articles: {len(unique_articles)}")
+        return unique_articles
     except Exception as e:
         print(f"❌ News fetch error: {e}")
         return []
-
 
 def fetch_live_kalro_updates():
     """Fetch latest updates from KALRO website"""
