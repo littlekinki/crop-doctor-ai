@@ -62,4 +62,3 @@ Feel free to open issues or submit pull requests!
 
 ---
 
-That's it! Your README will now have the Dataset section right where it should be. 🚀
