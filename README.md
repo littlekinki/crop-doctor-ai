@@ -1,37 +1,30 @@
----
-title: Crop Doctor
-emoji: 🌾
-colorFrom: green
-colorTo: green
-sdk: docker
-sdk_version: 1.0.0
-app_file: streamlit_app.py
-app_port: 7860
-pinned: false
----
+# 🌾 Crop Doctor AI
 
-# 🌾 Crop Doctor
+> AI-powered tool that detects crop diseases from images using Python, PyTorch, and OpenCV
 
-AI-powered crop disease diagnosis and treatment recommendation system for farmers.
+## 🚀 Live Demo
+[Try it here](https://huggingface.co/spaces/dosuto/crop-doctor-system)
 
-## Features
-- Instant disease diagnosis from photos
-- Grad-CAM heatmap visualization
-- Treatment recommendations
-- Weather integration
-- Exportable reports
+## 📋 Features
+- 🔍 Detects diseases in crop images
+- 🧠 Built with PyTorch and OpenCV
+- 🌐 Deployed on Hugging Face Spaces
+- 📊 Real-time image processing
 
-## Supported Crops
-- 🌽 Maize (11 diseases)
-- 🫘 Beans (4 diseases)
-- 🍅 Tomato (16 diseases)
+## 🛠️ Tech Stack
+- **Language:** Python
+- **Frameworks:** PyTorch, OpenCV
+- **Deployment:** Hugging Face Spaces
+- **Tools:** Git, NVIDIA DLI
 
-## How to Use
-1. Take a photo of the affected crop
-2. Upload the image
-3. Get instant diagnosis and treatment advice
+## 📦 Installation
 
-## Important Notes
-- Diagnosis is AI-assisted with confidence scores
-- Treatments curated from verified sources
-- Always consult local experts before applying chemicals
+```bash
+# Clone the repository
+git clone https://github.com/littlekinki/crop-doctor-ai.git
+
+# Navigate to the project
+cd crop-doctor-ai
+
+# Install dependencies
+pip install -r requirements.txt
